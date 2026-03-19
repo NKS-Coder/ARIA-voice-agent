@@ -1,0 +1,884 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ARIA — Voice AI Agent</title>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=Playfair+Display:wght@700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg:      #08090f;
+  --bg1:     #0d0f1a;
+  --surface: rgba(255,255,255,0.04);
+  --surface2:rgba(255,255,255,0.07);
+  --border:  rgba(255,255,255,0.08);
+  --border2: rgba(255,255,255,0.13);
+  --gold:    #c9a84c;
+  --gold-lt: #f0d080;
+  --teal:    #4ecdc4;
+  --rose:    #ff6b9d;
+  --green:   #34d399;
+  --text:    #eef0ff;
+  --muted:   #626888;
+  --muted2:  #8a92b8;
+  --radius:  12px;
+  --sidebar: 290px;
+}
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box;}
+body{background:var(--bg);color:var(--text);font-family:'Outfit',sans-serif;height:100vh;overflow:hidden;display:flex;flex-direction:column;}
+body::before{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;
+  background:radial-gradient(ellipse 65% 55% at 25% 15%,rgba(201,168,76,0.07) 0%,transparent 65%),
+             radial-gradient(ellipse 55% 65% at 78% 82%,rgba(78,205,196,0.06) 0%,transparent 65%);
+  animation:amb 12s ease-in-out infinite alternate;}
+@keyframes amb{0%{opacity:1;}100%{opacity:0.5;}}
+
+/* HEADER */
+.hdr{position:relative;z-index:30;flex-shrink:0;height:58px;padding:0 24px;
+  display:flex;align-items:center;justify-content:space-between;
+  border-bottom:1px solid var(--border);background:rgba(8,9,15,0.92);backdrop-filter:blur(20px);}
+.logo{display:flex;align-items:center;gap:12px;}
+.logo-orb{width:34px;height:34px;border-radius:50%;border:1.5px solid var(--gold);
+  display:flex;align-items:center;justify-content:center;box-shadow:0 0 16px rgba(201,168,76,0.35);
+  animation:oglow 3s ease-in-out infinite;}
+@keyframes oglow{0%,100%{box-shadow:0 0 16px rgba(201,168,76,0.35);}50%{box-shadow:0 0 28px rgba(201,168,76,0.55);}}
+.logo-core{width:18px;height:18px;border-radius:50%;background:radial-gradient(circle,var(--gold-lt),var(--gold));}
+.logo-name{font-family:'Playfair Display',serif;font-size:1.35rem;font-weight:700;color:var(--gold);letter-spacing:0.18em;}
+.logo-tag{font-size:0.52rem;color:var(--muted2);letter-spacing:0.26em;text-transform:uppercase;margin-top:1px;}
+.hdr-right{display:flex;align-items:center;gap:10px;}
+.chip{display:flex;align-items:center;gap:7px;background:var(--surface2);border:1px solid var(--border2);
+  border-radius:20px;padding:5px 13px;font-size:0.62rem;color:var(--muted2);letter-spacing:0.06em;white-space:nowrap;}
+.chip.gold{background:rgba(201,168,76,0.08);border-color:rgba(201,168,76,0.22);color:var(--gold);}
+.live-dot{width:7px;height:7px;border-radius:50%;background:var(--teal);box-shadow:0 0 8px var(--teal);animation:blink 2.5s ease-in-out infinite;}
+@keyframes blink{0%,100%{opacity:1;}50%{opacity:0.25;}}
+.gear-btn{width:34px;height:34px;border-radius:50%;background:var(--surface);border:1px solid var(--border2);
+  color:var(--muted2);cursor:pointer;font-size:0.95rem;display:flex;align-items:center;justify-content:center;transition:all 0.2s;}
+.gear-btn:hover{background:var(--surface2);color:var(--gold);border-color:rgba(201,168,76,0.3);}
+
+/* LAYOUT */
+.layout{position:relative;z-index:10;flex:1;display:flex;overflow:hidden;}
+
+/* CENTER */
+.center{flex:1;display:flex;flex-direction:column;align-items:center;overflow:hidden;border-right:1px solid var(--border);}
+.mic-stage{flex-shrink:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;padding:28px 20px 16px;}
+
+/* MIC RINGS — static, professional */
+.ring3{width:192px;height:192px;border-radius:50%;border:1px solid rgba(201,168,76,0.12);
+  display:flex;align-items:center;justify-content:center;position:relative;
+  animation:ring-pulse 4s ease-in-out infinite;}
+@keyframes ring-pulse{0%,100%{border-color:rgba(201,168,76,0.12);}50%{border-color:rgba(201,168,76,0.28);box-shadow:0 0 20px rgba(201,168,76,0.06);}}
+.ring2{width:156px;height:156px;border-radius:50%;border:1px solid rgba(201,168,76,0.18);display:flex;align-items:center;justify-content:center;}
+.ring1{width:122px;height:122px;border-radius:50%;border:1px solid rgba(201,168,76,0.28);display:flex;align-items:center;justify-content:center;}
+
+/* MIC BUTTON */
+.mic-btn{width:94px;height:94px;border-radius:50%;
+  background:radial-gradient(circle at 36% 36%,rgba(201,168,76,0.22),rgba(201,168,76,0.05) 55%,transparent);
+  border:2px solid rgba(201,168,76,0.4);display:flex;align-items:center;justify-content:center;
+  cursor:pointer;user-select:none;font-size:2.1rem;transition:all 0.3s ease;
+  box-shadow:0 0 35px rgba(201,168,76,0.14),inset 0 0 25px rgba(201,168,76,0.04);}
+.mic-btn:hover{transform:scale(1.07);border-color:rgba(201,168,76,0.7);box-shadow:0 0 55px rgba(201,168,76,0.28);}
+.mic-btn.listening{border-color:var(--rose);background:radial-gradient(circle at 36% 36%,rgba(255,107,157,0.22),transparent);animation:mlisten 0.9s ease-in-out infinite;}
+@keyframes mlisten{0%,100%{box-shadow:0 0 35px rgba(255,107,157,0.32);}50%{box-shadow:0 0 70px rgba(255,107,157,0.58);}}
+.mic-btn.speaking{border-color:var(--teal);background:radial-gradient(circle at 36% 36%,rgba(78,205,196,0.18),transparent);box-shadow:0 0 50px rgba(78,205,196,0.32);}
+
+.mic-lbl{font-size:0.75rem;font-weight:500;color:var(--muted2);letter-spacing:0.14em;text-transform:uppercase;min-height:18px;transition:color 0.3s;}
+
+/* VISUALIZER */
+.viz{display:flex;align-items:center;gap:3px;height:34px;}
+.vb{width:3px;border-radius:3px;background:linear-gradient(to top,var(--gold),var(--teal));height:4px;opacity:0.35;}
+.viz.on .vb{opacity:1;animation:vw 0.65s ease-in-out infinite;}
+.vb:nth-child(1){animation-delay:0s}.vb:nth-child(2){animation-delay:.05s}.vb:nth-child(3){animation-delay:.10s}
+.vb:nth-child(4){animation-delay:.15s}.vb:nth-child(5){animation-delay:.20s}.vb:nth-child(6){animation-delay:.15s}
+.vb:nth-child(7){animation-delay:.10s}.vb:nth-child(8){animation-delay:.05s}.vb:nth-child(9){animation-delay:0s}
+.vb:nth-child(10){animation-delay:.05s}.vb:nth-child(11){animation-delay:.10s}.vb:nth-child(12){animation-delay:.15s}
+.vb:nth-child(13){animation-delay:.20s}.vb:nth-child(14){animation-delay:.15s}.vb:nth-child(15){animation-delay:.10s}
+@keyframes vw{0%,100%{height:4px;}50%{height:26px;}}
+
+/* CONVERSATION */
+.conv{flex:1;width:100%;max-width:700px;align-self:center;display:flex;flex-direction:column;padding:0 24px 16px;overflow:hidden;gap:8px;}
+.conv-lbl{font-size:0.56rem;color:var(--muted);letter-spacing:0.2em;text-transform:uppercase;flex-shrink:0;}
+.msgs{flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:10px;padding-right:4px;
+  scrollbar-width:thin;scrollbar-color:rgba(255,255,255,0.05) transparent;}
+.msgs::-webkit-scrollbar{width:3px;}.msgs::-webkit-scrollbar-thumb{background:rgba(255,255,255,0.05);}
+.msg{display:flex;gap:9px;animation:pop 0.28s ease-out;}
+@keyframes pop{from{opacity:0;transform:translateY(7px);}to{opacity:1;transform:translateY(0);}}
+.msg.user{flex-direction:row-reverse;}
+.av{width:28px;height:28px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:0.68rem;font-weight:700;}
+.msg.user .av{background:rgba(201,168,76,0.14);border:1px solid rgba(201,168,76,0.28);color:var(--gold);}
+.msg.assistant .av{background:rgba(78,205,196,0.1);border:1px solid rgba(78,205,196,0.28);color:var(--teal);}
+.bbl{max-width:78%;padding:10px 14px;font-size:0.82rem;line-height:1.75;}
+.msg.user .bbl{background:rgba(201,168,76,0.08);border:1px solid rgba(201,168,76,0.16);border-radius:var(--radius) var(--radius) 4px var(--radius);}
+.msg.assistant .bbl{background:var(--surface2);border:1px solid var(--border2);border-radius:var(--radius) var(--radius) var(--radius) 4px;}
+.msg.err .bbl{background:rgba(255,107,157,0.07);border:1px solid rgba(255,107,157,0.2);color:#ff9bbd;}
+.msg-time{font-size:0.54rem;color:var(--muted);margin-top:3px;padding:0 2px;}
+.think{display:flex;align-items:center;gap:8px;font-size:0.66rem;color:var(--muted);padding:3px 0;flex-shrink:0;}
+.tdots span{display:inline-block;width:5px;height:5px;border-radius:50%;background:var(--teal);margin-right:3px;opacity:0.4;animation:td 1.3s ease-in-out infinite;}
+.tdots span:nth-child(2){animation-delay:.2s}.tdots span:nth-child(3){animation-delay:.4s}
+@keyframes td{0%,80%,100%{transform:scale(.5);opacity:.3;}40%{transform:scale(1);opacity:1;}}
+.hidden{display:none !important;}
+
+/* INPUT */
+.inp-row{display:flex;gap:8px;align-items:flex-end;flex-shrink:0;}
+.inp-wrap{flex:1;background:var(--surface2);border:1px solid var(--border2);border-radius:var(--radius);
+  padding:3px 3px 3px 14px;display:flex;align-items:flex-end;transition:border-color 0.2s,box-shadow 0.2s;}
+.inp-wrap:focus-within{border-color:rgba(201,168,76,0.42);box-shadow:0 0 0 3px rgba(201,168,76,0.07);}
+textarea{flex:1;background:transparent;border:none;outline:none;color:var(--text);font-family:'Outfit',sans-serif;
+  font-size:0.84rem;line-height:1.6;padding:10px 0;resize:none;min-height:42px;max-height:110px;}
+textarea::placeholder{color:var(--muted);}
+.send{background:var(--gold);color:#08090f;border:none;border-radius:10px;padding:10px 20px;
+  font-family:'Outfit',sans-serif;font-size:0.8rem;font-weight:600;cursor:pointer;transition:all 0.2s;
+  height:44px;white-space:nowrap;align-self:flex-end;margin:3px;flex-shrink:0;}
+.send:hover:not(:disabled){background:var(--gold-lt);box-shadow:0 4px 18px rgba(201,168,76,0.32);transform:translateY(-1px);}
+.send:disabled{background:rgba(255,255,255,0.06);color:var(--muted);cursor:not-allowed;transform:none;}
+
+/* SIDEBAR */
+.sidebar{width:var(--sidebar);flex-shrink:0;overflow-y:auto;padding:16px 14px;display:flex;flex-direction:column;gap:12px;
+  scrollbar-width:thin;scrollbar-color:rgba(255,255,255,0.05) transparent;}
+.sidebar::-webkit-scrollbar{width:3px;}.sidebar::-webkit-scrollbar-thumb{background:rgba(255,255,255,0.05);}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:13px;display:flex;flex-direction:column;gap:9px;flex-shrink:0;}
+.card-title{font-size:0.56rem;font-weight:600;letter-spacing:0.2em;text-transform:uppercase;color:var(--muted2);padding-bottom:8px;border-bottom:1px solid var(--border);}
+.stats{display:grid;grid-template-columns:1fr 1fr 1fr;gap:5px;}
+.stat{background:rgba(255,255,255,0.03);border:1px solid var(--border);border-radius:9px;padding:9px 6px;text-align:center;}
+.sv{font-size:1.05rem;font-weight:700;color:var(--gold);}
+.sl{font-size:0.48rem;color:var(--muted);text-transform:uppercase;letter-spacing:0.08em;margin-top:2px;}
+.pgrid{display:grid;grid-template-columns:1fr 1fr;gap:5px;}
+.pcard{padding:9px;border:1px solid var(--border);border-radius:10px;cursor:pointer;transition:all 0.18s;background:transparent;color:var(--text);font-family:'Outfit',sans-serif;text-align:left;}
+.pcard:hover{border-color:rgba(201,168,76,0.32);background:rgba(201,168,76,0.05);}
+.pcard.active{border-color:rgba(201,168,76,0.52);background:rgba(201,168,76,0.09);}
+.pico{font-size:0.9rem;margin-bottom:3px;}.pname{font-size:0.64rem;font-weight:600;}.pdesc{font-size:0.52rem;color:var(--muted2);margin-top:1px;}
+.row{display:flex;align-items:center;justify-content:space-between;padding:5px 0;border-bottom:1px solid rgba(255,255,255,0.04);gap:8px;}
+.row:last-child{border-bottom:none;padding-bottom:0;}
+.rl{font-size:0.68rem;font-weight:500;color:var(--text);}.rs{font-size:0.55rem;color:var(--muted);margin-top:1px;}
+.tog{position:relative;width:33px;height:18px;cursor:pointer;flex-shrink:0;}
+.tog input{display:none;}
+.trk{width:33px;height:18px;border-radius:9px;background:rgba(255,255,255,0.08);position:relative;transition:background .2s;}
+.trk::after{content:'';position:absolute;width:12px;height:12px;border-radius:50%;background:var(--muted);top:3px;left:3px;transition:all .2s;}
+.tog input:checked + .trk{background:var(--gold);}
+.tog input:checked + .trk::after{background:#08090f;transform:translateX(15px);}
+.sel{background:#0d0f1a;border:1px solid var(--border2);color:var(--text);font-family:'Outfit',sans-serif;
+  font-size:0.65rem;padding:4px 7px;border-radius:8px;cursor:pointer;outline:none;max-width:130px;}
+.sel:focus{border-color:rgba(201,168,76,0.4);}
+.sel option{background:#0d0f1a;color:var(--text);}
+.rng{accent-color:var(--gold);cursor:pointer;width:86px;}
+
+/* APP ITEMS */
+.app-item{display:flex;align-items:center;justify-content:space-between;padding:6px 0;border-bottom:1px solid rgba(255,255,255,0.04);gap:8px;}
+.app-item:last-child{border-bottom:none;}
+.app-left{display:flex;align-items:center;gap:8px;}
+.app-icon{font-size:0.95rem;width:24px;text-align:center;}
+.app-name{font-size:0.68rem;font-weight:500;}
+.app-sub{font-size:0.55rem;margin-top:1px;}
+
+/* MODAL */
+.modal-overlay{position:fixed;inset:0;z-index:100;background:rgba(0,0,0,0.75);backdrop-filter:blur(8px);
+  display:flex;align-items:center;justify-content:center;opacity:0;pointer-events:none;transition:opacity 0.25s;}
+.modal-overlay.open{opacity:1;pointer-events:all;}
+.modal{background:var(--bg1);border:1px solid var(--border2);border-radius:18px;padding:26px;
+  width:480px;max-width:95vw;max-height:88vh;overflow-y:auto;display:flex;flex-direction:column;gap:16px;
+  box-shadow:0 24px 80px rgba(0,0,0,0.65);transform:translateY(12px);transition:transform 0.25s;
+  scrollbar-width:thin;}
+.modal-overlay.open .modal{transform:translateY(0);}
+.modal-hdr{display:flex;align-items:center;justify-content:space-between;}
+.modal-title{font-size:1rem;font-weight:700;color:var(--gold);font-family:'Playfair Display',serif;}
+.close-btn{width:30px;height:30px;border-radius:50%;background:var(--surface2);border:1px solid var(--border2);
+  color:var(--muted2);cursor:pointer;font-size:1rem;display:flex;align-items:center;justify-content:center;transition:all 0.2s;}
+.close-btn:hover{background:rgba(255,107,157,0.1);color:var(--rose);}
+.modal-tabs{display:flex;gap:6px;background:var(--surface);border-radius:10px;padding:4px;}
+.mtab{flex:1;padding:7px;border:none;border-radius:8px;font-family:'Outfit',sans-serif;font-size:0.7rem;font-weight:500;cursor:pointer;transition:all 0.18s;background:transparent;color:var(--muted2);}
+.mtab.active{background:rgba(201,168,76,0.15);color:var(--gold);font-weight:600;}
+.tab-panel{display:none;flex-direction:column;gap:14px;}
+.tab-panel.active{display:flex;}
+.msec{font-size:0.6rem;font-weight:600;letter-spacing:0.18em;text-transform:uppercase;color:var(--muted2);padding-bottom:8px;border-bottom:1px solid var(--border);}
+.app-card{display:flex;align-items:center;justify-content:space-between;background:var(--surface);border:1px solid var(--border);border-radius:11px;padding:13px 14px;gap:12px;transition:border-color 0.2s;}
+.app-card.connected{border-color:rgba(52,211,153,0.25);background:rgba(52,211,153,0.04);}
+.ac-left{display:flex;align-items:center;gap:12px;}
+.ac-ico{font-size:1.4rem;width:32px;text-align:center;}
+.ac-name{font-size:0.8rem;font-weight:600;}
+.ac-desc{font-size:0.6rem;color:var(--muted);margin-top:2px;}
+.ac-btn{padding:7px 16px;border-radius:8px;font-family:'Outfit',sans-serif;font-size:0.7rem;font-weight:600;cursor:pointer;transition:all 0.18s;white-space:nowrap;border:none;}
+.ac-btn.con{background:linear-gradient(135deg,var(--gold),#9a7330);color:#08090f;}
+.ac-btn.con:hover{transform:translateY(-1px);box-shadow:0 4px 14px rgba(201,168,76,0.3);}
+.ac-btn.dis{background:rgba(255,107,157,0.08);color:var(--rose);border:1px solid rgba(255,107,157,0.2);font-size:0.62rem;padding:5px 10px;}
+.fld{display:flex;flex-direction:column;gap:5px;}
+.flbl{font-size:0.65rem;font-weight:600;color:var(--muted2);}
+.finp{width:100%;background:var(--surface2);border:1px solid var(--border2);color:var(--text);font-family:'Outfit',sans-serif;font-size:0.7rem;padding:9px 12px;outline:none;border-radius:9px;transition:border-color .2s;}
+.finp:focus{border-color:rgba(201,168,76,0.45);}
+.finp option{background:#0d0f1a;color:var(--text);}
+.fhint{font-size:0.57rem;color:var(--muted);line-height:1.65;}
+.msave{width:100%;background:linear-gradient(135deg,var(--gold),#9a7330);color:#08090f;border:none;border-radius:10px;padding:11px;font-family:'Outfit',sans-serif;font-size:0.8rem;font-weight:700;cursor:pointer;transition:all 0.2s;}
+.msave:hover{transform:translateY(-1px);box-shadow:0 6px 22px rgba(201,168,76,0.3);}
+.saved{font-size:0.65rem;color:var(--green);text-align:center;display:none;}
+.note{background:rgba(78,205,196,0.06);border:1px solid rgba(78,205,196,0.18);border-radius:9px;padding:10px 13px;font-size:0.63rem;color:var(--teal);line-height:1.7;}
+.warn{background:rgba(255,107,157,0.06);border:1px solid rgba(255,107,157,0.18);border-radius:9px;padding:10px 13px;font-size:0.63rem;color:#ff9bbd;line-height:1.7;}
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<header class="hdr">
+  <div class="logo">
+    <div class="logo-orb"><div class="logo-core"></div></div>
+    <div><div class="logo-name">ARIA</div><div class="logo-tag">Voice AI Agent</div></div>
+  </div>
+  <div class="hdr-right">
+    <div class="chip"><div class="live-dot"></div><span id="statusChip">Online</span></div>
+    <div class="chip gold">⚡ Llama 3.3 · 70B</div>
+    <button class="gear-btn" id="gearBtn">⚙️</button>
+  </div>
+</header>
+
+<!-- LAYOUT -->
+<div class="layout">
+
+  <!-- CENTER -->
+  <main class="center">
+    <div class="mic-stage">
+      <div class="ring3"><div class="ring2"><div class="ring1">
+        <div class="mic-btn" id="micBtn">🎙️</div>
+      </div></div></div>
+      <div class="mic-lbl" id="micLbl">Click to speak</div>
+      <div class="viz" id="viz">
+        <div class="vb"></div><div class="vb"></div><div class="vb"></div><div class="vb"></div><div class="vb"></div>
+        <div class="vb"></div><div class="vb"></div><div class="vb"></div><div class="vb"></div><div class="vb"></div>
+        <div class="vb"></div><div class="vb"></div><div class="vb"></div><div class="vb"></div><div class="vb"></div>
+      </div>
+    </div>
+    <div class="conv">
+      <div class="conv-lbl">// Conversation</div>
+      <div class="msgs" id="msgs"></div>
+      <div class="think hidden" id="think"><div class="tdots"><span></span><span></span><span></span></div>ARIA is thinking...</div>
+      <div class="inp-row">
+        <div class="inp-wrap"><textarea id="inp" placeholder="Type here or click the mic..." rows="1"></textarea></div>
+        <button class="send" id="sendBtn">Send</button>
+      </div>
+    </div>
+  </main>
+
+  <!-- SIDEBAR -->
+  <aside class="sidebar">
+
+    <div class="card">
+      <div class="card-title">Session</div>
+      <div class="stats">
+        <div class="stat"><div class="sv" id="sMsgs">0</div><div class="sl">Messages</div></div>
+        <div class="stat"><div class="sv" id="sTime">0s</div><div class="sl">Time</div></div>
+        <div class="stat"><div class="sv" id="sTok">0</div><div class="sl">Tokens</div></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Persona</div>
+      <div class="pgrid">
+        <button class="pcard active" data-p="general"><div class="pico">🤖</div><div class="pname">General</div><div class="pdesc">All-purpose</div></button>
+        <button class="pcard" data-p="sales"><div class="pico">💼</div><div class="pname">Sales</div><div class="pdesc">Lead & convert</div></button>
+        <button class="pcard" data-p="support"><div class="pico">🛠️</div><div class="pname">Support</div><div class="pdesc">Tech help</div></button>
+        <button class="pcard" data-p="research"><div class="pico">🔬</div><div class="pname">Research</div><div class="pdesc">Deep analysis</div></button>
+        <button class="pcard" data-p="jarvis" style="grid-column:span 2"><div class="pico">⚡</div><div class="pname">Jarvis Mode</div><div class="pdesc">Full assistant — like Iron Man</div></button>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Voice</div>
+      <div class="row">
+        <div><div class="rl">Speak Replies</div><div class="rs">ElevenLabs human voice</div></div>
+        <label class="tog"><input type="checkbox" id="voiceOn" checked><div class="trk"></div></label>
+      </div>
+      <div class="row">
+        <div><div class="rl">Voice</div><div class="rs">Select character</div></div>
+        <select class="sel" id="voiceSel">
+          <option value="21m00Tcm4TlvDq8ikWAM">Rachel ♀</option>
+          <option value="AZnzlk1XvdvUeBnXmlld">Domi ♀</option>
+          <option value="EXAVITQu4vr4xnSDxMaL">Bella ♀</option>
+          <option value="ErXwobaYiN019PkySvjV">Antoni ♂</option>
+          <option value="pNInz6obpgDQGcFmaJgB">Adam ♂</option>
+          <option value="VR6AewLTigWG4xSOukaG">Arnold ♂</option>
+        </select>
+      </div>
+      <div class="row">
+        <div><div class="rl">Speed</div><div class="rs">Playback rate</div></div>
+        <input type="range" class="rng" id="spd" min="0.6" max="1.8" step="0.1" value="1">
+      </div>
+      <div class="row">
+        <div><div class="rl">Auto-Listen</div><div class="rs">Mic after reply</div></div>
+        <label class="tog"><input type="checkbox" id="autoOn"><div class="trk"></div></label>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Your Apps</div>
+      <div id="sidebarApps"><div style="font-size:0.63rem;color:var(--muted);text-align:center;padding:6px 0">No apps connected yet.</div></div>
+      <button onclick="openModal('apps')"
+        style="width:100%;background:linear-gradient(135deg,var(--gold),#9a7330);color:#08090f;border:none;
+               border-radius:9px;padding:9px;font-family:'Outfit',sans-serif;font-size:0.72rem;font-weight:700;
+               cursor:pointer;margin-top:2px;transition:all 0.2s;"
+        onmouseover="this.style.transform='translateY(-1px)'"
+        onmouseout="this.style.transform=''">
+        🔗 Connect Apps
+      </button>
+    </div>
+
+  </aside>
+</div>
+
+<!-- SETTINGS MODAL -->
+<div class="modal-overlay" id="modal">
+  <div class="modal">
+    <div class="modal-hdr">
+      <div class="modal-title">⚙️ ARIA Settings</div>
+      <button class="close-btn" id="closeBtn">✕</button>
+    </div>
+
+    <div class="modal-tabs">
+      <button class="mtab active" data-tab="apps">🔗 Apps</button>
+      <button class="mtab" data-tab="voice">🎵 Voice</button>
+      <button class="mtab" data-tab="about">ℹ️ About</button>
+    </div>
+
+    <!-- APPS TAB -->
+    <div class="tab-panel active" id="tab-apps">
+      <div class="note">🔒 Connections use OAuth2 — you log in with your own account. ARIA never sees your password.</div>
+
+      <div class="msec">Google</div>
+      <div class="app-card" id="card-gmail"><div class="ac-left"><div class="ac-ico">📧</div><div><div class="ac-name">Gmail</div><div class="ac-desc" id="desc-gmail">Send, read, sort emails by voice</div></div></div><button class="ac-btn con" id="btn-gmail" onclick="connectApp('gmail')">Connect</button></div>
+      <div class="app-card" id="card-calendar"><div class="ac-left"><div class="ac-ico">📅</div><div><div class="ac-name">Google Calendar</div><div class="ac-desc" id="desc-calendar">Book meetings, check schedule</div></div></div><button class="ac-btn con" id="btn-calendar" onclick="connectApp('calendar')">Connect</button></div>
+
+      <div class="msec">Microsoft</div>
+      <div class="app-card" id="card-outlook"><div class="ac-left"><div class="ac-ico">💼</div><div><div class="ac-name">Outlook</div><div class="ac-desc" id="desc-outlook">Send and read emails</div></div></div><button class="ac-btn con" id="btn-outlook" onclick="connectApp('outlook')">Connect</button></div>
+
+      <div class="msec">Messaging</div>
+      <div class="app-card" id="card-slack"><div class="ac-left"><div class="ac-ico">💬</div><div><div class="ac-name">Slack</div><div class="ac-desc" id="desc-slack">Send messages to channels</div></div></div><button class="ac-btn con" id="btn-slack" onclick="connectApp('slack')">Connect</button></div>
+      <div class="app-card" id="card-discord"><div class="ac-left"><div class="ac-ico">🎮</div><div><div class="ac-name">Discord</div><div class="ac-desc" id="desc-discord">Post to Discord channels</div></div></div><button class="ac-btn con" id="btn-discord" onclick="connectApp('discord')">Connect</button></div>
+
+      <div class="msec">Productivity</div>
+      <div class="app-card" id="card-notion"><div class="ac-left"><div class="ac-ico">📝</div><div><div class="ac-name">Notion</div><div class="ac-desc" id="desc-notion">Create notes and tasks</div></div></div><button class="ac-btn con" id="btn-notion" onclick="connectApp('notion')">Connect</button></div>
+      <div class="app-card" id="card-airtable"><div class="ac-left"><div class="ac-ico">🗃️</div><div><div class="ac-name">Airtable</div><div class="ac-desc" id="desc-airtable">Log data to your bases</div></div></div><button class="ac-btn con" id="btn-airtable" onclick="connectApp('airtable')">Connect</button></div>
+    </div>
+
+    <!-- VOICE TAB -->
+    <div class="tab-panel" id="tab-voice">
+      <div class="note">🎵 ARIA uses <strong>ElevenLabs</strong> human voice. The API key is encrypted in the backend — no setup needed.</div>
+      <div class="fld">
+        <div class="flbl">Voice Character</div>
+        <select class="finp" id="modalVoice" style="cursor:pointer">
+          <option value="21m00Tcm4TlvDq8ikWAM">Rachel — warm natural female</option>
+          <option value="AZnzlk1XvdvUeBnXmlld">Domi — confident female</option>
+          <option value="EXAVITQu4vr4xnSDxMaL">Bella — soft female</option>
+          <option value="ErXwobaYiN019PkySvjV">Antoni — well-rounded male</option>
+          <option value="pNInz6obpgDQGcFmaJgB">Adam — deep male</option>
+          <option value="VR6AewLTigWG4xSOukaG">Arnold — crisp male</option>
+        </select>
+      </div>
+      <div class="fld">
+        <div class="flbl">Speech Speed</div>
+        <input type="range" style="accent-color:var(--gold);width:100%" id="modalSpd" min="0.6" max="1.8" step="0.1" value="1">
+        <div class="fhint">0.6 = slow &nbsp;·&nbsp; 1.0 = normal &nbsp;·&nbsp; 1.8 = fast</div>
+      </div>
+      <button class="msave" id="saveVoice">💾 Save Voice Settings</button>
+      <div class="saved" id="voiceSaved">✓ Saved!</div>
+    </div>
+
+    <!-- ABOUT TAB -->
+    <div class="tab-panel" id="tab-about">
+      <div class="note">
+        <strong>ARIA v8.0</strong> — Built by Nihhar K Sonee (NKS-Coder)<br>
+        Powered by Groq Llama 3.3 70B · ElevenLabs · Cloudflare Workers · Supabase<br><br>
+        🔒 All API keys encrypted in Cloudflare. Nothing stored in your browser except your preferences.
+      </div>
+      <div class="fld">
+        <div class="flbl">Worker Status</div>
+        <div id="workerStatus" class="finp" style="color:var(--muted);font-size:0.65rem">Checking...</div>
+      </div>
+      <div class="fld">
+        <div class="flbl">Session ID</div>
+        <div id="sessionId" class="finp" style="color:var(--muted);font-size:0.65rem">—</div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════════════════
+//  ARIA v8.0
+//  ✅ Microphone: requests permission properly, full error handling
+//  ✅ ElevenLabs: calls Worker /tts endpoint (key hidden in Cloudflare)
+//  ✅ CORS: Worker uses * so GitHub Pages can call it
+//  ✅ Groq AI: calls Worker / endpoint
+//  ✅ No API keys in this file
+// ═══════════════════════════════════════════════════════════════
+
+// ── YOUR WORKER URL ───────────────────────────────────────────
+const W = 'https://ariaproxy.nihharksonee.workers.dev';
+
+// ── APP DEFINITIONS ───────────────────────────────────────────
+const APPS = {
+  gmail:    { name:'Gmail',           icon:'📧', auth:'google',    prompt:null },
+  calendar: { name:'Google Calendar', icon:'📅', auth:'google',    prompt:null },
+  outlook:  { name:'Outlook',         icon:'💼', auth:'microsoft', prompt:null },
+  slack:    { name:'Slack',           icon:'💬', auth:'token',     prompt:'Paste your Slack Bot Token (xoxb-...):\n\nGet it from api.slack.com/apps' },
+  discord:  { name:'Discord',         icon:'🎮', auth:'webhook',   prompt:'Paste your Discord Webhook URL:\n\nGet it from channel Settings → Integrations → Webhooks' },
+  notion:   { name:'Notion',          icon:'📝', auth:'token',     prompt:'Paste your Notion Integration Token (secret_...):\n\nGet it from notion.so/my-integrations' },
+  airtable: { name:'Airtable',        icon:'🗃️', auth:'token',     prompt:'Paste your Airtable Personal Access Token:\n\nGet it from airtable.com/create/tokens' },
+};
+
+// ── STATE ─────────────────────────────────────────────────────
+const S = { msgs:[], listening:false, persona:'general', msgN:0, speaking:false, audio:null };
+
+// ── USER CONFIG (preferences only — no keys) ──────────────────
+const C = {
+  get voice()  { return localStorage.getItem('aria_voice') || '21m00Tcm4TlvDq8ikWAM'; },
+  get speed()  { return parseFloat(localStorage.getItem('aria_speed') || '1'); },
+  get apps()   { try{return JSON.parse(localStorage.getItem('aria_apps')||'{}');}catch{return{};} },
+  setVoice(v)  { localStorage.setItem('aria_voice', v); },
+  setSpeed(v)  { localStorage.setItem('aria_speed', v); },
+  saveApp(n,d) { const a=C.apps; a[n]=d; localStorage.setItem('aria_apps',JSON.stringify(a)); },
+  delApp(n)    { const a=C.apps; delete a[n]; localStorage.setItem('aria_apps',JSON.stringify(a)); },
+};
+
+// ── DOM ───────────────────────────────────────────────────────
+const $ = id => document.getElementById(id);
+const D = {
+  msgs:$('msgs'), inp:$('inp'), send:$('sendBtn'), think:$('think'),
+  mic:$('micBtn'), viz:$('viz'), micLbl:$('micLbl'), status:$('statusChip'),
+  nMsgs:$('sMsgs'), nTime:$('sTime'), nTok:$('sTok'),
+  modal:$('modal'), gear:$('gearBtn'), close:$('closeBtn'),
+  apps:$('sidebarApps'), voiceSel:$('voiceSel'), spd:$('spd'),
+};
+
+// ── INIT ──────────────────────────────────────────────────────
+window.addEventListener('load', () => {
+  D.voiceSel.value       = C.voice;
+  D.spd.value            = C.speed;
+  $('modalVoice').value  = C.voice;
+  $('modalSpd').value    = C.speed;
+  $('sessionId').textContent = getSession();
+  syncApps();
+  checkWorker();
+
+  addMsg('assistant', "Hello! I'm ARIA, your personal AI voice assistant. Click the mic and speak, or type below.");
+  speak("Hello! I'm ARIA, your personal AI voice assistant. How can I help you today?");
+});
+
+// ── WORKER HEALTH CHECK ───────────────────────────────────────
+async function checkWorker() {
+  try {
+    const res  = await fetch(`${W}/health`);
+    const data = await res.json();
+    $('workerStatus').textContent = data.status || 'Connected ✅';
+    $('workerStatus').style.color = 'var(--green)';
+  } catch(e) {
+    $('workerStatus').textContent = 'Cannot reach Worker ❌ — check Cloudflare deployment';
+    $('workerStatus').style.color = 'var(--rose)';
+  }
+}
+
+// ── MODAL ─────────────────────────────────────────────────────
+D.gear.addEventListener('click',  () => openModal('apps'));
+D.close.addEventListener('click', () => D.modal.classList.remove('open'));
+D.modal.addEventListener('click', e => { if(e.target===D.modal) D.modal.classList.remove('open'); });
+function openModal(t) { D.modal.classList.add('open'); switchTab(t); }
+document.querySelectorAll('.mtab').forEach(t => t.addEventListener('click', () => switchTab(t.dataset.tab)));
+function switchTab(n) {
+  document.querySelectorAll('.mtab').forEach(t => t.classList.toggle('active', t.dataset.tab===n));
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.toggle('active', p.id==='tab-'+n));
+}
+
+// ── VOICE SETTINGS ────────────────────────────────────────────
+$('saveVoice').addEventListener('click', () => {
+  C.setVoice($('modalVoice').value);
+  C.setSpeed($('modalSpd').value);
+  D.voiceSel.value = $('modalVoice').value;
+  D.spd.value      = $('modalSpd').value;
+  $('voiceSaved').style.display = 'block';
+  setTimeout(() => $('voiceSaved').style.display='none', 2000);
+});
+D.voiceSel.addEventListener('change', () => C.setVoice(D.voiceSel.value));
+
+// ── SESSION TIMER ─────────────────────────────────────────────
+let sec=0;
+setInterval(()=>{ sec++; D.nTime.textContent=sec<60?`${sec}s`:`${Math.floor(sec/60)}m${sec%60}s`; }, 1000);
+
+// ── ELEVENLABS TTS VIA WORKER ─────────────────────────────────
+// Key is encrypted in Cloudflare — browser just calls /tts
+async function speakEL(txt) {
+  try {
+    setMode('generating');
+    const res = await fetch(`${W}/tts`, {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify({ text: txt, voice_id: D.voiceSel.value })
+    });
+
+    if (!res.ok) {
+      console.warn('ElevenLabs via Worker failed:', res.status);
+      fallbackSpeak(txt);
+      return;
+    }
+
+    const blob  = await res.blob();
+    const url   = URL.createObjectURL(blob);
+    const audio = new Audio(url);
+    S.audio     = audio;
+    audio.playbackRate = parseFloat(D.spd.value);
+    audio.onplay  = () => setMode('speaking');
+    audio.onended = audio.onerror = () => {
+      setMode('ready');
+      URL.revokeObjectURL(url);
+      S.audio = null;
+      if ($('autoOn').checked) startListen();
+    };
+    await audio.play();
+  } catch(e) {
+    console.warn('TTS error:', e);
+    fallbackSpeak(txt);
+  }
+}
+
+// Browser voice fallback if ElevenLabs fails
+const synth   = window.speechSynthesis;
+let bVoices   = [];
+function loadBV() {
+  bVoices = synth.getVoices().filter(v=>v.lang.startsWith('en'))
+    .sort((a,b)=>/google|microsoft/i.test(b.name)-/google|microsoft/i.test(a.name));
+}
+if(synth.onvoiceschanged!==undefined) synth.onvoiceschanged=loadBV;
+loadBV();
+
+function fallbackSpeak(txt) {
+  synth.cancel();
+  const u = new SpeechSynthesisUtterance(txt);
+  if(bVoices[0]) u.voice = bVoices[0];
+  u.rate    = parseFloat(D.spd.value);
+  u.onstart = ()=>setMode('speaking');
+  u.onend   = u.onerror = ()=>{ setMode('ready'); if($('autoOn').checked) startListen(); };
+  synth.speak(u);
+}
+
+function speak(txt) {
+  if (!$('voiceOn').checked) return;
+  synth.cancel();
+  if(S.audio){ S.audio.pause(); S.audio=null; }
+  speakEL(txt);
+}
+
+// ── MICROPHONE ────────────────────────────────────────────────
+const SR  = window.SpeechRecognition || window.webkitSpeechRecognition;
+let rec   = null;
+let micOK = false; // tracks if permission granted
+
+function buildRec() {
+  if (!SR) return false;
+  rec = new SR();
+  rec.continuous     = false;
+  rec.interimResults = true;
+  rec.lang           = 'en-US';
+
+  rec.onstart = () => {
+    S.listening = true;
+    setMode('listening');
+  };
+
+  rec.onresult = e => {
+    const transcript = Array.from(e.results).map(r => r[0].transcript).join('');
+    D.inp.value = transcript;
+    autoResize();
+    if (e.results[e.results.length - 1].isFinal) {
+      stopListen();
+      sendMsg();
+    }
+  };
+
+  rec.onerror = e => {
+    console.error('Mic error:', e.error);
+    S.listening = false;
+    setMode('ready');
+
+    if (e.error === 'not-allowed' || e.error === 'permission-denied') {
+      addMsg('assistant',
+        '🎤 Microphone access was blocked. To fix: click the 🔒 lock icon in your browser address bar → Site settings → Microphone → change to Allow → refresh the page.',
+        true);
+    } else if (e.error === 'network') {
+      addMsg('assistant', 'Network error with speech recognition. Make sure you are on HTTPS and using Chrome.', true);
+    } else if (e.error !== 'no-speech' && e.error !== 'aborted') {
+      addMsg('assistant', `Mic issue: ${e.error}. Try refreshing the page.`, true);
+    }
+  };
+
+  rec.onend = () => {
+    if (S.listening) {
+      S.listening = false;
+      setMode('ready');
+    }
+  };
+
+  return true;
+}
+
+async function startListen() {
+  // Must be Chrome or Edge
+  if (!SR) {
+    addMsg('assistant', '⚠️ Voice input requires Chrome or Edge. Please open ARIA in Chrome.', true);
+    return;
+  }
+
+  // Must be HTTPS or localhost
+  if (location.protocol !== 'https:' && location.hostname !== 'localhost') {
+    addMsg('assistant', '⚠️ Microphone only works on HTTPS. Make sure you are using the GitHub Pages URL (https://).', true);
+    return;
+  }
+
+  // Request mic permission explicitly
+  try {
+    await navigator.mediaDevices.getUserMedia({ audio: true });
+    micOK = true;
+  } catch(err) {
+    micOK = false;
+    if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
+      addMsg('assistant',
+        '🎤 Microphone access denied. Click the 🔒 lock icon in your address bar → Site settings → Microphone → Allow → refresh the page.',
+        true);
+    } else {
+      addMsg('assistant', `Microphone error: ${err.message}`, true);
+    }
+    return;
+  }
+
+  // Stop any current audio
+  synth.cancel();
+  if (S.audio) { S.audio.pause(); S.audio = null; }
+
+  // Build or rebuild recognition
+  if (!rec) buildRec();
+
+  // Start
+  try {
+    rec.start();
+  } catch(e) {
+    // If already started, stop and retry
+    if (e.name === 'InvalidStateError') {
+      try { rec.stop(); } catch(e2) {}
+      buildRec(); // fresh instance
+      setTimeout(() => {
+        try { rec.start(); }
+        catch(e3) { console.error('Could not start rec:', e3); setMode('ready'); }
+      }, 400);
+    }
+  }
+}
+
+function stopListen() {
+  S.listening = false;
+  setMode('ready');
+  try { rec?.stop(); } catch(e) {}
+}
+
+// Mic button click
+D.mic.addEventListener('click', () => {
+  if (S.listening) {
+    stopListen();
+  } else {
+    startListen();
+  }
+});
+
+// ── MODE ──────────────────────────────────────────────────────
+function setMode(m) {
+  D.mic.classList.remove('listening','speaking');
+  D.viz.classList.remove('on');
+  const map = {
+    ready:      ['Click to speak',     '',          ''],
+    listening:  ['Listening...',       'listening', ''],
+    thinking:   ['Thinking...',        '',          ''],
+    speaking:   ['Speaking...',        'speaking',  'on'],
+    generating: ['Generating voice...','',          ''],
+  };
+  const [lbl, mc, vc] = map[m] || map.ready;
+  D.micLbl.textContent  = lbl;
+  D.status.textContent  = lbl;
+  if (mc) D.mic.classList.add(mc);
+  if (vc) D.viz.classList.add(vc);
+}
+
+// ── MESSAGES ──────────────────────────────────────────────────
+function addMsg(role, txt, err=false) {
+  S.msgN++; D.nMsgs.textContent = S.msgN;
+  const now = new Date().toLocaleTimeString('en-US',{hour12:true,hour:'numeric',minute:'2-digit'});
+  const d   = document.createElement('div');
+  d.className = `msg ${err ? 'err' : role}`;
+  d.innerHTML = `
+    <div class="av">${role==='user'?'Y':'A'}</div>
+    <div>
+      <div class="bbl">${txt.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}</div>
+      <div class="msg-time">${now}</div>
+    </div>`;
+  D.msgs.appendChild(d);
+  D.msgs.scrollTop = D.msgs.scrollHeight;
+}
+
+// ── CALL WORKER ────────────────────────────────────────────────
+async function callWorker(txt) {
+  const res = await fetch(W, {
+    method:  'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      messages:   S.msgs.slice(-12),
+      persona:    S.persona,
+      session_id: getSession(),
+    })
+  });
+  const data = await res.json();
+  if (data.error) throw new Error(data.error);
+  return data.reply;
+}
+
+// ── SEND MESSAGE ───────────────────────────────────────────────
+async function sendMsg() {
+  const txt = D.inp.value.trim();
+  if (!txt || D.send.disabled) return;
+  D.inp.value = ''; autoResize();
+
+  S.msgs.push({ role:'user', content:txt });
+  addMsg('user', txt);
+  D.think.classList.remove('hidden');
+  D.send.disabled = true;
+  setMode('thinking');
+
+  try {
+    const reply = await callWorker(txt);
+    S.msgs.push({ role:'assistant', content:reply });
+    D.think.classList.add('hidden');
+    D.send.disabled = false;
+    addMsg('assistant', reply);
+    speak(reply);
+  } catch(err) {
+    D.think.classList.add('hidden');
+    D.send.disabled = false;
+    setMode('ready');
+    S.msgs.pop();
+    const msg = err.message.includes('fetch')
+      ? 'Cannot reach ARIA backend. Check your internet connection and make sure the Cloudflare Worker is deployed.'
+      : `Error: ${err.message}`;
+    addMsg('assistant', msg, true);
+    speak(msg);
+  }
+}
+
+D.send.addEventListener('click', sendMsg);
+D.inp.addEventListener('keydown', e => {
+  if (e.key==='Enter' && !e.shiftKey) { e.preventDefault(); sendMsg(); }
+});
+function autoResize() {
+  D.inp.style.height = 'auto';
+  D.inp.style.height = Math.min(D.inp.scrollHeight, 110) + 'px';
+}
+D.inp.addEventListener('input', autoResize);
+
+// ── CONNECT APPS ──────────────────────────────────────────────
+function connectApp(name) {
+  const app = APPS[name]; if (!app) return;
+  if (app.auth === 'google' || app.auth === 'microsoft') {
+    const w = window.open(`${W}/auth/${app.auth}/url?app=${name}&session=${getSession()}`, 'oauth', 'width=500,height=620');
+    const t = setInterval(() => {
+      if (w.closed) {
+        clearInterval(t);
+        setTimeout(() => checkAppStatus(name), 800);
+      }
+    }, 600);
+  } else {
+    const val = window.prompt(`Connect ${app.name}\n\n${app.prompt}`, '');
+    if (val?.trim()) {
+      C.saveApp(name, { connected:true, token:val.trim() });
+      fetch(`${W}/connect`, { method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ app:name, token:val.trim(), session:getSession() }) }).catch(()=>{});
+      syncApps();
+      const m = `${app.name} connected! You can now use it with voice commands.`;
+      addMsg('assistant', m); speak(m);
+    }
+  }
+}
+
+function checkAppStatus(name) {
+  fetch(`${W}/auth/status?app=${name}&session=${getSession()}`)
+    .then(r=>r.json())
+    .then(d=>{
+      if (d.connected) {
+        C.saveApp(name, { connected:true, email:d.email||'' });
+        syncApps();
+        const m = `${APPS[name]?.name} connected${d.email?' as '+d.email:''}! Voice commands are now active.`;
+        addMsg('assistant', m); speak(m);
+      }
+    }).catch(()=>{});
+}
+
+function disconnectApp(name) {
+  if (!confirm(`Disconnect ${APPS[name]?.name}?`)) return;
+  C.delApp(name);
+  fetch(`${W}/disconnect`, { method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({ app:name, session:getSession() }) }).catch(()=>{});
+  syncApps();
+}
+
+// ── SYNC APP UI ───────────────────────────────────────────────
+function syncApps() {
+  const apps = C.apps;
+
+  // Modal cards
+  Object.keys(APPS).forEach(name => {
+    const btn  = $(`btn-${name}`);
+    const card = $(`card-${name}`);
+    const desc = $(`desc-${name}`);
+    if (!btn || !card) return;
+    const ok = apps[name]?.connected;
+    card.classList.toggle('connected', ok);
+    if (ok) {
+      if (desc) desc.textContent = apps[name]?.email ? `✓ ${apps[name].email}` : '✓ Connected';
+      btn.textContent = 'Disconnect';
+      btn.className   = 'ac-btn dis';
+      btn.onclick     = () => disconnectApp(name);
+    } else {
+      if (desc) desc.textContent = { gmail:'Send, read, sort emails', calendar:'Book meetings, check schedule', outlook:'Send and read emails', slack:'Send messages to channels', discord:'Post to channels', notion:'Create notes and tasks', airtable:'Log data to your bases' }[name] || '';
+      btn.textContent = 'Connect';
+      btn.className   = 'ac-btn con';
+      btn.onclick     = () => connectApp(name);
+    }
+  });
+
+  // Sidebar summary
+  const connected = Object.keys(apps).filter(k => apps[k]?.connected);
+  D.apps.innerHTML = '';
+  if (!connected.length) {
+    D.apps.innerHTML = '<div style="font-size:0.63rem;color:var(--muted);text-align:center;padding:4px 0">No apps connected yet.</div>';
+    return;
+  }
+  connected.forEach(name => {
+    const app = APPS[name]; if (!app) return;
+    const d   = document.createElement('div');
+    d.className = 'app-item';
+    d.innerHTML = `<div class="app-left"><div class="app-icon">${app.icon}</div>
+      <div><div class="app-name">${app.name}</div>
+      <div class="app-sub" style="color:var(--green)">✓ Active</div></div></div>
+      <div style="width:6px;height:6px;border-radius:50%;background:var(--green);box-shadow:0 0 6px var(--green)"></div>`;
+    D.apps.appendChild(d);
+  });
+}
+
+// ── PERSONAS ──────────────────────────────────────────────────
+document.querySelectorAll('.pcard').forEach(c => {
+  c.addEventListener('click', () => {
+    document.querySelectorAll('.pcard').forEach(x => x.classList.remove('active'));
+    c.classList.add('active');
+    S.persona = c.dataset.p;
+    S.msgs    = [];
+    const m   = `Switched to ${c.querySelector('.pname').textContent}. How can I help?`;
+    addMsg('assistant', m); speak(m);
+  });
+});
+
+// ── SESSION ───────────────────────────────────────────────────
+function getSession() {
+  if (!localStorage.getItem('aria_sid'))
+    localStorage.setItem('aria_sid', 'sess_' + Math.random().toString(36).slice(2,10));
+  return localStorage.getItem('aria_sid');
+}
+</script>
+</body>
+</html>
