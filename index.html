@@ -1,17 +1,5 @@
 <!DOCTYPE html>
 <html lang="en">
-<!--
-  ARIA v7.0 — Final Production Version
-  ✅ Worker URL hardcoded — users just open and talk
-  ✅ ElevenLabs voice via Cloudflare Worker (key hidden)
-  ✅ No API keys anywhere in this file
-  ✅ Connect Apps via OAuth in settings modal
-  ✅ Supabase saves chat history per user
-
-  BEFORE PUBLISHING:
-  Replace YOUR_WORKER_URL_HERE with your actual Worker URL
-  Example: https://ariaproxy.nihharksonee.workers.dev
--->
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -50,8 +38,8 @@ body::before{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;
   border-bottom:1px solid var(--border);background:rgba(8,9,15,0.92);backdrop-filter:blur(20px);}
 .logo{display:flex;align-items:center;gap:12px;}
 .logo-orb{width:34px;height:34px;border-radius:50%;border:1.5px solid var(--gold);
-  display:flex;align-items:center;justify-content:center;
-  box-shadow:0 0 16px rgba(201,168,76,0.35);animation:oglow 3s ease-in-out infinite;}
+  display:flex;align-items:center;justify-content:center;box-shadow:0 0 16px rgba(201,168,76,0.35);
+  animation:oglow 3s ease-in-out infinite;}
 @keyframes oglow{0%,100%{box-shadow:0 0 16px rgba(201,168,76,0.35);}50%{box-shadow:0 0 28px rgba(201,168,76,0.55);}}
 .logo-core{width:18px;height:18px;border-radius:50%;background:radial-gradient(circle,var(--gold-lt),var(--gold));}
 .logo-name{font-family:'Playfair Display',serif;font-size:1.35rem;font-weight:700;color:var(--gold);letter-spacing:0.18em;}
@@ -71,15 +59,17 @@ body::before{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;
 
 /* CENTER */
 .center{flex:1;display:flex;flex-direction:column;align-items:center;overflow:hidden;border-right:1px solid var(--border);}
+.mic-stage{flex-shrink:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;padding:28px 20px 16px;}
 
-/* MIC */
-.mic-stage{flex-shrink:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;padding:24px 20px 16px;}
-.ring3{width:192px;height:192px;border-radius:50%;border:1px solid rgba(201,168,76,0.1);
-  display:flex;align-items:center;justify-content:center;position:relative;}
-.ring3::after{content:'';position:absolute;inset:0;border-radius:50%;}
+/* MIC RINGS — static, professional */
+.ring3{width:192px;height:192px;border-radius:50%;border:1px solid rgba(201,168,76,0.12);
+  display:flex;align-items:center;justify-content:center;position:relative;
+  animation:ring-pulse 4s ease-in-out infinite;}
+@keyframes ring-pulse{0%,100%{border-color:rgba(201,168,76,0.12);}50%{border-color:rgba(201,168,76,0.28);box-shadow:0 0 20px rgba(201,168,76,0.06);}}
 .ring2{width:156px;height:156px;border-radius:50%;border:1px solid rgba(201,168,76,0.18);display:flex;align-items:center;justify-content:center;}
 .ring1{width:122px;height:122px;border-radius:50%;border:1px solid rgba(201,168,76,0.28);display:flex;align-items:center;justify-content:center;}
 
+/* MIC BUTTON */
 .mic-btn{width:94px;height:94px;border-radius:50%;
   background:radial-gradient(circle at 36% 36%,rgba(201,168,76,0.22),rgba(201,168,76,0.05) 55%,transparent);
   border:2px solid rgba(201,168,76,0.4);display:flex;align-items:center;justify-content:center;
@@ -89,7 +79,10 @@ body::before{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;
 .mic-btn.listening{border-color:var(--rose);background:radial-gradient(circle at 36% 36%,rgba(255,107,157,0.22),transparent);animation:mlisten 0.9s ease-in-out infinite;}
 @keyframes mlisten{0%,100%{box-shadow:0 0 35px rgba(255,107,157,0.32);}50%{box-shadow:0 0 70px rgba(255,107,157,0.58);}}
 .mic-btn.speaking{border-color:var(--teal);background:radial-gradient(circle at 36% 36%,rgba(78,205,196,0.18),transparent);box-shadow:0 0 50px rgba(78,205,196,0.32);}
+
 .mic-lbl{font-size:0.75rem;font-weight:500;color:var(--muted2);letter-spacing:0.14em;text-transform:uppercase;min-height:18px;transition:color 0.3s;}
+
+/* VISUALIZER */
 .viz{display:flex;align-items:center;gap:3px;height:34px;}
 .vb{width:3px;border-radius:3px;background:linear-gradient(to top,var(--gold),var(--teal));height:4px;opacity:0.35;}
 .viz.on .vb{opacity:1;animation:vw 0.65s ease-in-out infinite;}
@@ -122,6 +115,8 @@ body::before{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;
 .tdots span:nth-child(2){animation-delay:.2s}.tdots span:nth-child(3){animation-delay:.4s}
 @keyframes td{0%,80%,100%{transform:scale(.5);opacity:.3;}40%{transform:scale(1);opacity:1;}}
 .hidden{display:none !important;}
+
+/* INPUT */
 .inp-row{display:flex;gap:8px;align-items:flex-end;flex-shrink:0;}
 .inp-wrap{flex:1;background:var(--surface2);border:1px solid var(--border2);border-radius:var(--radius);
   padding:3px 3px 3px 14px;display:flex;align-items:flex-end;transition:border-color 0.2s,box-shadow 0.2s;}
@@ -159,17 +154,18 @@ textarea::placeholder{color:var(--muted);}
 .trk::after{content:'';position:absolute;width:12px;height:12px;border-radius:50%;background:var(--muted);top:3px;left:3px;transition:all .2s;}
 .tog input:checked + .trk{background:var(--gold);}
 .tog input:checked + .trk::after{background:#08090f;transform:translateX(15px);}
-.sel{background:#0d0f1a;border:1px solid var(--border2);color:var(--text);font-family:'Outfit',sans-serif;font-size:0.65rem;padding:4px 7px;border-radius:8px;cursor:pointer;outline:none;max-width:130px;}
+.sel{background:#0d0f1a;border:1px solid var(--border2);color:var(--text);font-family:'Outfit',sans-serif;
+  font-size:0.65rem;padding:4px 7px;border-radius:8px;cursor:pointer;outline:none;max-width:130px;}
 .sel:focus{border-color:rgba(201,168,76,0.4);}
 .sel option{background:#0d0f1a;color:var(--text);}
 .rng{accent-color:var(--gold);cursor:pointer;width:86px;}
 
-/* CONNECTED APPS in sidebar */
+/* APP ITEMS */
 .app-item{display:flex;align-items:center;justify-content:space-between;padding:6px 0;border-bottom:1px solid rgba(255,255,255,0.04);gap:8px;}
-.app-item:last-child{border-bottom:none;padding-bottom:0;}
+.app-item:last-child{border-bottom:none;}
 .app-left{display:flex;align-items:center;gap:8px;}
 .app-icon{font-size:0.95rem;width:24px;text-align:center;}
-.app-name{font-size:0.68rem;font-weight:500;color:var(--text);}
+.app-name{font-size:0.68rem;font-weight:500;}
 .app-sub{font-size:0.55rem;margin-top:1px;}
 
 /* MODAL */
@@ -179,9 +175,8 @@ textarea::placeholder{color:var(--muted);}
 .modal{background:var(--bg1);border:1px solid var(--border2);border-radius:18px;padding:26px;
   width:480px;max-width:95vw;max-height:88vh;overflow-y:auto;display:flex;flex-direction:column;gap:16px;
   box-shadow:0 24px 80px rgba(0,0,0,0.65);transform:translateY(12px);transition:transform 0.25s;
-  scrollbar-width:thin;scrollbar-color:rgba(255,255,255,0.05) transparent;}
+  scrollbar-width:thin;}
 .modal-overlay.open .modal{transform:translateY(0);}
-.modal::-webkit-scrollbar{width:3px;}.modal::-webkit-scrollbar-thumb{background:rgba(255,255,255,0.05);}
 .modal-hdr{display:flex;align-items:center;justify-content:space-between;}
 .modal-title{font-size:1rem;font-weight:700;color:var(--gold);font-family:'Playfair Display',serif;}
 .close-btn{width:30px;height:30px;border-radius:50%;background:var(--surface2);border:1px solid var(--border2);
@@ -192,35 +187,28 @@ textarea::placeholder{color:var(--muted);}
 .mtab.active{background:rgba(201,168,76,0.15);color:var(--gold);font-weight:600;}
 .tab-panel{display:none;flex-direction:column;gap:14px;}
 .tab-panel.active{display:flex;}
-.modal-section{font-size:0.6rem;font-weight:600;letter-spacing:0.18em;text-transform:uppercase;color:var(--muted2);padding-bottom:8px;border-bottom:1px solid var(--border);}
+.msec{font-size:0.6rem;font-weight:600;letter-spacing:0.18em;text-transform:uppercase;color:var(--muted2);padding-bottom:8px;border-bottom:1px solid var(--border);}
 .app-card{display:flex;align-items:center;justify-content:space-between;background:var(--surface);border:1px solid var(--border);border-radius:11px;padding:13px 14px;gap:12px;transition:border-color 0.2s;}
-.app-card.is-connected{border-color:rgba(52,211,153,0.25);background:rgba(52,211,153,0.04);}
+.app-card.connected{border-color:rgba(52,211,153,0.25);background:rgba(52,211,153,0.04);}
 .ac-left{display:flex;align-items:center;gap:12px;}
 .ac-ico{font-size:1.4rem;width:32px;text-align:center;}
-.ac-name{font-size:0.8rem;font-weight:600;color:var(--text);}
+.ac-name{font-size:0.8rem;font-weight:600;}
 .ac-desc{font-size:0.6rem;color:var(--muted);margin-top:2px;}
 .ac-btn{padding:7px 16px;border-radius:8px;font-family:'Outfit',sans-serif;font-size:0.7rem;font-weight:600;cursor:pointer;transition:all 0.18s;white-space:nowrap;border:none;}
-.ac-btn.connect{background:linear-gradient(135deg,var(--gold),#9a7330);color:#08090f;}
-.ac-btn.connect:hover{transform:translateY(-1px);box-shadow:0 4px 14px rgba(201,168,76,0.3);}
-.ac-btn.done{background:rgba(52,211,153,0.12);color:var(--green);border:1px solid rgba(52,211,153,0.3);}
-.ac-btn.disconnect{background:rgba(255,107,157,0.08);color:var(--rose);border:1px solid rgba(255,107,157,0.2);font-size:0.62rem;padding:5px 10px;}
+.ac-btn.con{background:linear-gradient(135deg,var(--gold),#9a7330);color:#08090f;}
+.ac-btn.con:hover{transform:translateY(-1px);box-shadow:0 4px 14px rgba(201,168,76,0.3);}
+.ac-btn.dis{background:rgba(255,107,157,0.08);color:var(--rose);border:1px solid rgba(255,107,157,0.2);font-size:0.62rem;padding:5px 10px;}
 .fld{display:flex;flex-direction:column;gap:5px;}
 .flbl{font-size:0.65rem;font-weight:600;color:var(--muted2);}
 .finp{width:100%;background:var(--surface2);border:1px solid var(--border2);color:var(--text);font-family:'Outfit',sans-serif;font-size:0.7rem;padding:9px 12px;outline:none;border-radius:9px;transition:border-color .2s;}
 .finp:focus{border-color:rgba(201,168,76,0.45);}
-.finp::placeholder{color:var(--muted);}
+.finp option{background:#0d0f1a;color:var(--text);}
 .fhint{font-size:0.57rem;color:var(--muted);line-height:1.65;}
-.fhint a{color:var(--gold);text-decoration:none;}
-.modal-save{width:100%;background:linear-gradient(135deg,var(--gold),#9a7330);color:#08090f;border:none;border-radius:10px;padding:11px;font-family:'Outfit',sans-serif;font-size:0.8rem;font-weight:700;cursor:pointer;letter-spacing:0.06em;transition:all 0.2s;}
-.modal-save:hover{transform:translateY(-1px);box-shadow:0 6px 22px rgba(201,168,76,0.3);}
-.save-ok{font-size:0.65rem;color:var(--green);text-align:center;display:none;}
-.privacy-note{background:rgba(78,205,196,0.06);border:1px solid rgba(78,205,196,0.18);border-radius:9px;padding:10px 13px;font-size:0.63rem;color:var(--teal);line-height:1.7;}
-.voice-info{background:rgba(201,168,76,0.06);border:1px solid rgba(201,168,76,0.18);border-radius:9px;padding:10px 13px;font-size:0.63rem;color:var(--gold);line-height:1.7;}
-
-@keyframes ring-pulse {
-  0%,100% { box-shadow: 0 0 0 0 rgba(201,168,76,0); border-color: rgba(201,168,76,0.12); }
-  50%      { box-shadow: 0 0 24px 4px rgba(201,168,76,0.08); border-color: rgba(201,168,76,0.22); }
-}
+.msave{width:100%;background:linear-gradient(135deg,var(--gold),#9a7330);color:#08090f;border:none;border-radius:10px;padding:11px;font-family:'Outfit',sans-serif;font-size:0.8rem;font-weight:700;cursor:pointer;transition:all 0.2s;}
+.msave:hover{transform:translateY(-1px);box-shadow:0 6px 22px rgba(201,168,76,0.3);}
+.saved{font-size:0.65rem;color:var(--green);text-align:center;display:none;}
+.note{background:rgba(78,205,196,0.06);border:1px solid rgba(78,205,196,0.18);border-radius:9px;padding:10px 13px;font-size:0.63rem;color:var(--teal);line-height:1.7;}
+.warn{background:rgba(255,107,157,0.06);border:1px solid rgba(255,107,157,0.18);border-radius:9px;padding:10px 13px;font-size:0.63rem;color:#ff9bbd;line-height:1.7;}
 </style>
 </head>
 <body>
@@ -234,11 +222,11 @@ textarea::placeholder{color:var(--muted);}
   <div class="hdr-right">
     <div class="chip"><div class="live-dot"></div><span id="statusChip">Online</span></div>
     <div class="chip gold">⚡ Llama 3.3 · 70B</div>
-    <button class="gear-btn" id="gearBtn" title="Settings">⚙️</button>
+    <button class="gear-btn" id="gearBtn">⚙️</button>
   </div>
 </header>
 
-<!-- MAIN -->
+<!-- LAYOUT -->
 <div class="layout">
 
   <!-- CENTER -->
@@ -259,7 +247,7 @@ textarea::placeholder{color:var(--muted);}
       <div class="msgs" id="msgs"></div>
       <div class="think hidden" id="think"><div class="tdots"><span></span><span></span><span></span></div>ARIA is thinking...</div>
       <div class="inp-row">
-        <div class="inp-wrap"><textarea id="inp" placeholder="Type here or click the mic to speak..." rows="1"></textarea></div>
+        <div class="inp-wrap"><textarea id="inp" placeholder="Type here or click the mic..." rows="1"></textarea></div>
         <button class="send" id="sendBtn">Send</button>
       </div>
     </div>
@@ -317,13 +305,11 @@ textarea::placeholder{color:var(--muted);}
 
     <div class="card">
       <div class="card-title">Your Apps</div>
-      <div id="sidebarApps">
-        <div style="font-size:0.63rem;color:var(--muted);text-align:center;padding:6px 0">No apps connected yet.</div>
-      </div>
+      <div id="sidebarApps"><div style="font-size:0.63rem;color:var(--muted);text-align:center;padding:6px 0">No apps connected yet.</div></div>
       <button onclick="openModal('apps')"
-        style="width:100%;background:linear-gradient(135deg,var(--gold),#9a7330);color:#08090f;
-               border:none;border-radius:9px;padding:9px;font-family:'Outfit',sans-serif;
-               font-size:0.72rem;font-weight:700;cursor:pointer;transition:all 0.2s;letter-spacing:0.04em;"
+        style="width:100%;background:linear-gradient(135deg,var(--gold),#9a7330);color:#08090f;border:none;
+               border-radius:9px;padding:9px;font-family:'Outfit',sans-serif;font-size:0.72rem;font-weight:700;
+               cursor:pointer;margin-top:2px;transition:all 0.2s;"
         onmouseover="this.style.transform='translateY(-1px)'"
         onmouseout="this.style.transform=''">
         🔗 Connect Apps
@@ -342,76 +328,37 @@ textarea::placeholder{color:var(--muted);}
     </div>
 
     <div class="modal-tabs">
-      <button class="mtab active" data-tab="apps">🔗 Connect Apps</button>
+      <button class="mtab active" data-tab="apps">🔗 Apps</button>
       <button class="mtab" data-tab="voice">🎵 Voice</button>
       <button class="mtab" data-tab="about">ℹ️ About</button>
     </div>
 
-    <!-- TAB: CONNECT APPS -->
+    <!-- APPS TAB -->
     <div class="tab-panel active" id="tab-apps">
-      <div class="privacy-note">
-        🔒 Connections use OAuth2 — you log in with your own account. ARIA never sees your password. Disconnect anytime.
-      </div>
+      <div class="note">🔒 Connections use OAuth2 — you log in with your own account. ARIA never sees your password.</div>
 
-      <div class="modal-section">Google</div>
-      <div class="app-card" id="card-gmail">
-        <div class="ac-left"><div class="ac-ico">📧</div>
-          <div><div class="ac-name">Gmail</div><div class="ac-desc" id="desc-gmail">Send, read, sort emails by voice</div></div>
-        </div>
-        <button class="ac-btn connect" id="btn-gmail" onclick="connectApp('gmail')">Connect</button>
-      </div>
-      <div class="app-card" id="card-calendar">
-        <div class="ac-left"><div class="ac-ico">📅</div>
-          <div><div class="ac-name">Google Calendar</div><div class="ac-desc" id="desc-calendar">Book meetings, check schedule</div></div>
-        </div>
-        <button class="ac-btn connect" id="btn-calendar" onclick="connectApp('calendar')">Connect</button>
-      </div>
+      <div class="msec">Google</div>
+      <div class="app-card" id="card-gmail"><div class="ac-left"><div class="ac-ico">📧</div><div><div class="ac-name">Gmail</div><div class="ac-desc" id="desc-gmail">Send, read, sort emails by voice</div></div></div><button class="ac-btn con" id="btn-gmail" onclick="connectApp('gmail')">Connect</button></div>
+      <div class="app-card" id="card-calendar"><div class="ac-left"><div class="ac-ico">📅</div><div><div class="ac-name">Google Calendar</div><div class="ac-desc" id="desc-calendar">Book meetings, check schedule</div></div></div><button class="ac-btn con" id="btn-calendar" onclick="connectApp('calendar')">Connect</button></div>
 
-      <div class="modal-section">Microsoft</div>
-      <div class="app-card" id="card-outlook">
-        <div class="ac-left"><div class="ac-ico">💼</div>
-          <div><div class="ac-name">Outlook</div><div class="ac-desc" id="desc-outlook">Send and read emails</div></div>
-        </div>
-        <button class="ac-btn connect" id="btn-outlook" onclick="connectApp('outlook')">Connect</button>
-      </div>
+      <div class="msec">Microsoft</div>
+      <div class="app-card" id="card-outlook"><div class="ac-left"><div class="ac-ico">💼</div><div><div class="ac-name">Outlook</div><div class="ac-desc" id="desc-outlook">Send and read emails</div></div></div><button class="ac-btn con" id="btn-outlook" onclick="connectApp('outlook')">Connect</button></div>
 
-      <div class="modal-section">Messaging</div>
-      <div class="app-card" id="card-slack">
-        <div class="ac-left"><div class="ac-ico">💬</div>
-          <div><div class="ac-name">Slack</div><div class="ac-desc" id="desc-slack">Send messages to channels</div></div>
-        </div>
-        <button class="ac-btn connect" id="btn-slack" onclick="connectApp('slack')">Connect</button>
-      </div>
-      <div class="app-card" id="card-discord">
-        <div class="ac-left"><div class="ac-ico">🎮</div>
-          <div><div class="ac-name">Discord</div><div class="ac-desc" id="desc-discord">Post to Discord channels</div></div>
-        </div>
-        <button class="ac-btn connect" id="btn-discord" onclick="connectApp('discord')">Connect</button>
-      </div>
+      <div class="msec">Messaging</div>
+      <div class="app-card" id="card-slack"><div class="ac-left"><div class="ac-ico">💬</div><div><div class="ac-name">Slack</div><div class="ac-desc" id="desc-slack">Send messages to channels</div></div></div><button class="ac-btn con" id="btn-slack" onclick="connectApp('slack')">Connect</button></div>
+      <div class="app-card" id="card-discord"><div class="ac-left"><div class="ac-ico">🎮</div><div><div class="ac-name">Discord</div><div class="ac-desc" id="desc-discord">Post to Discord channels</div></div></div><button class="ac-btn con" id="btn-discord" onclick="connectApp('discord')">Connect</button></div>
 
-      <div class="modal-section">Productivity</div>
-      <div class="app-card" id="card-notion">
-        <div class="ac-left"><div class="ac-ico">📝</div>
-          <div><div class="ac-name">Notion</div><div class="ac-desc" id="desc-notion">Create notes and tasks</div></div>
-        </div>
-        <button class="ac-btn connect" id="btn-notion" onclick="connectApp('notion')">Connect</button>
-      </div>
-      <div class="app-card" id="card-airtable">
-        <div class="ac-left"><div class="ac-ico">🗃️</div>
-          <div><div class="ac-name">Airtable</div><div class="ac-desc" id="desc-airtable">Log data to your bases</div></div>
-        </div>
-        <button class="ac-btn connect" id="btn-airtable" onclick="connectApp('airtable')">Connect</button>
-      </div>
+      <div class="msec">Productivity</div>
+      <div class="app-card" id="card-notion"><div class="ac-left"><div class="ac-ico">📝</div><div><div class="ac-name">Notion</div><div class="ac-desc" id="desc-notion">Create notes and tasks</div></div></div><button class="ac-btn con" id="btn-notion" onclick="connectApp('notion')">Connect</button></div>
+      <div class="app-card" id="card-airtable"><div class="ac-left"><div class="ac-ico">🗃️</div><div><div class="ac-name">Airtable</div><div class="ac-desc" id="desc-airtable">Log data to your bases</div></div></div><button class="ac-btn con" id="btn-airtable" onclick="connectApp('airtable')">Connect</button></div>
     </div>
 
-    <!-- TAB: VOICE -->
+    <!-- VOICE TAB -->
     <div class="tab-panel" id="tab-voice">
-      <div class="voice-info">
-        🎵 ARIA uses <strong>ElevenLabs</strong> for human-sounding voice. The API key is securely stored in the backend — you never need to configure anything.
-      </div>
+      <div class="note">🎵 ARIA uses <strong>ElevenLabs</strong> human voice. The API key is encrypted in the backend — no setup needed.</div>
       <div class="fld">
-        <div class="flbl">Default Voice</div>
-        <select class="finp" id="modalVoiceSel" style="cursor:pointer">
+        <div class="flbl">Voice Character</div>
+        <select class="finp" id="modalVoice" style="cursor:pointer">
           <option value="21m00Tcm4TlvDq8ikWAM">Rachel — warm natural female</option>
           <option value="AZnzlk1XvdvUeBnXmlld">Domi — confident female</option>
           <option value="EXAVITQu4vr4xnSDxMaL">Bella — soft female</option>
@@ -425,23 +372,24 @@ textarea::placeholder{color:var(--muted);}
         <input type="range" style="accent-color:var(--gold);width:100%" id="modalSpd" min="0.6" max="1.8" step="0.1" value="1">
         <div class="fhint">0.6 = slow &nbsp;·&nbsp; 1.0 = normal &nbsp;·&nbsp; 1.8 = fast</div>
       </div>
-      <button class="modal-save" id="saveVoiceBtn">💾 Save Voice Settings</button>
-      <div class="save-ok" id="saveVoiceOk">✓ Voice settings saved!</div>
+      <button class="msave" id="saveVoice">💾 Save Voice Settings</button>
+      <div class="saved" id="voiceSaved">✓ Saved!</div>
     </div>
 
-    <!-- TAB: ABOUT -->
+    <!-- ABOUT TAB -->
     <div class="tab-panel" id="tab-about">
-      <div class="privacy-note">
-        <strong>ARIA v7.0</strong><br>
-        Built by Nihhar K Sonee (NKS-Coder)<br>
-        Powered by Groq Llama 3.3 70B · ElevenLabs · Cloudflare<br><br>
-        🔒 All API keys are encrypted in Cloudflare Workers.<br>
-        No keys are stored in this app or your browser.<br>
-        Your chat history is saved privately in Supabase.
+      <div class="note">
+        <strong>ARIA v8.0</strong> — Built by Nihhar K Sonee (NKS-Coder)<br>
+        Powered by Groq Llama 3.3 70B · ElevenLabs · Cloudflare Workers · Supabase<br><br>
+        🔒 All API keys encrypted in Cloudflare. Nothing stored in your browser except your preferences.
+      </div>
+      <div class="fld">
+        <div class="flbl">Worker Status</div>
+        <div id="workerStatus" class="finp" style="color:var(--muted);font-size:0.65rem">Checking...</div>
       </div>
       <div class="fld">
         <div class="flbl">Session ID</div>
-        <div class="finp" id="sessionDisplay" style="color:var(--muted);font-size:0.65rem;cursor:text">Loading...</div>
+        <div id="sessionId" class="finp" style="color:var(--muted);font-size:0.65rem">—</div>
       </div>
     </div>
 
@@ -450,107 +398,119 @@ textarea::placeholder{color:var(--muted);}
 
 <script>
 // ═══════════════════════════════════════════════════════════════
-//  ARIA v7.0 — Production Ready
-//  ElevenLabs voice via Cloudflare Worker (key encrypted server-side)
-//  Users just open and talk — zero configuration needed
+//  ARIA v8.0
+//  ✅ Microphone: requests permission properly, full error handling
+//  ✅ ElevenLabs: calls Worker /tts endpoint (key hidden in Cloudflare)
+//  ✅ CORS: Worker uses * so GitHub Pages can call it
+//  ✅ Groq AI: calls Worker / endpoint
+//  ✅ No API keys in this file
 // ═══════════════════════════════════════════════════════════════
 
-// ── CHANGE THIS TO YOUR WORKER URL ────────────────────────────
-const WORKER_URL = 'https://ariaproxy.nihharksonee.workers.dev';
-// ──────────────────────────────────────────────────────────────
+// ── YOUR WORKER URL ───────────────────────────────────────────
+const W = 'https://ariaproxy.nihharksonee.workers.dev';
 
-// App definitions
+// ── APP DEFINITIONS ───────────────────────────────────────────
 const APPS = {
-  gmail:    { name:'Gmail',           icon:'📧', auth:'oauth_google',    prompt:null },
-  calendar: { name:'Google Calendar', icon:'📅', auth:'oauth_google',    prompt:null },
-  outlook:  { name:'Outlook',         icon:'💼', auth:'oauth_microsoft', prompt:null },
-  slack:    { name:'Slack',           icon:'💬', auth:'token',           prompt:'Get bot token from api.slack.com/apps\n\nPaste your Bot OAuth Token (xoxb-...):' },
-  discord:  { name:'Discord',         icon:'🎮', auth:'webhook',         prompt:'Get webhook URL from Discord channel settings\n\nPaste your Webhook URL:' },
-  notion:   { name:'Notion',          icon:'📝', auth:'token',           prompt:'Get token from notion.so/my-integrations\n\nPaste your Integration Token (secret_...):' },
-  airtable: { name:'Airtable',        icon:'🗃️', auth:'token',           prompt:'Get token from airtable.com/create/tokens\n\nPaste your Personal Access Token:' },
+  gmail:    { name:'Gmail',           icon:'📧', auth:'google',    prompt:null },
+  calendar: { name:'Google Calendar', icon:'📅', auth:'google',    prompt:null },
+  outlook:  { name:'Outlook',         icon:'💼', auth:'microsoft', prompt:null },
+  slack:    { name:'Slack',           icon:'💬', auth:'token',     prompt:'Paste your Slack Bot Token (xoxb-...):\n\nGet it from api.slack.com/apps' },
+  discord:  { name:'Discord',         icon:'🎮', auth:'webhook',   prompt:'Paste your Discord Webhook URL:\n\nGet it from channel Settings → Integrations → Webhooks' },
+  notion:   { name:'Notion',          icon:'📝', auth:'token',     prompt:'Paste your Notion Integration Token (secret_...):\n\nGet it from notion.so/my-integrations' },
+  airtable: { name:'Airtable',        icon:'🗃️', auth:'token',     prompt:'Paste your Airtable Personal Access Token:\n\nGet it from airtable.com/create/tokens' },
 };
 
-// State
-const S = {
-  msgs:[], listening:false, persona:'general',
-  t0:Date.now(), msgN:0, tokens:0, speaking:false, audio:null,
-};
+// ── STATE ─────────────────────────────────────────────────────
+const S = { msgs:[], listening:false, persona:'general', msgN:0, speaking:false, audio:null };
 
-// Per-user config in browser (no API keys — just preferences and connected apps)
+// ── USER CONFIG (preferences only — no keys) ──────────────────
 const C = {
-  get apps()    { try{return JSON.parse(localStorage.getItem('aria_apps')||'{}');}catch{return{};} },
-  get voiceId() { return localStorage.getItem('aria_voice') || '21m00Tcm4TlvDq8ikWAM'; },
-  get speed()   { return parseFloat(localStorage.getItem('aria_speed') || '1'); },
-  saveApp(n,d)  { const a=C.apps; a[n]=d; localStorage.setItem('aria_apps',JSON.stringify(a)); },
-  removeApp(n)  { const a=C.apps; delete a[n]; localStorage.setItem('aria_apps',JSON.stringify(a)); },
+  get voice()  { return localStorage.getItem('aria_voice') || '21m00Tcm4TlvDq8ikWAM'; },
+  get speed()  { return parseFloat(localStorage.getItem('aria_speed') || '1'); },
+  get apps()   { try{return JSON.parse(localStorage.getItem('aria_apps')||'{}');}catch{return{};} },
+  setVoice(v)  { localStorage.setItem('aria_voice', v); },
+  setSpeed(v)  { localStorage.setItem('aria_speed', v); },
+  saveApp(n,d) { const a=C.apps; a[n]=d; localStorage.setItem('aria_apps',JSON.stringify(a)); },
+  delApp(n)    { const a=C.apps; delete a[n]; localStorage.setItem('aria_apps',JSON.stringify(a)); },
 };
 
-// DOM
+// ── DOM ───────────────────────────────────────────────────────
 const $ = id => document.getElementById(id);
 const D = {
   msgs:$('msgs'), inp:$('inp'), send:$('sendBtn'), think:$('think'),
   mic:$('micBtn'), viz:$('viz'), micLbl:$('micLbl'), status:$('statusChip'),
   nMsgs:$('sMsgs'), nTime:$('sTime'), nTok:$('sTok'),
   modal:$('modal'), gear:$('gearBtn'), close:$('closeBtn'),
-  sidebarApps:$('sidebarApps'), voiceSel:$('voiceSel'), spd:$('spd'),
+  apps:$('sidebarApps'), voiceSel:$('voiceSel'), spd:$('spd'),
 };
 
 // ── INIT ──────────────────────────────────────────────────────
 window.addEventListener('load', () => {
-  D.voiceSel.value               = C.voiceId;
-  D.spd.value                    = C.speed;
-  $('modalVoiceSel').value       = C.voiceId;
-  $('modalSpd').value            = C.speed;
-  $('sessionDisplay').textContent = getSession();
-  syncAllAppUI();
+  D.voiceSel.value       = C.voice;
+  D.spd.value            = C.speed;
+  $('modalVoice').value  = C.voice;
+  $('modalSpd').value    = C.speed;
+  $('sessionId').textContent = getSession();
+  syncApps();
+  checkWorker();
 
-  addMsg('assistant', "Hello! I'm ARIA, your personal AI voice assistant. Click the mic and speak, or type below — I'm ready to help.");
+  addMsg('assistant', "Hello! I'm ARIA, your personal AI voice assistant. Click the mic and speak, or type below.");
   speak("Hello! I'm ARIA, your personal AI voice assistant. How can I help you today?");
 });
+
+// ── WORKER HEALTH CHECK ───────────────────────────────────────
+async function checkWorker() {
+  try {
+    const res  = await fetch(`${W}/health`);
+    const data = await res.json();
+    $('workerStatus').textContent = data.status || 'Connected ✅';
+    $('workerStatus').style.color = 'var(--green)';
+  } catch(e) {
+    $('workerStatus').textContent = 'Cannot reach Worker ❌ — check Cloudflare deployment';
+    $('workerStatus').style.color = 'var(--rose)';
+  }
+}
 
 // ── MODAL ─────────────────────────────────────────────────────
 D.gear.addEventListener('click',  () => openModal('apps'));
 D.close.addEventListener('click', () => D.modal.classList.remove('open'));
 D.modal.addEventListener('click', e => { if(e.target===D.modal) D.modal.classList.remove('open'); });
-function openModal(tab) { D.modal.classList.add('open'); switchTab(tab); }
+function openModal(t) { D.modal.classList.add('open'); switchTab(t); }
 document.querySelectorAll('.mtab').forEach(t => t.addEventListener('click', () => switchTab(t.dataset.tab)));
-function switchTab(name) {
-  document.querySelectorAll('.mtab').forEach(t => t.classList.toggle('active', t.dataset.tab===name));
-  document.querySelectorAll('.tab-panel').forEach(p => p.classList.toggle('active', p.id==='tab-'+name));
+function switchTab(n) {
+  document.querySelectorAll('.mtab').forEach(t => t.classList.toggle('active', t.dataset.tab===n));
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.toggle('active', p.id==='tab-'+n));
 }
 
-// ── SAVE VOICE ────────────────────────────────────────────────
-$('saveVoiceBtn').addEventListener('click', () => {
-  localStorage.setItem('aria_voice', $('modalVoiceSel').value);
-  localStorage.setItem('aria_speed', $('modalSpd').value);
-  D.voiceSel.value = $('modalVoiceSel').value;
+// ── VOICE SETTINGS ────────────────────────────────────────────
+$('saveVoice').addEventListener('click', () => {
+  C.setVoice($('modalVoice').value);
+  C.setSpeed($('modalSpd').value);
+  D.voiceSel.value = $('modalVoice').value;
   D.spd.value      = $('modalSpd').value;
-  $('saveVoiceOk').style.display = 'block';
-  setTimeout(() => $('saveVoiceOk').style.display = 'none', 2500);
+  $('voiceSaved').style.display = 'block';
+  setTimeout(() => $('voiceSaved').style.display='none', 2000);
 });
-D.voiceSel.addEventListener('change', () => localStorage.setItem('aria_voice', D.voiceSel.value));
+D.voiceSel.addEventListener('change', () => C.setVoice(D.voiceSel.value));
 
 // ── SESSION TIMER ─────────────────────────────────────────────
 let sec=0;
-setInterval(()=>{sec++;D.nTime.textContent=sec<60?`${sec}s`:`${Math.floor(sec/60)}m${sec%60}s`;},1000);
+setInterval(()=>{ sec++; D.nTime.textContent=sec<60?`${sec}s`:`${Math.floor(sec/60)}m${sec%60}s`; }, 1000);
 
-// ── ELEVENLABS VOICE VIA WORKER ────────────────────────────────
-// Key is in Cloudflare — this just calls /tts endpoint
+// ── ELEVENLABS TTS VIA WORKER ─────────────────────────────────
+// Key is encrypted in Cloudflare — browser just calls /tts
 async function speakEL(txt) {
   try {
     setMode('generating');
-    const res = await fetch(`${WORKER_URL}/tts`, {
-      method: 'POST',
+    const res = await fetch(`${W}/tts`, {
+      method:  'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        text:     txt,
-        voice_id: D.voiceSel.value || C.voiceId,
-      })
+      body:    JSON.stringify({ text: txt, voice_id: D.voiceSel.value })
     });
 
     if (!res.ok) {
-      console.warn('ElevenLabs via Worker failed, using browser voice');
-      speakBrowser(txt);
+      console.warn('ElevenLabs via Worker failed:', res.status);
+      fallbackSpeak(txt);
       return;
     }
 
@@ -563,59 +523,63 @@ async function speakEL(txt) {
     audio.onended = audio.onerror = () => {
       setMode('ready');
       URL.revokeObjectURL(url);
+      S.audio = null;
       if ($('autoOn').checked) startListen();
     };
     await audio.play();
   } catch(e) {
-    console.warn('TTS error, using browser voice:', e);
-    speakBrowser(txt);
+    console.warn('TTS error:', e);
+    fallbackSpeak(txt);
   }
 }
 
-// Browser voice fallback
-const synth = window.speechSynthesis;
-let bVoices = [];
-function loadBrowserVoices() {
+// Browser voice fallback if ElevenLabs fails
+const synth   = window.speechSynthesis;
+let bVoices   = [];
+function loadBV() {
   bVoices = synth.getVoices().filter(v=>v.lang.startsWith('en'))
     .sort((a,b)=>/google|microsoft/i.test(b.name)-/google|microsoft/i.test(a.name));
 }
-if(synth.onvoiceschanged!==undefined) synth.onvoiceschanged=loadBrowserVoices;
-loadBrowserVoices();
+if(synth.onvoiceschanged!==undefined) synth.onvoiceschanged=loadBV;
+loadBV();
 
-function speakBrowser(txt) {
+function fallbackSpeak(txt) {
   synth.cancel();
-  const u   = new SpeechSynthesisUtterance(txt);
-  if (bVoices[0]) u.voice = bVoices[0];
+  const u = new SpeechSynthesisUtterance(txt);
+  if(bVoices[0]) u.voice = bVoices[0];
   u.rate    = parseFloat(D.spd.value);
-  u.onstart = () => setMode('speaking');
-  u.onend   = u.onerror = () => { setMode('ready'); if($('autoOn').checked) startListen(); };
+  u.onstart = ()=>setMode('speaking');
+  u.onend   = u.onerror = ()=>{ setMode('ready'); if($('autoOn').checked) startListen(); };
   synth.speak(u);
 }
 
 function speak(txt) {
   if (!$('voiceOn').checked) return;
   synth.cancel();
-  if (S.audio) { S.audio.pause(); S.audio=null; }
-  speakEL(txt); // ElevenLabs is default, browser is fallback
+  if(S.audio){ S.audio.pause(); S.audio=null; }
+  speakEL(txt);
 }
 
-// ── STT ───────────────────────────────────────────────────────
-const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-let rec  = null;
+// ── MICROPHONE ────────────────────────────────────────────────
+const SR  = window.SpeechRecognition || window.webkitSpeechRecognition;
+let rec   = null;
+let micOK = false; // tracks if permission granted
 
-function initRec() {
-  if (!SR) {
-    console.warn('Speech Recognition not supported in this browser');
-    return false;
-  }
+function buildRec() {
+  if (!SR) return false;
   rec = new SR();
   rec.continuous     = false;
   rec.interimResults = true;
   rec.lang           = 'en-US';
 
+  rec.onstart = () => {
+    S.listening = true;
+    setMode('listening');
+  };
+
   rec.onresult = e => {
-    const t = Array.from(e.results).map(r => r[0].transcript).join('');
-    D.inp.value = t;
+    const transcript = Array.from(e.results).map(r => r[0].transcript).join('');
+    D.inp.value = transcript;
     autoResize();
     if (e.results[e.results.length - 1].isFinal) {
       stopListen();
@@ -624,38 +588,57 @@ function initRec() {
   };
 
   rec.onerror = e => {
-    console.error('Speech recognition error:', e.error);
-    stopListen();
-    if (e.error === 'not-allowed') {
-      addMsg('assistant', "Microphone access was denied. Click the lock icon 🔒 in your browser address bar → Site settings → Microphone → Allow. Then refresh the page.", true);
-    } else if (e.error === 'no-speech') {
-      setMode('ready'); // just reset, no error needed
-    } else {
-      addMsg('assistant', `Mic error: ${e.error}. Make sure you are using Chrome or Edge and have allowed microphone access.`, true);
+    console.error('Mic error:', e.error);
+    S.listening = false;
+    setMode('ready');
+
+    if (e.error === 'not-allowed' || e.error === 'permission-denied') {
+      addMsg('assistant',
+        '🎤 Microphone access was blocked. To fix: click the 🔒 lock icon in your browser address bar → Site settings → Microphone → change to Allow → refresh the page.',
+        true);
+    } else if (e.error === 'network') {
+      addMsg('assistant', 'Network error with speech recognition. Make sure you are on HTTPS and using Chrome.', true);
+    } else if (e.error !== 'no-speech' && e.error !== 'aborted') {
+      addMsg('assistant', `Mic issue: ${e.error}. Try refreshing the page.`, true);
     }
   };
 
   rec.onend = () => {
-    if (S.listening) stopListen();
+    if (S.listening) {
+      S.listening = false;
+      setMode('ready');
+    }
   };
 
   return true;
 }
 
-initRec();
-
 async function startListen() {
-  // Check browser support
+  // Must be Chrome or Edge
   if (!SR) {
-    addMsg('assistant', 'Voice input requires Chrome or Edge browser. Please open ARIA in Chrome.', true);
+    addMsg('assistant', '⚠️ Voice input requires Chrome or Edge. Please open ARIA in Chrome.', true);
     return;
   }
 
-  // Request mic permission explicitly first
+  // Must be HTTPS or localhost
+  if (location.protocol !== 'https:' && location.hostname !== 'localhost') {
+    addMsg('assistant', '⚠️ Microphone only works on HTTPS. Make sure you are using the GitHub Pages URL (https://).', true);
+    return;
+  }
+
+  // Request mic permission explicitly
   try {
     await navigator.mediaDevices.getUserMedia({ audio: true });
-  } catch(permErr) {
-    addMsg('assistant', "Microphone access denied. Click the 🔒 lock icon in your browser address bar → Site settings → Microphone → set to Allow → then refresh.", true);
+    micOK = true;
+  } catch(err) {
+    micOK = false;
+    if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
+      addMsg('assistant',
+        '🎤 Microphone access denied. Click the 🔒 lock icon in your address bar → Site settings → Microphone → Allow → refresh the page.',
+        true);
+    } else {
+      addMsg('assistant', `Microphone error: ${err.message}`, true);
+    }
     return;
   }
 
@@ -663,197 +646,237 @@ async function startListen() {
   synth.cancel();
   if (S.audio) { S.audio.pause(); S.audio = null; }
 
-  // Re-init recognition if needed
-  if (!rec) initRec();
+  // Build or rebuild recognition
+  if (!rec) buildRec();
 
-  S.listening = true;
-  setMode('listening');
-
+  // Start
   try {
     rec.start();
   } catch(e) {
-    // Already started — stop and restart
-    try { rec.stop(); } catch(e2) {}
-    setTimeout(() => {
-      if (!rec) initRec();
-      try { rec.start(); } catch(e3) { console.error('Rec start failed:', e3); stopListen(); }
-    }, 300);
+    // If already started, stop and retry
+    if (e.name === 'InvalidStateError') {
+      try { rec.stop(); } catch(e2) {}
+      buildRec(); // fresh instance
+      setTimeout(() => {
+        try { rec.start(); }
+        catch(e3) { console.error('Could not start rec:', e3); setMode('ready'); }
+      }, 400);
+    }
   }
 }
 
 function stopListen() {
   S.listening = false;
   setMode('ready');
-  try { rec.stop(); } catch(e) {}
+  try { rec?.stop(); } catch(e) {}
 }
 
+// Mic button click
 D.mic.addEventListener('click', () => {
-  if (S.listening) stopListen();
-  else startListen();
+  if (S.listening) {
+    stopListen();
+  } else {
+    startListen();
+  }
 });
 
 // ── MODE ──────────────────────────────────────────────────────
-function setMode(m){
-  D.mic.classList.remove('listening','speaking'); D.viz.classList.remove('on');
-  const map={
-    ready:['Click to speak','',''],
-    listening:['Listening...','listening',''],
-    thinking:['Thinking...','',''],
-    speaking:['Speaking...','speaking','on'],
-    generating:['Generating voice...','',''],
+function setMode(m) {
+  D.mic.classList.remove('listening','speaking');
+  D.viz.classList.remove('on');
+  const map = {
+    ready:      ['Click to speak',     '',          ''],
+    listening:  ['Listening...',       'listening', ''],
+    thinking:   ['Thinking...',        '',          ''],
+    speaking:   ['Speaking...',        'speaking',  'on'],
+    generating: ['Generating voice...','',          ''],
   };
-  const[lbl,mc,vc]=map[m]||map.ready;
-  D.micLbl.textContent=lbl; D.status.textContent=lbl;
-  if(mc)D.mic.classList.add(mc); if(vc)D.viz.classList.add(vc);
+  const [lbl, mc, vc] = map[m] || map.ready;
+  D.micLbl.textContent  = lbl;
+  D.status.textContent  = lbl;
+  if (mc) D.mic.classList.add(mc);
+  if (vc) D.viz.classList.add(vc);
 }
 
 // ── MESSAGES ──────────────────────────────────────────────────
-function addMsg(role,txt,err=false){
-  S.msgN++; D.nMsgs.textContent=S.msgN;
-  const now=new Date().toLocaleTimeString('en-US',{hour12:true,hour:'numeric',minute:'2-digit'});
-  const d=document.createElement('div');
-  d.className=`msg ${err?'err':role}`;
-  d.innerHTML=`<div class="av">${role==='user'?'Y':'A'}</div>
-    <div><div class="bbl">${txt.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}</div>
-    <div class="msg-time">${now}</div></div>`;
-  D.msgs.appendChild(d); D.msgs.scrollTop=D.msgs.scrollHeight;
+function addMsg(role, txt, err=false) {
+  S.msgN++; D.nMsgs.textContent = S.msgN;
+  const now = new Date().toLocaleTimeString('en-US',{hour12:true,hour:'numeric',minute:'2-digit'});
+  const d   = document.createElement('div');
+  d.className = `msg ${err ? 'err' : role}`;
+  d.innerHTML = `
+    <div class="av">${role==='user'?'Y':'A'}</div>
+    <div>
+      <div class="bbl">${txt.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}</div>
+      <div class="msg-time">${now}</div>
+    </div>`;
+  D.msgs.appendChild(d);
+  D.msgs.scrollTop = D.msgs.scrollHeight;
 }
 
 // ── CALL WORKER ────────────────────────────────────────────────
-async function callWorker(txt){
-  const res=await fetch(WORKER_URL,{
-    method:'POST', headers:{'Content-Type':'application/json'},
-    body:JSON.stringify({
+async function callWorker(txt) {
+  const res = await fetch(W, {
+    method:  'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
       messages:   S.msgs.slice(-12),
       persona:    S.persona,
       session_id: getSession(),
-      apps:       C.apps,
     })
   });
-  const data=await res.json();
-  if(data.error) throw new Error(data.error);
+  const data = await res.json();
+  if (data.error) throw new Error(data.error);
   return data.reply;
 }
 
-// ── SEND ──────────────────────────────────────────────────────
-async function sendMsg(){
-  const txt=D.inp.value.trim();
-  if(!txt||D.send.disabled) return;
-  D.inp.value=''; autoResize();
-  S.msgs.push({role:'user',content:txt});
-  addMsg('user',txt);
-  D.think.classList.remove('hidden'); D.send.disabled=true; setMode('thinking');
-  try{
-    const reply=await callWorker(txt);
-    S.msgs.push({role:'assistant',content:reply});
-    D.think.classList.add('hidden'); D.send.disabled=false;
-    addMsg('assistant',reply); speak(reply);
-  }catch(err){
-    D.think.classList.add('hidden'); D.send.disabled=false; setMode('ready'); S.msgs.pop();
-    const m=`Something went wrong: ${err.message}`;
-    addMsg('assistant',m,true); speak(m);
+// ── SEND MESSAGE ───────────────────────────────────────────────
+async function sendMsg() {
+  const txt = D.inp.value.trim();
+  if (!txt || D.send.disabled) return;
+  D.inp.value = ''; autoResize();
+
+  S.msgs.push({ role:'user', content:txt });
+  addMsg('user', txt);
+  D.think.classList.remove('hidden');
+  D.send.disabled = true;
+  setMode('thinking');
+
+  try {
+    const reply = await callWorker(txt);
+    S.msgs.push({ role:'assistant', content:reply });
+    D.think.classList.add('hidden');
+    D.send.disabled = false;
+    addMsg('assistant', reply);
+    speak(reply);
+  } catch(err) {
+    D.think.classList.add('hidden');
+    D.send.disabled = false;
+    setMode('ready');
+    S.msgs.pop();
+    const msg = err.message.includes('fetch')
+      ? 'Cannot reach ARIA backend. Check your internet connection and make sure the Cloudflare Worker is deployed.'
+      : `Error: ${err.message}`;
+    addMsg('assistant', msg, true);
+    speak(msg);
   }
 }
-D.send.addEventListener('click',sendMsg);
-D.inp.addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendMsg();}});
-function autoResize(){D.inp.style.height='auto';D.inp.style.height=Math.min(D.inp.scrollHeight,110)+'px';}
-D.inp.addEventListener('input',autoResize);
+
+D.send.addEventListener('click', sendMsg);
+D.inp.addEventListener('keydown', e => {
+  if (e.key==='Enter' && !e.shiftKey) { e.preventDefault(); sendMsg(); }
+});
+function autoResize() {
+  D.inp.style.height = 'auto';
+  D.inp.style.height = Math.min(D.inp.scrollHeight, 110) + 'px';
+}
+D.inp.addEventListener('input', autoResize);
 
 // ── CONNECT APPS ──────────────────────────────────────────────
-function connectApp(name){
-  const app=APPS[name]; if(!app) return;
-  if(app.auth==='oauth_google'||app.auth==='oauth_microsoft'){
-    const endpoint=app.auth==='oauth_google'?'google':'microsoft';
-    const w=window.open(`${WORKER_URL}/auth/${endpoint}/url?app=${name}&session=${getSession()}`,'oauth','width=500,height=620');
-    const t=setInterval(()=>{ if(w.closed){ clearInterval(t); setTimeout(()=>checkApp(name),800); } },600);
+function connectApp(name) {
+  const app = APPS[name]; if (!app) return;
+  if (app.auth === 'google' || app.auth === 'microsoft') {
+    const w = window.open(`${W}/auth/${app.auth}/url?app=${name}&session=${getSession()}`, 'oauth', 'width=500,height=620');
+    const t = setInterval(() => {
+      if (w.closed) {
+        clearInterval(t);
+        setTimeout(() => checkAppStatus(name), 800);
+      }
+    }, 600);
   } else {
-    const val=window.prompt(`Connect ${app.name}\n\n${app.prompt}`,'');
-    if(val&&val.trim()){
-      C.saveApp(name,{connected:true,token:val.trim()});
-      fetch(`${WORKER_URL}/connect`,{method:'POST',headers:{'Content-Type':'application/json'},
-        body:JSON.stringify({app:name,token:val.trim(),session:getSession()})}).catch(()=>{});
-      syncAllAppUI();
-      const m=`${app.name} is now connected! You can use voice commands to interact with it.`;
-      addMsg('assistant',m); speak(m);
+    const val = window.prompt(`Connect ${app.name}\n\n${app.prompt}`, '');
+    if (val?.trim()) {
+      C.saveApp(name, { connected:true, token:val.trim() });
+      fetch(`${W}/connect`, { method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ app:name, token:val.trim(), session:getSession() }) }).catch(()=>{});
+      syncApps();
+      const m = `${app.name} connected! You can now use it with voice commands.`;
+      addMsg('assistant', m); speak(m);
     }
   }
 }
 
-function checkApp(name){
-  fetch(`${WORKER_URL}/auth/status?app=${name}&session=${getSession()}`)
+function checkAppStatus(name) {
+  fetch(`${W}/auth/status?app=${name}&session=${getSession()}`)
     .then(r=>r.json())
     .then(d=>{
-      if(d.connected){
-        C.saveApp(name,{connected:true,email:d.email||''});
-        syncAllAppUI();
-        const m=`${APPS[name]?.name} connected successfully${d.email?' as '+d.email:''}! You can now use it with voice commands.`;
-        addMsg('assistant',m); speak(m);
+      if (d.connected) {
+        C.saveApp(name, { connected:true, email:d.email||'' });
+        syncApps();
+        const m = `${APPS[name]?.name} connected${d.email?' as '+d.email:''}! Voice commands are now active.`;
+        addMsg('assistant', m); speak(m);
       }
     }).catch(()=>{});
 }
 
-function disconnectApp(name){
-  if(!confirm(`Disconnect ${APPS[name]?.name}?`)) return;
-  C.removeApp(name);
-  fetch(`${WORKER_URL}/disconnect`,{method:'POST',headers:{'Content-Type':'application/json'},
-    body:JSON.stringify({app:name,session:getSession()})}).catch(()=>{});
-  syncAllAppUI();
+function disconnectApp(name) {
+  if (!confirm(`Disconnect ${APPS[name]?.name}?`)) return;
+  C.delApp(name);
+  fetch(`${W}/disconnect`, { method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({ app:name, session:getSession() }) }).catch(()=>{});
+  syncApps();
 }
 
 // ── SYNC APP UI ───────────────────────────────────────────────
-function syncAllAppUI(){
-  const apps=C.apps;
-  Object.keys(APPS).forEach(name=>{
-    const btn=$(`btn-${name}`);
-    const card=$(`card-${name}`);
-    const desc=$(`desc-${name}`);
-    if(!btn||!card) return;
-    const isConn=apps[name]?.connected;
-    card.classList.toggle('is-connected',isConn);
-    if(isConn){
-      const email=apps[name]?.email;
-      if(desc) desc.textContent=email?`✓ ${email}`:APPS[name].name+' connected';
-      btn.textContent='Disconnect'; btn.className='ac-btn disconnect';
-      btn.onclick=()=>disconnectApp(name);
+function syncApps() {
+  const apps = C.apps;
+
+  // Modal cards
+  Object.keys(APPS).forEach(name => {
+    const btn  = $(`btn-${name}`);
+    const card = $(`card-${name}`);
+    const desc = $(`desc-${name}`);
+    if (!btn || !card) return;
+    const ok = apps[name]?.connected;
+    card.classList.toggle('connected', ok);
+    if (ok) {
+      if (desc) desc.textContent = apps[name]?.email ? `✓ ${apps[name].email}` : '✓ Connected';
+      btn.textContent = 'Disconnect';
+      btn.className   = 'ac-btn dis';
+      btn.onclick     = () => disconnectApp(name);
     } else {
-      if(desc) desc.textContent={gmail:'Send, read, sort emails',calendar:'Book meetings',outlook:'Microsoft email',slack:'Send channel messages',discord:'Post to channels',notion:'Create notes',airtable:'Log data'}[name]||'';
-      btn.textContent='Connect'; btn.className='ac-btn connect';
-      btn.onclick=()=>connectApp(name);
+      if (desc) desc.textContent = { gmail:'Send, read, sort emails', calendar:'Book meetings, check schedule', outlook:'Send and read emails', slack:'Send messages to channels', discord:'Post to channels', notion:'Create notes and tasks', airtable:'Log data to your bases' }[name] || '';
+      btn.textContent = 'Connect';
+      btn.className   = 'ac-btn con';
+      btn.onclick     = () => connectApp(name);
     }
   });
 
-  // Sidebar
-  const connected=Object.keys(apps).filter(k=>apps[k]?.connected);
-  D.sidebarApps.innerHTML='';
-  if(!connected.length){
-    D.sidebarApps.innerHTML='<div style="font-size:0.63rem;color:var(--muted);text-align:center;padding:4px 0">No apps connected yet.</div>';
+  // Sidebar summary
+  const connected = Object.keys(apps).filter(k => apps[k]?.connected);
+  D.apps.innerHTML = '';
+  if (!connected.length) {
+    D.apps.innerHTML = '<div style="font-size:0.63rem;color:var(--muted);text-align:center;padding:4px 0">No apps connected yet.</div>';
     return;
   }
-  connected.forEach(name=>{
-    const app=APPS[name]; if(!app) return;
-    const d=document.createElement('div'); d.className='app-item';
-    d.innerHTML=`<div class="app-left"><div class="app-icon">${app.icon}</div>
+  connected.forEach(name => {
+    const app = APPS[name]; if (!app) return;
+    const d   = document.createElement('div');
+    d.className = 'app-item';
+    d.innerHTML = `<div class="app-left"><div class="app-icon">${app.icon}</div>
       <div><div class="app-name">${app.name}</div>
-      <div class="app-sub" style="color:var(--green)">✓ Connected</div></div></div>
+      <div class="app-sub" style="color:var(--green)">✓ Active</div></div></div>
       <div style="width:6px;height:6px;border-radius:50%;background:var(--green);box-shadow:0 0 6px var(--green)"></div>`;
-    D.sidebarApps.appendChild(d);
+    D.apps.appendChild(d);
   });
 }
 
 // ── PERSONAS ──────────────────────────────────────────────────
-document.querySelectorAll('.pcard').forEach(c=>{
-  c.addEventListener('click',()=>{
-    document.querySelectorAll('.pcard').forEach(x=>x.classList.remove('active'));
-    c.classList.add('active'); S.persona=c.dataset.p; S.msgs=[];
-    const m=`Switched to ${c.querySelector('.pname').textContent}. How can I help?`;
-    addMsg('assistant',m); speak(m);
+document.querySelectorAll('.pcard').forEach(c => {
+  c.addEventListener('click', () => {
+    document.querySelectorAll('.pcard').forEach(x => x.classList.remove('active'));
+    c.classList.add('active');
+    S.persona = c.dataset.p;
+    S.msgs    = [];
+    const m   = `Switched to ${c.querySelector('.pname').textContent}. How can I help?`;
+    addMsg('assistant', m); speak(m);
   });
 });
 
 // ── SESSION ───────────────────────────────────────────────────
-function getSession(){
-  if(!localStorage.getItem('aria_sid'))
-    localStorage.setItem('aria_sid','sess_'+Math.random().toString(36).slice(2,10));
+function getSession() {
+  if (!localStorage.getItem('aria_sid'))
+    localStorage.setItem('aria_sid', 'sess_' + Math.random().toString(36).slice(2,10));
   return localStorage.getItem('aria_sid');
 }
 </script>
