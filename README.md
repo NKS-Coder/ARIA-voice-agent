@@ -10,7 +10,8 @@ This project demonstrates how modern voice assistants can be built using lightwe
 
 The assistant is deployed using GitHub Pages.
 
-https://NKS-Coder.github.io/ARIA-voice-agent
+https://NKS-Coder.github.io/ARIA-voice-agent/index.html
+
 
 Open the link and interact with the assistant directly in your browser.
 
