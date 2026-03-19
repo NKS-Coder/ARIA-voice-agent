@@ -1,1398 +1,861 @@
 <!DOCTYPE html>
 <html lang="en">
 <!--
-╔══════════════════════════════════════════════════════════════════╗
-║  ARIA  v4.0  —  Voice AI Agent                                   ║
-║  • Centered mic  · Sidebar controls                              ║
-║  • Groq llama-3.3-70b-versatile (current model)                  ║
-║  • ElevenLabs human voice                                        ║
-║  • Supabase chat history (persistent, cross-device)              ║
-║  • Outlook / Gmail / Zoom / Calendar integrations via N8N        ║
-╠══════════════════════════════════════════════════════════════════╣
-║  VS CODE SETUP:                                                  ║
-║  1. Install "Live Server" by Ritwick Dey                         ║
-║  2. Right-click → Open with Live Server → localhost:5500         ║
-╠══════════════════════════════════════════════════════════════════╣
-║  FREE KEYS NEEDED:                                               ║
-║  Groq       → console.groq.com      (AI brain)                  ║
-║  ElevenLabs → elevenlabs.io         (human voice, optional)      ║
-║  Supabase   → supabase.com          (chat history, optional)     ║
-╚══════════════════════════════════════════════════════════════════╝
+  ARIA v7.0 — Final Production Version
+  ✅ Worker URL hardcoded — users just open and talk
+  ✅ ElevenLabs voice via Cloudflare Worker (key hidden)
+  ✅ No API keys anywhere in this file
+  ✅ Connect Apps via OAuth in settings modal
+  ✅ Supabase saves chat history per user
+
+  BEFORE PUBLISHING:
+  Replace YOUR_WORKER_URL_HERE with your actual Worker URL
+  Example: https://ariaproxy.nihharksonee.workers.dev
 -->
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>ARIA — Voice AI Agent</title>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Cal+Sans&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=Playfair+Display:wght@700&display=swap" rel="stylesheet">
 <style>
-/* ── APPLE-LEVEL MINIMAL DARK ───────────────────────────────── */
 :root {
-  --bg:        #000000;
-  --bg1:       #0a0a0a;
-  --bg2:       #111111;
-  --bg3:       #1a1a1a;
-  --border:    rgba(255,255,255,0.08);
-  --border2:   rgba(255,255,255,0.13);
-  --text:      #f5f5f7;
-  --text2:     #a1a1aa;
-  --text3:     #52525b;
-  --blue:      #0a84ff;
-  --blue-glow: rgba(10,132,255,0.2);
-  --green:     #30d158;
-  --red:       #ff453a;
-  --gold:      #ffd60a;
-  --r:         14px;
-  --sidebar:   300px;
+  --bg:      #08090f;
+  --bg1:     #0d0f1a;
+  --surface: rgba(255,255,255,0.04);
+  --surface2:rgba(255,255,255,0.07);
+  --border:  rgba(255,255,255,0.08);
+  --border2: rgba(255,255,255,0.13);
+  --gold:    #c9a84c;
+  --gold-lt: #f0d080;
+  --teal:    #4ecdc4;
+  --rose:    #ff6b9d;
+  --green:   #34d399;
+  --text:    #eef0ff;
+  --muted:   #626888;
+  --muted2:  #8a92b8;
+  --radius:  12px;
+  --sidebar: 290px;
 }
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box;}
+body{background:var(--bg);color:var(--text);font-family:'Outfit',sans-serif;height:100vh;overflow:hidden;display:flex;flex-direction:column;}
+body::before{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;
+  background:radial-gradient(ellipse 65% 55% at 25% 15%,rgba(201,168,76,0.07) 0%,transparent 65%),
+             radial-gradient(ellipse 55% 65% at 78% 82%,rgba(78,205,196,0.06) 0%,transparent 65%);
+  animation:amb 12s ease-in-out infinite alternate;}
+@keyframes amb{0%{opacity:1;}100%{opacity:0.5;}}
 
-*, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
+/* HEADER */
+.hdr{position:relative;z-index:30;flex-shrink:0;height:58px;padding:0 24px;
+  display:flex;align-items:center;justify-content:space-between;
+  border-bottom:1px solid var(--border);background:rgba(8,9,15,0.92);backdrop-filter:blur(20px);}
+.logo{display:flex;align-items:center;gap:12px;}
+.logo-orb{width:34px;height:34px;border-radius:50%;border:1.5px solid var(--gold);
+  display:flex;align-items:center;justify-content:center;
+  box-shadow:0 0 16px rgba(201,168,76,0.35);animation:oglow 3s ease-in-out infinite;}
+@keyframes oglow{0%,100%{box-shadow:0 0 16px rgba(201,168,76,0.35);}50%{box-shadow:0 0 28px rgba(201,168,76,0.55);}}
+.logo-core{width:18px;height:18px;border-radius:50%;background:radial-gradient(circle,var(--gold-lt),var(--gold));}
+.logo-name{font-family:'Playfair Display',serif;font-size:1.35rem;font-weight:700;color:var(--gold);letter-spacing:0.18em;}
+.logo-tag{font-size:0.52rem;color:var(--muted2);letter-spacing:0.26em;text-transform:uppercase;margin-top:1px;}
+.hdr-right{display:flex;align-items:center;gap:10px;}
+.chip{display:flex;align-items:center;gap:7px;background:var(--surface2);border:1px solid var(--border2);
+  border-radius:20px;padding:5px 13px;font-size:0.62rem;color:var(--muted2);letter-spacing:0.06em;white-space:nowrap;}
+.chip.gold{background:rgba(201,168,76,0.08);border-color:rgba(201,168,76,0.22);color:var(--gold);}
+.live-dot{width:7px;height:7px;border-radius:50%;background:var(--teal);box-shadow:0 0 8px var(--teal);animation:blink 2.5s ease-in-out infinite;}
+@keyframes blink{0%,100%{opacity:1;}50%{opacity:0.25;}}
+.gear-btn{width:34px;height:34px;border-radius:50%;background:var(--surface);border:1px solid var(--border2);
+  color:var(--muted2);cursor:pointer;font-size:0.95rem;display:flex;align-items:center;justify-content:center;transition:all 0.2s;}
+.gear-btn:hover{background:var(--surface2);color:var(--gold);border-color:rgba(201,168,76,0.3);}
 
-body {
-  background: var(--bg);
-  color: var(--text);
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-  height: 100vh;
-  overflow: hidden;
-  display: flex;
-  flex-direction: column;
-}
+/* LAYOUT */
+.layout{position:relative;z-index:10;flex:1;display:flex;overflow:hidden;}
 
-/* ── TOPBAR ─────────────────────────────────────────────────── */
-.topbar {
-  height: 52px;
-  border-bottom: 1px solid var(--border);
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 0 20px;
-  background: rgba(0,0,0,0.8);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  flex-shrink: 0;
-  z-index: 100;
-}
-.topbar-left { display:flex; align-items:center; gap:12px; }
-.logo {
-  font-size: 1.1rem;
-  font-weight: 600;
-  color: var(--text);
-  letter-spacing: 0.04em;
-}
-.logo span { color: var(--blue); }
-.topbar-tabs { display:flex; gap:2px; }
-.tab {
-  padding: 5px 14px;
-  border-radius: 8px;
-  font-size: 0.78rem;
-  font-weight: 500;
-  color: var(--text2);
-  cursor: pointer;
-  transition: all 0.15s;
-  border: none;
-  background: transparent;
-  font-family: inherit;
-}
-.tab:hover { background: var(--bg3); color: var(--text); }
-.tab.active { background: var(--bg3); color: var(--text); }
-.topbar-right { display:flex; align-items:center; gap:10px; }
-.status-pill {
-  display:flex; align-items:center; gap:6px;
-  background: var(--bg2);
-  border: 1px solid var(--border);
-  border-radius: 20px;
-  padding: 4px 12px;
-  font-size: 0.7rem;
-  color: var(--text2);
-}
-.status-dot {
-  width: 6px; height: 6px; border-radius: 50%;
-  background: var(--green);
-  box-shadow: 0 0 6px var(--green);
-  animation: pulse 2s ease-in-out infinite;
-}
-@keyframes pulse { 0%,100%{opacity:1;} 50%{opacity:0.4;} }
-#statusLabel { transition: color 0.2s; }
+/* CENTER */
+.center{flex:1;display:flex;flex-direction:column;align-items:center;overflow:hidden;border-right:1px solid var(--border);}
 
-/* ── BODY LAYOUT ─────────────────────────────────────────────── */
-.body {
-  display: flex;
-  flex: 1;
-  overflow: hidden;
-}
+/* MIC */
+.mic-stage{flex-shrink:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;padding:24px 20px 16px;}
+.ring3{width:192px;height:192px;border-radius:50%;border:1px solid rgba(201,168,76,0.1);
+  display:flex;align-items:center;justify-content:center;position:relative;}
+.ring3::after{content:'';position:absolute;inset:0;border-radius:50%;}
+.ring2{width:156px;height:156px;border-radius:50%;border:1px solid rgba(201,168,76,0.18);display:flex;align-items:center;justify-content:center;}
+.ring1{width:122px;height:122px;border-radius:50%;border:1px solid rgba(201,168,76,0.28);display:flex;align-items:center;justify-content:center;}
 
-/* ── CENTER STAGE ────────────────────────────────────────────── */
-.center {
-  flex: 1;
-  display: grid;
-  grid-template-rows: 1fr auto auto auto;
-  align-items: center;
-  padding: 28px 40px 24px;
-  overflow: hidden;
-  position: relative;
-}
+.mic-btn{width:94px;height:94px;border-radius:50%;
+  background:radial-gradient(circle at 36% 36%,rgba(201,168,76,0.22),rgba(201,168,76,0.05) 55%,transparent);
+  border:2px solid rgba(201,168,76,0.4);display:flex;align-items:center;justify-content:center;
+  cursor:pointer;user-select:none;font-size:2.1rem;transition:all 0.3s ease;
+  box-shadow:0 0 35px rgba(201,168,76,0.14),inset 0 0 25px rgba(201,168,76,0.04);}
+.mic-btn:hover{transform:scale(1.07);border-color:rgba(201,168,76,0.7);box-shadow:0 0 55px rgba(201,168,76,0.28);}
+.mic-btn.listening{border-color:var(--rose);background:radial-gradient(circle at 36% 36%,rgba(255,107,157,0.22),transparent);animation:mlisten 0.9s ease-in-out infinite;}
+@keyframes mlisten{0%,100%{box-shadow:0 0 35px rgba(255,107,157,0.32);}50%{box-shadow:0 0 70px rgba(255,107,157,0.58);}}
+.mic-btn.speaking{border-color:var(--teal);background:radial-gradient(circle at 36% 36%,rgba(78,205,196,0.18),transparent);box-shadow:0 0 50px rgba(78,205,196,0.32);}
+.mic-lbl{font-size:0.75rem;font-weight:500;color:var(--muted2);letter-spacing:0.14em;text-transform:uppercase;min-height:18px;transition:color 0.3s;}
+.viz{display:flex;align-items:center;gap:3px;height:34px;}
+.vb{width:3px;border-radius:3px;background:linear-gradient(to top,var(--gold),var(--teal));height:4px;opacity:0.35;}
+.viz.on .vb{opacity:1;animation:vw 0.65s ease-in-out infinite;}
+.vb:nth-child(1){animation-delay:0s}.vb:nth-child(2){animation-delay:.05s}.vb:nth-child(3){animation-delay:.10s}
+.vb:nth-child(4){animation-delay:.15s}.vb:nth-child(5){animation-delay:.20s}.vb:nth-child(6){animation-delay:.15s}
+.vb:nth-child(7){animation-delay:.10s}.vb:nth-child(8){animation-delay:.05s}.vb:nth-child(9){animation-delay:0s}
+.vb:nth-child(10){animation-delay:.05s}.vb:nth-child(11){animation-delay:.10s}.vb:nth-child(12){animation-delay:.15s}
+.vb:nth-child(13){animation-delay:.20s}.vb:nth-child(14){animation-delay:.15s}.vb:nth-child(15){animation-delay:.10s}
+@keyframes vw{0%,100%{height:4px;}50%{height:26px;}}
 
-/* ambient glow behind mic */
-.center::before {
-  content: '';
-  position: absolute;
-  width: 500px; height: 500px;
-  border-radius: 50%;
-  background: radial-gradient(circle, rgba(10,132,255,0.05) 0%, transparent 70%);
-  top: 40%; left: 50%;
-  transform: translate(-50%, -50%);
-  pointer-events: none;
-  transition: background 0.5s;
-  z-index: 0;
-}
-.center.listening::before { background: radial-gradient(circle, rgba(255,69,58,0.09) 0%, transparent 70%); }
-.center.speaking::before  { background: radial-gradient(circle, rgba(48,209,88,0.07) 0%, transparent 70%); }
+/* CONVERSATION */
+.conv{flex:1;width:100%;max-width:700px;align-self:center;display:flex;flex-direction:column;padding:0 24px 16px;overflow:hidden;gap:8px;}
+.conv-lbl{font-size:0.56rem;color:var(--muted);letter-spacing:0.2em;text-transform:uppercase;flex-shrink:0;}
+.msgs{flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:10px;padding-right:4px;
+  scrollbar-width:thin;scrollbar-color:rgba(255,255,255,0.05) transparent;}
+.msgs::-webkit-scrollbar{width:3px;}.msgs::-webkit-scrollbar-thumb{background:rgba(255,255,255,0.05);}
+.msg{display:flex;gap:9px;animation:pop 0.28s ease-out;}
+@keyframes pop{from{opacity:0;transform:translateY(7px);}to{opacity:1;transform:translateY(0);}}
+.msg.user{flex-direction:row-reverse;}
+.av{width:28px;height:28px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:0.68rem;font-weight:700;}
+.msg.user .av{background:rgba(201,168,76,0.14);border:1px solid rgba(201,168,76,0.28);color:var(--gold);}
+.msg.assistant .av{background:rgba(78,205,196,0.1);border:1px solid rgba(78,205,196,0.28);color:var(--teal);}
+.bbl{max-width:78%;padding:10px 14px;font-size:0.82rem;line-height:1.75;}
+.msg.user .bbl{background:rgba(201,168,76,0.08);border:1px solid rgba(201,168,76,0.16);border-radius:var(--radius) var(--radius) 4px var(--radius);}
+.msg.assistant .bbl{background:var(--surface2);border:1px solid var(--border2);border-radius:var(--radius) var(--radius) var(--radius) 4px;}
+.msg.err .bbl{background:rgba(255,107,157,0.07);border:1px solid rgba(255,107,157,0.2);color:#ff9bbd;}
+.msg-time{font-size:0.54rem;color:var(--muted);margin-top:3px;padding:0 2px;}
+.think{display:flex;align-items:center;gap:8px;font-size:0.66rem;color:var(--muted);padding:3px 0;flex-shrink:0;}
+.tdots span{display:inline-block;width:5px;height:5px;border-radius:50%;background:var(--teal);margin-right:3px;opacity:0.4;animation:td 1.3s ease-in-out infinite;}
+.tdots span:nth-child(2){animation-delay:.2s}.tdots span:nth-child(3){animation-delay:.4s}
+@keyframes td{0%,80%,100%{transform:scale(.5);opacity:.3;}40%{transform:scale(1);opacity:1;}}
+.hidden{display:none !important;}
+.inp-row{display:flex;gap:8px;align-items:flex-end;flex-shrink:0;}
+.inp-wrap{flex:1;background:var(--surface2);border:1px solid var(--border2);border-radius:var(--radius);
+  padding:3px 3px 3px 14px;display:flex;align-items:flex-end;transition:border-color 0.2s,box-shadow 0.2s;}
+.inp-wrap:focus-within{border-color:rgba(201,168,76,0.42);box-shadow:0 0 0 3px rgba(201,168,76,0.07);}
+textarea{flex:1;background:transparent;border:none;outline:none;color:var(--text);font-family:'Outfit',sans-serif;
+  font-size:0.84rem;line-height:1.6;padding:10px 0;resize:none;min-height:42px;max-height:110px;}
+textarea::placeholder{color:var(--muted);}
+.send{background:var(--gold);color:#08090f;border:none;border-radius:10px;padding:10px 20px;
+  font-family:'Outfit',sans-serif;font-size:0.8rem;font-weight:600;cursor:pointer;transition:all 0.2s;
+  height:44px;white-space:nowrap;align-self:flex-end;margin:3px;flex-shrink:0;}
+.send:hover:not(:disabled){background:var(--gold-lt);box-shadow:0 4px 18px rgba(201,168,76,0.32);transform:translateY(-1px);}
+.send:disabled{background:rgba(255,255,255,0.06);color:var(--muted);cursor:not-allowed;transform:none;}
 
-/* ── MIC AREA — perfectly centered in top cell ───────────────── */
-.mic-stage {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 18px;
-  position: relative;
-  z-index: 1;
-}
+/* SIDEBAR */
+.sidebar{width:var(--sidebar);flex-shrink:0;overflow-y:auto;padding:16px 14px;display:flex;flex-direction:column;gap:12px;
+  scrollbar-width:thin;scrollbar-color:rgba(255,255,255,0.05) transparent;}
+.sidebar::-webkit-scrollbar{width:3px;}.sidebar::-webkit-scrollbar-thumb{background:rgba(255,255,255,0.05);}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:13px;display:flex;flex-direction:column;gap:9px;flex-shrink:0;}
+.card-title{font-size:0.56rem;font-weight:600;letter-spacing:0.2em;text-transform:uppercase;color:var(--muted2);padding-bottom:8px;border-bottom:1px solid var(--border);}
+.stats{display:grid;grid-template-columns:1fr 1fr 1fr;gap:5px;}
+.stat{background:rgba(255,255,255,0.03);border:1px solid var(--border);border-radius:9px;padding:9px 6px;text-align:center;}
+.sv{font-size:1.05rem;font-weight:700;color:var(--gold);}
+.sl{font-size:0.48rem;color:var(--muted);text-transform:uppercase;letter-spacing:0.08em;margin-top:2px;}
+.pgrid{display:grid;grid-template-columns:1fr 1fr;gap:5px;}
+.pcard{padding:9px;border:1px solid var(--border);border-radius:10px;cursor:pointer;transition:all 0.18s;background:transparent;color:var(--text);font-family:'Outfit',sans-serif;text-align:left;}
+.pcard:hover{border-color:rgba(201,168,76,0.32);background:rgba(201,168,76,0.05);}
+.pcard.active{border-color:rgba(201,168,76,0.52);background:rgba(201,168,76,0.09);}
+.pico{font-size:0.9rem;margin-bottom:3px;}.pname{font-size:0.64rem;font-weight:600;}.pdesc{font-size:0.52rem;color:var(--muted2);margin-top:1px;}
+.row{display:flex;align-items:center;justify-content:space-between;padding:5px 0;border-bottom:1px solid rgba(255,255,255,0.04);gap:8px;}
+.row:last-child{border-bottom:none;padding-bottom:0;}
+.rl{font-size:0.68rem;font-weight:500;color:var(--text);}.rs{font-size:0.55rem;color:var(--muted);margin-top:1px;}
+.tog{position:relative;width:33px;height:18px;cursor:pointer;flex-shrink:0;}
+.tog input{display:none;}
+.trk{width:33px;height:18px;border-radius:9px;background:rgba(255,255,255,0.08);position:relative;transition:background .2s;}
+.trk::after{content:'';position:absolute;width:12px;height:12px;border-radius:50%;background:var(--muted);top:3px;left:3px;transition:all .2s;}
+.tog input:checked + .trk{background:var(--gold);}
+.tog input:checked + .trk::after{background:#08090f;transform:translateX(15px);}
+.sel{background:#0d0f1a;border:1px solid var(--border2);color:var(--text);font-family:'Outfit',sans-serif;font-size:0.65rem;padding:4px 7px;border-radius:8px;cursor:pointer;outline:none;max-width:130px;}
+.sel:focus{border-color:rgba(201,168,76,0.4);}
+.sel option{background:#0d0f1a;color:var(--text);}
+.rng{accent-color:var(--gold);cursor:pointer;width:86px;}
 
-.mic-ring-outer {
-  position: relative;
-  width: 200px; height: 200px;
-  display: flex; align-items: center; justify-content: center;
-}
+/* CONNECTED APPS in sidebar */
+.app-item{display:flex;align-items:center;justify-content:space-between;padding:6px 0;border-bottom:1px solid rgba(255,255,255,0.04);gap:8px;}
+.app-item:last-child{border-bottom:none;padding-bottom:0;}
+.app-left{display:flex;align-items:center;gap:8px;}
+.app-icon{font-size:0.95rem;width:24px;text-align:center;}
+.app-name{font-size:0.68rem;font-weight:500;color:var(--text);}
+.app-sub{font-size:0.55rem;margin-top:1px;}
 
-/* animated rings */
-.ring {
-  position: absolute;
-  border-radius: 50%;
-  border: 1px solid rgba(10,132,255,0.15);
-  animation: ring-expand 3s ease-out infinite;
-}
-.ring:nth-child(1) { width:200px; height:200px; animation-delay:0s; }
-.ring:nth-child(2) { width:250px; height:250px; animation-delay:0.7s; }
-.ring:nth-child(3) { width:300px; height:300px; animation-delay:1.4s; }
-@keyframes ring-expand {
-  0%   { opacity:0.5; transform:scale(0.94); }
-  100% { opacity:0;   transform:scale(1.08); }
-}
-.listening .ring { border-color:rgba(255,69,58,0.25); }
-.speaking  .ring { border-color:rgba(48,209,88,0.18); }
+/* MODAL */
+.modal-overlay{position:fixed;inset:0;z-index:100;background:rgba(0,0,0,0.75);backdrop-filter:blur(8px);
+  display:flex;align-items:center;justify-content:center;opacity:0;pointer-events:none;transition:opacity 0.25s;}
+.modal-overlay.open{opacity:1;pointer-events:all;}
+.modal{background:var(--bg1);border:1px solid var(--border2);border-radius:18px;padding:26px;
+  width:480px;max-width:95vw;max-height:88vh;overflow-y:auto;display:flex;flex-direction:column;gap:16px;
+  box-shadow:0 24px 80px rgba(0,0,0,0.65);transform:translateY(12px);transition:transform 0.25s;
+  scrollbar-width:thin;scrollbar-color:rgba(255,255,255,0.05) transparent;}
+.modal-overlay.open .modal{transform:translateY(0);}
+.modal::-webkit-scrollbar{width:3px;}.modal::-webkit-scrollbar-thumb{background:rgba(255,255,255,0.05);}
+.modal-hdr{display:flex;align-items:center;justify-content:space-between;}
+.modal-title{font-size:1rem;font-weight:700;color:var(--gold);font-family:'Playfair Display',serif;}
+.close-btn{width:30px;height:30px;border-radius:50%;background:var(--surface2);border:1px solid var(--border2);
+  color:var(--muted2);cursor:pointer;font-size:1rem;display:flex;align-items:center;justify-content:center;transition:all 0.2s;}
+.close-btn:hover{background:rgba(255,107,157,0.1);color:var(--rose);}
+.modal-tabs{display:flex;gap:6px;background:var(--surface);border-radius:10px;padding:4px;}
+.mtab{flex:1;padding:7px;border:none;border-radius:8px;font-family:'Outfit',sans-serif;font-size:0.7rem;font-weight:500;cursor:pointer;transition:all 0.18s;background:transparent;color:var(--muted2);}
+.mtab.active{background:rgba(201,168,76,0.15);color:var(--gold);font-weight:600;}
+.tab-panel{display:none;flex-direction:column;gap:14px;}
+.tab-panel.active{display:flex;}
+.modal-section{font-size:0.6rem;font-weight:600;letter-spacing:0.18em;text-transform:uppercase;color:var(--muted2);padding-bottom:8px;border-bottom:1px solid var(--border);}
+.app-card{display:flex;align-items:center;justify-content:space-between;background:var(--surface);border:1px solid var(--border);border-radius:11px;padding:13px 14px;gap:12px;transition:border-color 0.2s;}
+.app-card.is-connected{border-color:rgba(52,211,153,0.25);background:rgba(52,211,153,0.04);}
+.ac-left{display:flex;align-items:center;gap:12px;}
+.ac-ico{font-size:1.4rem;width:32px;text-align:center;}
+.ac-name{font-size:0.8rem;font-weight:600;color:var(--text);}
+.ac-desc{font-size:0.6rem;color:var(--muted);margin-top:2px;}
+.ac-btn{padding:7px 16px;border-radius:8px;font-family:'Outfit',sans-serif;font-size:0.7rem;font-weight:600;cursor:pointer;transition:all 0.18s;white-space:nowrap;border:none;}
+.ac-btn.connect{background:linear-gradient(135deg,var(--gold),#9a7330);color:#08090f;}
+.ac-btn.connect:hover{transform:translateY(-1px);box-shadow:0 4px 14px rgba(201,168,76,0.3);}
+.ac-btn.done{background:rgba(52,211,153,0.12);color:var(--green);border:1px solid rgba(52,211,153,0.3);}
+.ac-btn.disconnect{background:rgba(255,107,157,0.08);color:var(--rose);border:1px solid rgba(255,107,157,0.2);font-size:0.62rem;padding:5px 10px;}
+.fld{display:flex;flex-direction:column;gap:5px;}
+.flbl{font-size:0.65rem;font-weight:600;color:var(--muted2);}
+.finp{width:100%;background:var(--surface2);border:1px solid var(--border2);color:var(--text);font-family:'Outfit',sans-serif;font-size:0.7rem;padding:9px 12px;outline:none;border-radius:9px;transition:border-color .2s;}
+.finp:focus{border-color:rgba(201,168,76,0.45);}
+.finp::placeholder{color:var(--muted);}
+.fhint{font-size:0.57rem;color:var(--muted);line-height:1.65;}
+.fhint a{color:var(--gold);text-decoration:none;}
+.modal-save{width:100%;background:linear-gradient(135deg,var(--gold),#9a7330);color:#08090f;border:none;border-radius:10px;padding:11px;font-family:'Outfit',sans-serif;font-size:0.8rem;font-weight:700;cursor:pointer;letter-spacing:0.06em;transition:all 0.2s;}
+.modal-save:hover{transform:translateY(-1px);box-shadow:0 6px 22px rgba(201,168,76,0.3);}
+.save-ok{font-size:0.65rem;color:var(--green);text-align:center;display:none;}
+.privacy-note{background:rgba(78,205,196,0.06);border:1px solid rgba(78,205,196,0.18);border-radius:9px;padding:10px 13px;font-size:0.63rem;color:var(--teal);line-height:1.7;}
+.voice-info{background:rgba(201,168,76,0.06);border:1px solid rgba(201,168,76,0.18);border-radius:9px;padding:10px 13px;font-size:0.63rem;color:var(--gold);line-height:1.7;}
 
-/* main mic button */
-.mic-btn {
-  width: 140px; height: 140px;
-  border-radius: 50%;
-  background: var(--bg2);
-  border: 1px solid var(--border2);
-  display: flex; align-items: center; justify-content: center;
-  cursor: pointer;
-  position: relative; z-index: 2;
-  transition: all 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
-  box-shadow:
-    0 0 0 1px rgba(255,255,255,0.05),
-    0 24px 70px rgba(0,0,0,0.6),
-    inset 0 1px 0 rgba(255,255,255,0.06);
+@keyframes ring-pulse {
+  0%,100% { box-shadow: 0 0 0 0 rgba(201,168,76,0); border-color: rgba(201,168,76,0.12); }
+  50%      { box-shadow: 0 0 24px 4px rgba(201,168,76,0.08); border-color: rgba(201,168,76,0.22); }
 }
-.mic-btn:hover {
-  transform: scale(1.06);
-  border-color: rgba(10,132,255,0.4);
-  box-shadow:
-    0 0 0 1px rgba(10,132,255,0.2),
-    0 0 50px rgba(10,132,255,0.18),
-    0 24px 70px rgba(0,0,0,0.6),
-    inset 0 1px 0 rgba(255,255,255,0.08);
-}
-.mic-btn.listening {
-  background: rgba(255,69,58,0.1);
-  border-color: rgba(255,69,58,0.5);
-  box-shadow:
-    0 0 0 1px rgba(255,69,58,0.2),
-    0 0 60px rgba(255,69,58,0.25),
-    0 24px 70px rgba(0,0,0,0.6);
-  animation: mic-throb 1s ease-in-out infinite;
-}
-.mic-btn.speaking {
-  background: rgba(48,209,88,0.08);
-  border-color: rgba(48,209,88,0.4);
-  box-shadow: 0 0 50px rgba(48,209,88,0.18), 0 24px 70px rgba(0,0,0,0.6);
-}
-@keyframes mic-throb {
-  0%,100% { transform:scale(1); }
-  50%      { transform:scale(1.04); }
-}
-.mic-icon { font-size: 2.8rem; user-select:none; transition: all 0.2s; }
-
-/* mic label */
-.mic-label {
-  font-size: 0.82rem;
-  font-weight: 500;
-  color: var(--text2);
-  letter-spacing: 0.06em;
-  transition: color 0.2s;
-  text-align: center;
-}
-.mic-label.listening { color: var(--red); }
-.mic-label.speaking  { color: var(--green); }
-
-/* audio visualizer bars */
-.audio-bars {
-  display: flex; align-items: center; gap: 3px; height: 32px;
-  opacity: 0.4; transition: opacity 0.3s;
-}
-.audio-bars.active { opacity: 1; }
-.abar {
-  width: 3px; border-radius: 3px;
-  background: var(--blue); height: 4px;
-  transition: background 0.2s;
-}
-.audio-bars.active .abar { animation: awave 0.7s ease-in-out infinite; }
-.audio-bars.listening .abar { background: var(--red); }
-.audio-bars.speaking  .abar { background: var(--green); }
-.abar:nth-child(1){animation-delay:0s}   .abar:nth-child(2){animation-delay:.07s}
-.abar:nth-child(3){animation-delay:.14s} .abar:nth-child(4){animation-delay:.21s}
-.abar:nth-child(5){animation-delay:.28s} .abar:nth-child(6){animation-delay:.21s}
-.abar:nth-child(7){animation-delay:.14s} .abar:nth-child(8){animation-delay:.07s}
-.abar:nth-child(9){animation-delay:0s}
-@keyframes awave { 0%,100%{height:4px;} 50%{height:24px;} }
-
-/* ── CONVERSATION FEED ───────────────────────────────────────── */
-.conv-feed {
-  width: 100%;
-  max-width: 680px;
-  max-height: 200px;
-  overflow-y: auto;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  scrollbar-width: thin;
-  scrollbar-color: var(--bg3) transparent;
-  position: relative;
-  z-index: 1;
-  align-self: center;
-  justify-self: center;
-}
-.conv-feed::-webkit-scrollbar { width: 3px; }
-.conv-feed::-webkit-scrollbar-thumb { background: var(--bg3); border-radius: 2px; }
-
-.msg {
-  display: flex;
-  gap: 10px;
-  animation: fadeSlide 0.28s ease-out;
-}
-@keyframes fadeSlide { from{opacity:0;transform:translateY(6px);} to{opacity:1;transform:translateY(0);} }
-.msg.user { flex-direction: row-reverse; }
-
-.msg-avatar {
-  width: 28px; height: 28px; border-radius: 50%;
-  display: flex; align-items: center; justify-content: center;
-  font-size: 0.65rem; font-weight: 600; flex-shrink: 0;
-  margin-top: 2px;
-}
-.msg.user      .msg-avatar { background:rgba(10,132,255,0.15); color:var(--blue); border:1px solid rgba(10,132,255,0.2); }
-.msg.assistant .msg-avatar { background:var(--bg3); color:var(--text2); border:1px solid var(--border); }
-
-.msg-content { max-width: 85%; display:flex; flex-direction:column; gap:3px; }
-.msg.user .msg-content { align-items:flex-end; }
-
-.msg-bubble {
-  padding: 10px 14px;
-  border-radius: 16px;
-  font-size: 0.875rem;
-  line-height: 1.65;
-  font-weight: 400;
-}
-.msg.user      .msg-bubble { background:var(--blue); color:#fff; border-radius:16px 16px 4px 16px; }
-.msg.assistant .msg-bubble { background:var(--bg2); border:1px solid var(--border); border-radius:16px 16px 16px 4px; }
-.msg.err       .msg-bubble { background:rgba(255,69,58,0.1); border:1px solid rgba(255,69,58,0.2); color:#ff6961; }
-.msg-time { font-size:0.6rem; color:var(--text3); }
-
-/* thinking */
-.thinking {
-  display:flex; align-items:center; gap:8px;
-  font-size:0.75rem; color:var(--text3); padding:4px 0;
-  animation: fadeSlide 0.2s ease-out;
-  align-self: center;
-  justify-self: center;
-  position: relative; z-index: 1;
-}
-.td span {
-  display:inline-block; width:5px; height:5px; border-radius:50%;
-  background:var(--text3); margin-right:3px;
-  animation:tdot 1.2s ease-in-out infinite;
-}
-.td span:nth-child(2){animation-delay:.2s} .td span:nth-child(3){animation-delay:.4s}
-@keyframes tdot { 0%,80%,100%{transform:scale(.5);opacity:.3;} 40%{transform:scale(1);opacity:.8;} }
-.hidden { display:none !important; }
-
-/* ── BOTTOM INPUT ────────────────────────────────────────────── */
-.input-bar {
-  width: 100%;
-  max-width: 680px;
-  display: flex;
-  gap: 10px;
-  align-items: flex-end;
-  align-self: center;
-  justify-self: center;
-  position: relative;
-  z-index: 1;
-}
-.input-wrap {
-  flex: 1;
-  background: var(--bg2);
-  border: 1px solid var(--border2);
-  border-radius: 14px;
-  padding: 3px 3px 3px 14px;
-  display: flex; align-items: flex-end;
-  transition: border-color 0.2s, box-shadow 0.2s;
-}
-.input-wrap:focus-within {
-  border-color: rgba(10,132,255,0.4);
-  box-shadow: 0 0 0 3px rgba(10,132,255,0.08);
-}
-textarea {
-  flex:1; background:transparent; border:none; outline:none;
-  color:var(--text); font-family:inherit;
-  font-size:0.875rem; line-height:1.5;
-  padding:10px 0; resize:none;
-  min-height:40px; max-height:100px;
-}
-textarea::placeholder { color:var(--text3); }
-.send-btn {
-  background: var(--blue); color: #fff;
-  border: none; border-radius: 11px;
-  padding: 0 16px; height: 38px;
-  font-family:inherit; font-size:0.8rem; font-weight:600;
-  cursor:pointer; margin:3px; transition:all 0.18s;
-  white-space:nowrap;
-}
-.send-btn:hover:not(:disabled) { background:#0077ed; transform:translateY(-1px); }
-.send-btn:disabled { background:var(--bg3); color:var(--text3); cursor:not-allowed; transform:none; }
-
-/* ── SIDEBAR ─────────────────────────────────────────────────── */
-.sidebar {
-  width: var(--sidebar);
-  border-left: 1px solid var(--border);
-  display: flex;
-  flex-direction: column;
-  overflow-y: auto;
-  background: var(--bg1);
-  scrollbar-width: thin;
-  scrollbar-color: var(--bg3) transparent;
-  flex-shrink: 0;
-}
-.sidebar::-webkit-scrollbar { width:3px; }
-.sidebar::-webkit-scrollbar-thumb { background:var(--bg3); }
-
-/* sidebar sections */
-.sb-section {
-  padding: 16px;
-  border-bottom: 1px solid var(--border);
-}
-.sb-title {
-  font-size: 0.65rem;
-  font-weight: 600;
-  color: var(--text3);
-  text-transform: uppercase;
-  letter-spacing: 0.12em;
-  margin-bottom: 12px;
-}
-
-/* stats */
-.stats { display:grid; grid-template-columns:1fr 1fr 1fr; gap:6px; }
-.stat {
-  background:var(--bg2); border:1px solid var(--border);
-  border-radius:10px; padding:10px 8px; text-align:center;
-}
-.sv { font-size:1.1rem; font-weight:600; color:var(--text); font-variant-numeric:tabular-nums; }
-.sl { font-size:0.52rem; color:var(--text3); text-transform:uppercase; letter-spacing:0.1em; margin-top:2px; }
-
-/* personas */
-.persona-list { display:flex; flex-direction:column; gap:5px; }
-.pcard {
-  display:flex; align-items:center; gap:10px;
-  padding:9px 12px; border-radius:10px;
-  border:1px solid transparent;
-  cursor:pointer; transition:all 0.18s;
-  background:transparent; color:var(--text);
-  font-family:inherit; text-align:left;
-}
-.pcard:hover { background:var(--bg2); border-color:var(--border); }
-.pcard.active { background:rgba(10,132,255,0.1); border-color:rgba(10,132,255,0.25); }
-.p-ico  { font-size:1.1rem; }
-.p-info { display:flex; flex-direction:column; }
-.p-name { font-size:0.78rem; font-weight:500; }
-.p-desc { font-size:0.62rem; color:var(--text2); margin-top:1px; }
-
-/* integrations */
-.int-list { display:flex; flex-direction:column; gap:5px; }
-.int-item {
-  display:flex; align-items:center; justify-content:space-between;
-  padding:9px 12px; border-radius:10px;
-  background:var(--bg2); border:1px solid var(--border);
-}
-.int-left { display:flex; align-items:center; gap:9px; }
-.int-ico  { font-size:1rem; }
-.int-name { font-size:0.75rem; font-weight:500; }
-.int-sub  { font-size:0.6rem; color:var(--text3); margin-top:1px; }
-.int-badge {
-  font-size:0.58rem; font-weight:600; letter-spacing:0.06em;
-  padding:2px 8px; border-radius:20px;
-}
-.int-badge.active { background:rgba(48,209,88,0.12); color:var(--green); border:1px solid rgba(48,209,88,0.2); }
-.int-badge.setup  { background:rgba(255,214,10,0.1);  color:var(--gold);  border:1px solid rgba(255,214,10,0.2); cursor:pointer; }
-.int-badge.setup:hover { background:rgba(255,214,10,0.18); }
-
-/* settings rows */
-.srow {
-  display:flex; align-items:center; justify-content:space-between;
-  padding:7px 0; gap:10px;
-  border-bottom:1px solid rgba(255,255,255,0.03);
-}
-.srow:last-child { border-bottom:none; }
-.s-lbl  { font-size:0.75rem; font-weight:500; color:var(--text); }
-.s-sub  { font-size:0.6rem; color:var(--text3); margin-top:1px; }
-.s-sel  {
-  background:var(--bg3); border:1px solid var(--border2);
-  color:var(--text); font-family:inherit;
-  font-size:0.7rem; padding:4px 8px; border-radius:7px;
-  cursor:pointer; outline:none; max-width:120px;
-}
-.s-sel:focus { border-color:rgba(10,132,255,0.4); }
-.s-range { accent-color:var(--blue); cursor:pointer; width:80px; }
-
-/* toggle */
-.tog { position:relative; width:34px; height:20px; cursor:pointer; flex-shrink:0; }
-.tog input { display:none; }
-.tog-t {
-  width:34px; height:20px; border-radius:10px;
-  background:var(--bg3); position:relative; transition:background .2s;
-}
-.tog-t::after {
-  content:''; position:absolute; width:14px; height:14px;
-  border-radius:50%; background:var(--text3); top:3px; left:3px; transition:all .2s;
-}
-.tog input:checked + .tog-t { background:var(--blue); }
-.tog input:checked + .tog-t::after { background:#fff; transform:translateX(14px); }
-
-/* API config */
-.api-status {
-  padding:8px 11px; border-radius:9px;
-  font-size:0.68rem; line-height:1.6;
-  margin-bottom:8px;
-}
-.api-status.warn { background:rgba(255,214,10,0.07); border:1px solid rgba(255,214,10,0.18); color:var(--gold); }
-.api-status.ok   { background:rgba(48,209,88,0.07);  border:1px solid rgba(48,209,88,0.18);  color:var(--green); }
-
-.field { display:flex; flex-direction:column; gap:4px; margin-bottom:10px; }
-.f-label { font-size:0.65rem; font-weight:500; color:var(--text2); }
-.f-input {
-  width:100%; background:var(--bg3); border:1px solid var(--border2);
-  color:var(--text); font-family:inherit;
-  font-size:0.72rem; padding:8px 10px; outline:none; border-radius:9px;
-  transition:border-color .2s, box-shadow .2s;
-}
-.f-input:focus { border-color:rgba(10,132,255,0.45); box-shadow:0 0 0 3px rgba(10,132,255,0.08); }
-.f-input::placeholder { color:var(--text3); }
-.f-hint { font-size:0.58rem; color:var(--text3); line-height:1.5; }
-.f-hint a { color:var(--blue); text-decoration:none; }
-.f-hint a:hover { text-decoration:underline; }
-
-.save-btn {
-  width:100%; background:var(--blue); color:#fff;
-  border:none; border-radius:10px; padding:10px;
-  font-family:inherit; font-size:0.8rem; font-weight:600;
-  cursor:pointer; transition:all 0.18s; letter-spacing:0.02em;
-}
-.save-btn:hover { background:#0077ed; transform:translateY(-1px); }
-.saved-ok { font-size:0.65rem; color:var(--green); text-align:center; margin-top:6px; display:none; }
-
-/* history panel */
-.history-list { display:flex; flex-direction:column; gap:6px; max-height:200px; overflow-y:auto; }
-.h-item {
-  padding:9px 11px; border-radius:9px;
-  background:var(--bg2); border:1px solid var(--border);
-  cursor:pointer; transition:border-color 0.18s;
-}
-.h-item:hover { border-color:rgba(10,132,255,0.3); }
-.h-date { font-size:0.6rem; color:var(--text3); margin-bottom:3px; }
-.h-preview { font-size:0.72rem; color:var(--text2); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-.h-empty { font-size:0.72rem; color:var(--text3); text-align:center; padding:12px 0; }
-
-/* clear history btn */
-.danger-btn {
-  width:100%; background:transparent; color:var(--red);
-  border:1px solid rgba(255,69,58,0.25); border-radius:9px; padding:7px;
-  font-family:inherit; font-size:0.72rem; font-weight:500;
-  cursor:pointer; transition:all 0.18s; margin-top:6px;
-}
-.danger-btn:hover { background:rgba(255,69,58,0.08); }
-
-/* view toggle (Chat / History) */
-.view-chat    .conv-feed,
-.view-chat    .input-bar   { display:flex; }
-.view-history .conv-feed,
-.view-history .input-bar   { display:none; }
 </style>
 </head>
 <body>
 
-<!-- TOPBAR -->
-<div class="topbar">
-  <div class="topbar-left">
-    <div class="logo">AR<span>IA</span></div>
-    <div class="topbar-tabs">
-      <button class="tab active" data-view="chat">Chat</button>
-      <button class="tab" data-view="history">History</button>
-      <button class="tab" data-view="integrations">Integrations</button>
-    </div>
+<!-- HEADER -->
+<header class="hdr">
+  <div class="logo">
+    <div class="logo-orb"><div class="logo-core"></div></div>
+    <div><div class="logo-name">ARIA</div><div class="logo-tag">Voice AI Agent</div></div>
   </div>
-  <div class="topbar-right">
-    <div class="status-pill">
-      <div class="status-dot"></div>
-      <span id="statusLabel">Ready</span>
-    </div>
+  <div class="hdr-right">
+    <div class="chip"><div class="live-dot"></div><span id="statusChip">Online</span></div>
+    <div class="chip gold">⚡ Llama 3.3 · 70B</div>
+    <button class="gear-btn" id="gearBtn" title="Settings">⚙️</button>
   </div>
-</div>
+</header>
 
-<!-- BODY -->
-<div class="body">
+<!-- MAIN -->
+<div class="layout">
 
-  <!-- CENTER STAGE -->
-  <div class="center view-chat" id="centerStage">
-
-    <!-- MIC (perfectly centered as hero element) -->
+  <!-- CENTER -->
+  <main class="center">
     <div class="mic-stage">
-
-      <!-- Hero label above mic -->
-      <div style="text-align:center;margin-bottom:6px">
-        <div style="font-size:0.65rem;font-weight:600;letter-spacing:0.22em;color:var(--text3);text-transform:uppercase;margin-bottom:6px">Voice AI Agent</div>
-        <div id="ariaStateText" style="font-size:0.82rem;font-weight:500;color:var(--text2);min-height:20px;transition:all 0.2s">Tap the mic to start talking</div>
+      <div class="ring3"><div class="ring2"><div class="ring1">
+        <div class="mic-btn" id="micBtn">🎙️</div>
+      </div></div></div>
+      <div class="mic-lbl" id="micLbl">Click to speak</div>
+      <div class="viz" id="viz">
+        <div class="vb"></div><div class="vb"></div><div class="vb"></div><div class="vb"></div><div class="vb"></div>
+        <div class="vb"></div><div class="vb"></div><div class="vb"></div><div class="vb"></div><div class="vb"></div>
+        <div class="vb"></div><div class="vb"></div><div class="vb"></div><div class="vb"></div><div class="vb"></div>
       </div>
-
-      <div class="mic-ring-outer" id="micRingOuter">
-        <div class="ring"></div>
-        <div class="ring"></div>
-        <div class="ring"></div>
-        <div class="mic-btn" id="micBtn">
-          <span class="mic-icon">🎙️</span>
-        </div>
-      </div>
-
-      <div class="audio-bars" id="audioBars">
-        <div class="abar"></div><div class="abar"></div><div class="abar"></div>
-        <div class="abar"></div><div class="abar"></div><div class="abar"></div>
-        <div class="abar"></div><div class="abar"></div><div class="abar"></div>
-      </div>
-
-      <div class="mic-label" id="micLabel">Tap to speak</div>
     </div>
-
-    <!-- CONVERSATION FEED -->
-    <div class="conv-feed" id="convFeed"></div>
-
-    <!-- THINKING -->
-    <div class="thinking hidden" id="thinking">
-      <div class="td"><span></span><span></span><span></span></div>
-      ARIA is thinking...
-    </div>
-
-    <!-- INPUT BAR -->
-    <div class="input-bar">
-      <div class="input-wrap">
-        <textarea id="inp" placeholder="Type a message or tap the mic..." rows="1"></textarea>
+    <div class="conv">
+      <div class="conv-lbl">// Conversation</div>
+      <div class="msgs" id="msgs"></div>
+      <div class="think hidden" id="think"><div class="tdots"><span></span><span></span><span></span></div>ARIA is thinking...</div>
+      <div class="inp-row">
+        <div class="inp-wrap"><textarea id="inp" placeholder="Type here or click the mic to speak..." rows="1"></textarea></div>
+        <button class="send" id="sendBtn">Send</button>
       </div>
-      <button class="send-btn" id="sendBtn">Send</button>
     </div>
-
-  </div>
+  </main>
 
   <!-- SIDEBAR -->
   <aside class="sidebar">
 
-    <!-- SESSION STATS -->
-    <div class="sb-section">
-      <div class="sb-title">Session</div>
+    <div class="card">
+      <div class="card-title">Session</div>
       <div class="stats">
-        <div class="stat"><div class="sv" id="sMsgs">0</div><div class="sl">Msgs</div></div>
+        <div class="stat"><div class="sv" id="sMsgs">0</div><div class="sl">Messages</div></div>
         <div class="stat"><div class="sv" id="sTime">0s</div><div class="sl">Time</div></div>
         <div class="stat"><div class="sv" id="sTok">0</div><div class="sl">Tokens</div></div>
       </div>
     </div>
 
-    <!-- PERSONAS -->
-    <div class="sb-section">
-      <div class="sb-title">Persona</div>
-      <div class="persona-list">
-        <button class="pcard active" data-p="general">
-          <span class="p-ico">🤖</span>
-          <div class="p-info"><div class="p-name">General</div><div class="p-desc">All-purpose assistant</div></div>
-        </button>
-        <button class="pcard" data-p="sales">
-          <span class="p-ico">💼</span>
-          <div class="p-info"><div class="p-name">Sales</div><div class="p-desc">Lead conversion</div></div>
-        </button>
-        <button class="pcard" data-p="support">
-          <span class="p-ico">🛠️</span>
-          <div class="p-info"><div class="p-name">Support</div><div class="p-desc">Tech troubleshoot</div></div>
-        </button>
-        <button class="pcard" data-p="research">
-          <span class="p-ico">🔬</span>
-          <div class="p-info"><div class="p-name">Research</div><div class="p-desc">Deep analysis</div></div>
-        </button>
-        <button class="pcard" data-p="jarvis">
-          <span class="p-ico">⚡</span>
-          <div class="p-info"><div class="p-name">Jarvis</div><div class="p-desc">Full assistant mode</div></div>
-        </button>
+    <div class="card">
+      <div class="card-title">Persona</div>
+      <div class="pgrid">
+        <button class="pcard active" data-p="general"><div class="pico">🤖</div><div class="pname">General</div><div class="pdesc">All-purpose</div></button>
+        <button class="pcard" data-p="sales"><div class="pico">💼</div><div class="pname">Sales</div><div class="pdesc">Lead & convert</div></button>
+        <button class="pcard" data-p="support"><div class="pico">🛠️</div><div class="pname">Support</div><div class="pdesc">Tech help</div></button>
+        <button class="pcard" data-p="research"><div class="pico">🔬</div><div class="pname">Research</div><div class="pdesc">Deep analysis</div></button>
+        <button class="pcard" data-p="jarvis" style="grid-column:span 2"><div class="pico">⚡</div><div class="pname">Jarvis Mode</div><div class="pdesc">Full assistant — like Iron Man</div></button>
       </div>
     </div>
 
-    <!-- INTEGRATIONS -->
-    <div class="sb-section" id="intSection">
-      <div class="sb-title">Integrations</div>
-      <div class="int-list">
-        <div class="int-item">
-          <div class="int-left">
-            <span class="int-ico">📧</span>
-            <div><div class="int-name">Gmail</div><div class="int-sub">Send & read emails</div></div>
-          </div>
-          <span class="int-badge setup" onclick="showIntSetup('gmail')">Setup</span>
-        </div>
-        <div class="int-item">
-          <div class="int-left">
-            <span class="int-ico">📨</span>
-            <div><div class="int-name">Outlook</div><div class="int-sub">Microsoft email</div></div>
-          </div>
-          <span class="int-badge setup" onclick="showIntSetup('outlook')">Setup</span>
-        </div>
-        <div class="int-item">
-          <div class="int-left">
-            <span class="int-ico">📅</span>
-            <div><div class="int-name">Google Calendar</div><div class="int-sub">Schedule meetings</div></div>
-          </div>
-          <span class="int-badge setup" onclick="showIntSetup('gcal')">Setup</span>
-        </div>
-        <div class="int-item">
-          <div class="int-left">
-            <span class="int-ico">🎥</span>
-            <div><div class="int-name">Zoom</div><div class="int-sub">Create meetings</div></div>
-          </div>
-          <span class="int-badge setup" onclick="showIntSetup('zoom')">Setup</span>
-        </div>
-        <div class="int-item">
-          <div class="int-left">
-            <span class="int-ico">💬</span>
-            <div><div class="int-name">Slack</div><div class="int-sub">Send messages</div></div>
-          </div>
-          <span class="int-badge setup" onclick="showIntSetup('slack')">Setup</span>
-        </div>
-        <div class="int-item">
-          <div class="int-left">
-            <span class="int-ico">📝</span>
-            <div><div class="int-name">Notion</div><div class="int-sub">Notes & tasks</div></div>
-          </div>
-          <span class="int-badge setup" onclick="showIntSetup('notion')">Setup</span>
-        </div>
+    <div class="card">
+      <div class="card-title">Voice</div>
+      <div class="row">
+        <div><div class="rl">Speak Replies</div><div class="rs">ElevenLabs human voice</div></div>
+        <label class="tog"><input type="checkbox" id="voiceOn" checked><div class="trk"></div></label>
       </div>
-    </div>
-
-    <!-- VOICE SETTINGS -->
-    <div class="sb-section">
-      <div class="sb-title">Voice</div>
-      <div class="srow">
-        <div><div class="s-lbl">Speak replies</div><div class="s-sub">Read answers aloud</div></div>
-        <label class="tog"><input type="checkbox" id="voiceOn" checked><div class="tog-t"></div></label>
-      </div>
-      <div class="srow">
-        <div><div class="s-lbl">Engine</div><div class="s-sub">Voice source</div></div>
-        <select class="s-sel" id="voiceEngine">
-          <option value="browser">Browser</option>
-          <option value="elevenlabs">ElevenLabs ✨</option>
+      <div class="row">
+        <div><div class="rl">Voice</div><div class="rs">Select character</div></div>
+        <select class="sel" id="voiceSel">
+          <option value="21m00Tcm4TlvDq8ikWAM">Rachel ♀</option>
+          <option value="AZnzlk1XvdvUeBnXmlld">Domi ♀</option>
+          <option value="EXAVITQu4vr4xnSDxMaL">Bella ♀</option>
+          <option value="ErXwobaYiN019PkySvjV">Antoni ♂</option>
+          <option value="pNInz6obpgDQGcFmaJgB">Adam ♂</option>
+          <option value="VR6AewLTigWG4xSOukaG">Arnold ♂</option>
         </select>
       </div>
-      <div class="srow" id="browserVoiceRow">
-        <div><div class="s-lbl">Voice</div></div>
-        <select class="s-sel" id="voiceSel"><option>Loading...</option></select>
+      <div class="row">
+        <div><div class="rl">Speed</div><div class="rs">Playback rate</div></div>
+        <input type="range" class="rng" id="spd" min="0.6" max="1.8" step="0.1" value="1">
       </div>
-      <div class="srow">
-        <div><div class="s-lbl">Speed</div></div>
-        <input type="range" class="s-range" id="spd" min="0.6" max="1.8" step="0.1" value="1">
-      </div>
-      <div class="srow">
-        <div><div class="s-lbl">Auto-listen</div><div class="s-sub">Mic on after reply</div></div>
-        <label class="tog"><input type="checkbox" id="autoOn"><div class="tog-t"></div></label>
+      <div class="row">
+        <div><div class="rl">Auto-Listen</div><div class="rs">Mic after reply</div></div>
+        <label class="tog"><input type="checkbox" id="autoOn"><div class="trk"></div></label>
       </div>
     </div>
 
-    <!-- CHAT HISTORY -->
-    <div class="sb-section">
-      <div class="sb-title">Chat History</div>
-      <div class="history-list" id="historyList">
-        <div class="h-empty">No saved chats yet</div>
+    <div class="card">
+      <div class="card-title">Your Apps</div>
+      <div id="sidebarApps">
+        <div style="font-size:0.63rem;color:var(--muted);text-align:center;padding:6px 0">No apps connected yet.</div>
       </div>
-      <button class="danger-btn" id="clearHistory">🗑 Clear History</button>
-    </div>
-
-    <!-- API KEYS -->
-    <div class="sb-section">
-      <div class="sb-title">API Keys</div>
-
-      <div class="api-status warn" id="apiBanner">
-        ⚠ Paste your free Groq key to activate ARIA
-      </div>
-
-      <!-- Groq -->
-      <div class="field">
-        <div class="f-label">Groq API Key (required)</div>
-        <input type="password" class="f-input" id="groqKey"
-          placeholder="gsk_xxxxxxxxxxxxxxxxxxxx" autocomplete="off">
-        <div class="f-hint">Free at <a href="https://console.groq.com" target="_blank">console.groq.com</a> — no credit card</div>
-      </div>
-
-      <!-- ElevenLabs -->
-      <div class="field">
-        <div class="f-label">ElevenLabs Key (human voice)</div>
-        <input type="password" class="f-input" id="elKey"
-          placeholder="sk_xxxxxxxxxxxxxxxxxxxx" autocomplete="off">
-        <div class="f-hint">Free at <a href="https://elevenlabs.io" target="_blank">elevenlabs.io</a> — 10k chars/month free</div>
-      </div>
-
-      <!-- ElevenLabs Voice Picker -->
-      <div class="field" id="elVoiceField" style="display:none">
-        <div class="f-label">ElevenLabs Voice</div>
-        <select class="f-input" id="elVoiceSel" style="cursor:pointer">
-          <option value="21m00Tcm4TlvDq8ikWAM">Rachel — warm &amp; natural (F)</option>
-          <option value="AZnzlk1XvdvUeBnXmlld">Domi — confident (F)</option>
-          <option value="EXAVITQu4vr4xnSDxMaL">Bella — soft (F)</option>
-          <option value="ErXwobaYiN019PkySvjV">Antoni — well-rounded (M)</option>
-          <option value="VR6AewLTigWG4xSOukaG">Arnold — crisp (M)</option>
-          <option value="pNInz6obpgDQGcFmaJgB">Adam — deep (M)</option>
-        </select>
-      </div>
-
-      <!-- Supabase -->
-      <div class="field">
-        <div class="f-label">Supabase URL (chat history)</div>
-        <input type="text" class="f-input" id="sbUrl"
-          placeholder="https://xxxx.supabase.co" autocomplete="off">
-        <div class="f-hint">Free at <a href="https://supabase.com" target="_blank">supabase.com</a> — saves chats forever</div>
-      </div>
-      <div class="field">
-        <div class="f-label">Supabase Anon Key</div>
-        <input type="password" class="f-input" id="sbKey"
-          placeholder="eyJhbGciOiJIUzI1NiIs..." autocomplete="off">
-      </div>
-
-      <!-- N8N -->
-      <div class="field">
-        <div class="f-label">N8N Webhook (automations)</div>
-        <input type="text" class="f-input" id="n8nUrl"
-          placeholder="https://your-n8n.com/webhook/aria">
-        <div class="f-hint">Connect Outlook, Gmail, Zoom, Calendar, Slack</div>
-      </div>
-
-      <button class="save-btn" id="saveBtn">Save Configuration</button>
-      <div class="saved-ok" id="savedOk">✓ Saved successfully</div>
+      <button onclick="openModal('apps')"
+        style="width:100%;background:linear-gradient(135deg,var(--gold),#9a7330);color:#08090f;
+               border:none;border-radius:9px;padding:9px;font-family:'Outfit',sans-serif;
+               font-size:0.72rem;font-weight:700;cursor:pointer;transition:all 0.2s;letter-spacing:0.04em;"
+        onmouseover="this.style.transform='translateY(-1px)'"
+        onmouseout="this.style.transform=''">
+        🔗 Connect Apps
+      </button>
     </div>
 
   </aside>
 </div>
 
-<!-- INTEGRATION SETUP MODAL -->
-<div id="intModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:200;display:none;align-items:center;justify-content:center;backdrop-filter:blur(8px)">
-  <div style="background:var(--bg2);border:1px solid var(--border2);border-radius:18px;padding:28px;max-width:440px;width:90%;position:relative">
-    <button onclick="closeModal()" style="position:absolute;top:16px;right:16px;background:var(--bg3);border:none;color:var(--text2);width:28px;height:28px;border-radius:50%;cursor:pointer;font-size:1rem">✕</button>
-    <div id="modalContent"></div>
+<!-- SETTINGS MODAL -->
+<div class="modal-overlay" id="modal">
+  <div class="modal">
+    <div class="modal-hdr">
+      <div class="modal-title">⚙️ ARIA Settings</div>
+      <button class="close-btn" id="closeBtn">✕</button>
+    </div>
+
+    <div class="modal-tabs">
+      <button class="mtab active" data-tab="apps">🔗 Connect Apps</button>
+      <button class="mtab" data-tab="voice">🎵 Voice</button>
+      <button class="mtab" data-tab="about">ℹ️ About</button>
+    </div>
+
+    <!-- TAB: CONNECT APPS -->
+    <div class="tab-panel active" id="tab-apps">
+      <div class="privacy-note">
+        🔒 Connections use OAuth2 — you log in with your own account. ARIA never sees your password. Disconnect anytime.
+      </div>
+
+      <div class="modal-section">Google</div>
+      <div class="app-card" id="card-gmail">
+        <div class="ac-left"><div class="ac-ico">📧</div>
+          <div><div class="ac-name">Gmail</div><div class="ac-desc" id="desc-gmail">Send, read, sort emails by voice</div></div>
+        </div>
+        <button class="ac-btn connect" id="btn-gmail" onclick="connectApp('gmail')">Connect</button>
+      </div>
+      <div class="app-card" id="card-calendar">
+        <div class="ac-left"><div class="ac-ico">📅</div>
+          <div><div class="ac-name">Google Calendar</div><div class="ac-desc" id="desc-calendar">Book meetings, check schedule</div></div>
+        </div>
+        <button class="ac-btn connect" id="btn-calendar" onclick="connectApp('calendar')">Connect</button>
+      </div>
+
+      <div class="modal-section">Microsoft</div>
+      <div class="app-card" id="card-outlook">
+        <div class="ac-left"><div class="ac-ico">💼</div>
+          <div><div class="ac-name">Outlook</div><div class="ac-desc" id="desc-outlook">Send and read emails</div></div>
+        </div>
+        <button class="ac-btn connect" id="btn-outlook" onclick="connectApp('outlook')">Connect</button>
+      </div>
+
+      <div class="modal-section">Messaging</div>
+      <div class="app-card" id="card-slack">
+        <div class="ac-left"><div class="ac-ico">💬</div>
+          <div><div class="ac-name">Slack</div><div class="ac-desc" id="desc-slack">Send messages to channels</div></div>
+        </div>
+        <button class="ac-btn connect" id="btn-slack" onclick="connectApp('slack')">Connect</button>
+      </div>
+      <div class="app-card" id="card-discord">
+        <div class="ac-left"><div class="ac-ico">🎮</div>
+          <div><div class="ac-name">Discord</div><div class="ac-desc" id="desc-discord">Post to Discord channels</div></div>
+        </div>
+        <button class="ac-btn connect" id="btn-discord" onclick="connectApp('discord')">Connect</button>
+      </div>
+
+      <div class="modal-section">Productivity</div>
+      <div class="app-card" id="card-notion">
+        <div class="ac-left"><div class="ac-ico">📝</div>
+          <div><div class="ac-name">Notion</div><div class="ac-desc" id="desc-notion">Create notes and tasks</div></div>
+        </div>
+        <button class="ac-btn connect" id="btn-notion" onclick="connectApp('notion')">Connect</button>
+      </div>
+      <div class="app-card" id="card-airtable">
+        <div class="ac-left"><div class="ac-ico">🗃️</div>
+          <div><div class="ac-name">Airtable</div><div class="ac-desc" id="desc-airtable">Log data to your bases</div></div>
+        </div>
+        <button class="ac-btn connect" id="btn-airtable" onclick="connectApp('airtable')">Connect</button>
+      </div>
+    </div>
+
+    <!-- TAB: VOICE -->
+    <div class="tab-panel" id="tab-voice">
+      <div class="voice-info">
+        🎵 ARIA uses <strong>ElevenLabs</strong> for human-sounding voice. The API key is securely stored in the backend — you never need to configure anything.
+      </div>
+      <div class="fld">
+        <div class="flbl">Default Voice</div>
+        <select class="finp" id="modalVoiceSel" style="cursor:pointer">
+          <option value="21m00Tcm4TlvDq8ikWAM">Rachel — warm natural female</option>
+          <option value="AZnzlk1XvdvUeBnXmlld">Domi — confident female</option>
+          <option value="EXAVITQu4vr4xnSDxMaL">Bella — soft female</option>
+          <option value="ErXwobaYiN019PkySvjV">Antoni — well-rounded male</option>
+          <option value="pNInz6obpgDQGcFmaJgB">Adam — deep male</option>
+          <option value="VR6AewLTigWG4xSOukaG">Arnold — crisp male</option>
+        </select>
+      </div>
+      <div class="fld">
+        <div class="flbl">Speech Speed</div>
+        <input type="range" style="accent-color:var(--gold);width:100%" id="modalSpd" min="0.6" max="1.8" step="0.1" value="1">
+        <div class="fhint">0.6 = slow &nbsp;·&nbsp; 1.0 = normal &nbsp;·&nbsp; 1.8 = fast</div>
+      </div>
+      <button class="modal-save" id="saveVoiceBtn">💾 Save Voice Settings</button>
+      <div class="save-ok" id="saveVoiceOk">✓ Voice settings saved!</div>
+    </div>
+
+    <!-- TAB: ABOUT -->
+    <div class="tab-panel" id="tab-about">
+      <div class="privacy-note">
+        <strong>ARIA v7.0</strong><br>
+        Built by Nihhar K Sonee (NKS-Coder)<br>
+        Powered by Groq Llama 3.3 70B · ElevenLabs · Cloudflare<br><br>
+        🔒 All API keys are encrypted in Cloudflare Workers.<br>
+        No keys are stored in this app or your browser.<br>
+        Your chat history is saved privately in Supabase.
+      </div>
+      <div class="fld">
+        <div class="flbl">Session ID</div>
+        <div class="finp" id="sessionDisplay" style="color:var(--muted);font-size:0.65rem;cursor:text">Loading...</div>
+      </div>
+    </div>
+
   </div>
 </div>
 
 <script>
 // ═══════════════════════════════════════════════════════════════
-//  ARIA  v4.0
-//  Model: llama-3.3-70b-versatile  (current, high quality, free)
-//  Voice: ElevenLabs (human) or Browser (fallback)
-//  History: Supabase (cloud) + localStorage (local backup)
+//  ARIA v7.0 — Production Ready
+//  ElevenLabs voice via Cloudflare Worker (key encrypted server-side)
+//  Users just open and talk — zero configuration needed
 // ═══════════════════════════════════════════════════════════════
 
-const GROQ_MODEL = 'llama-3.3-70b-versatile';
+// ── CHANGE THIS TO YOUR WORKER URL ────────────────────────────
+const WORKER_URL = 'https://ariaproxy.nihharksonee.workers.dev';
+// ──────────────────────────────────────────────────────────────
 
-// ── PERSONAS ──────────────────────────────────────────────────
-const PERSONAS = {
-  general: `You are ARIA, a highly intelligent personal AI assistant.
-Be genuinely helpful, concise, and direct. Answer questions fully.
-Rules: 2-4 sentences for simple questions. More only when truly needed.
-No bullet points. No markdown. Natural flowing speech only.
-Be confident and personable — like a brilliant friend, not a corporate bot.`,
-
-  sales: `You are ARIA, an expert sales and business development assistant.
-You understand buyer psychology, value propositions, and closing techniques.
-Rules: Be warm, persuasive, and direct. End responses with a forward action.
-2-3 sentences max. Natural speech. No bullet points.`,
-
-  support: `You are ARIA, a patient and expert technical support specialist.
-Diagnose issues methodically. Give specific actionable fixes.
-Rules: Be precise and clear. Ask one question at a time if needed.
-3-4 sentences max. Natural speech. No bullet points.`,
-
-  research: `You are ARIA, a brilliant research analyst.
-Give thorough, accurate, well-reasoned answers.
-Rules: Be factual and cite reasoning clearly. Acknowledge uncertainty.
-4-5 sentences max. Natural speech. No bullet points.`,
-
-  jarvis: `You are ARIA — a Jarvis-level AI assistant.
-You are calm, highly intelligent, proactive, and efficient.
-You help with everything: scheduling, emails, research, decisions, tasks.
-Rules: Be direct and confident. Speak like a trusted chief of staff.
-Keep responses to 3 sentences unless complexity demands more.
-Natural speech. No bullet points. No filler phrases.`,
+// App definitions
+const APPS = {
+  gmail:    { name:'Gmail',           icon:'📧', auth:'oauth_google',    prompt:null },
+  calendar: { name:'Google Calendar', icon:'📅', auth:'oauth_google',    prompt:null },
+  outlook:  { name:'Outlook',         icon:'💼', auth:'oauth_microsoft', prompt:null },
+  slack:    { name:'Slack',           icon:'💬', auth:'token',           prompt:'Get bot token from api.slack.com/apps\n\nPaste your Bot OAuth Token (xoxb-...):' },
+  discord:  { name:'Discord',         icon:'🎮', auth:'webhook',         prompt:'Get webhook URL from Discord channel settings\n\nPaste your Webhook URL:' },
+  notion:   { name:'Notion',          icon:'📝', auth:'token',           prompt:'Get token from notion.so/my-integrations\n\nPaste your Integration Token (secret_...):' },
+  airtable: { name:'Airtable',        icon:'🗃️', auth:'token',           prompt:'Get token from airtable.com/create/tokens\n\nPaste your Personal Access Token:' },
 };
 
-// ── STATE ─────────────────────────────────────────────────────
+// State
 const S = {
-  msgs: [], listening: false, persona: 'general',
-  t0: Date.now(), msgN: 0, tokens: 0,
-  speaking: false, currentAudio: null,
-  sessionId: Date.now().toString(),
+  msgs:[], listening:false, persona:'general',
+  t0:Date.now(), msgN:0, tokens:0, speaking:false, audio:null,
 };
 
-// ── CONFIG ────────────────────────────────────────────────────
+// Per-user config in browser (no API keys — just preferences and connected apps)
 const C = {
-  get groq()    { return localStorage.getItem('a_groq') || ''; },
-  get el()      { return localStorage.getItem('a_el')   || ''; },
-  get elVoice() { return localStorage.getItem('a_elv')  || '21m00Tcm4TlvDq8ikWAM'; },
-  get sbUrl()   { return localStorage.getItem('a_sbu')  || ''; },
-  get sbKey()   { return localStorage.getItem('a_sbk')  || ''; },
-  get n8n()     { return localStorage.getItem('a_n8n')  || ''; },
-  get engine()  { return localStorage.getItem('a_eng')  || 'browser'; },
-  save(g,e,ev,su,sk,n,eng) {
-    localStorage.setItem('a_groq',g.trim());
-    localStorage.setItem('a_el',  e.trim());
-    localStorage.setItem('a_elv', ev);
-    localStorage.setItem('a_sbu', su.trim());
-    localStorage.setItem('a_sbk', sk.trim());
-    localStorage.setItem('a_n8n', n.trim());
-    localStorage.setItem('a_eng', eng);
-  }
+  get apps()    { try{return JSON.parse(localStorage.getItem('aria_apps')||'{}');}catch{return{};} },
+  get voiceId() { return localStorage.getItem('aria_voice') || '21m00Tcm4TlvDq8ikWAM'; },
+  get speed()   { return parseFloat(localStorage.getItem('aria_speed') || '1'); },
+  saveApp(n,d)  { const a=C.apps; a[n]=d; localStorage.setItem('aria_apps',JSON.stringify(a)); },
+  removeApp(n)  { const a=C.apps; delete a[n]; localStorage.setItem('aria_apps',JSON.stringify(a)); },
 };
 
-// ── DOM ────────────────────────────────────────────────────────
+// DOM
 const $ = id => document.getElementById(id);
 const D = {
-  center: $('centerStage'), feed: $('convFeed'),
-  inp: $('inp'), send: $('sendBtn'), think: $('thinking'),
-  mic: $('micBtn'), micRing: $('micRingOuter'),
-  wave: $('audioBars'), micLbl: $('micLabel'),
-  nMsgs: $('sMsgs'), nTime: $('sTime'), nTok: $('sTok'),
-  status: $('statusLabel'), banner: $('apiBanner'),
-  groqKey: $('groqKey'), elKey: $('elKey'),
-  elVoiceSel: $('elVoiceSel'), sbUrl: $('sbUrl'), sbKey: $('sbKey'),
-  n8nUrl: $('n8nUrl'), saveBtn: $('saveBtn'), savedOk: $('savedOk'),
-  voiceEngine: $('voiceEngine'), elVoiceField: $('elVoiceField'),
-  browserVoiceRow: $('browserVoiceRow'), historyList: $('historyList'),
+  msgs:$('msgs'), inp:$('inp'), send:$('sendBtn'), think:$('think'),
+  mic:$('micBtn'), viz:$('viz'), micLbl:$('micLbl'), status:$('statusChip'),
+  nMsgs:$('sMsgs'), nTime:$('sTime'), nTok:$('sTok'),
+  modal:$('modal'), gear:$('gearBtn'), close:$('closeBtn'),
+  sidebarApps:$('sidebarApps'), voiceSel:$('voiceSel'), spd:$('spd'),
 };
 
 // ── INIT ──────────────────────────────────────────────────────
 window.addEventListener('load', () => {
-  // Load saved config
-  if (C.groq)    D.groqKey.value    = C.groq;
-  if (C.el)      D.elKey.value      = C.el;
-  if (C.sbUrl)   D.sbUrl.value      = C.sbUrl;
-  if (C.sbKey)   D.sbKey.value      = C.sbKey;
-  if (C.n8n)     D.n8nUrl.value     = C.n8n;
-  D.voiceEngine.value = C.engine;
-  D.elVoiceSel.value  = C.elVoice;
-  syncEngineUI();
-  syncBanner();
-  loadHistory();
+  D.voiceSel.value               = C.voiceId;
+  D.spd.value                    = C.speed;
+  $('modalVoiceSel').value       = C.voiceId;
+  $('modalSpd').value            = C.speed;
+  $('sessionDisplay').textContent = getSession();
+  syncAllAppUI();
 
-  // Welcome
-  const w = C.groq
-    ? "Hello. I'm ARIA, your personal AI assistant. I'm fully operational. What can I do for you today?"
-    : "Hi, I'm ARIA! To get started, scroll down in the sidebar, paste your free Groq API key, and hit Save. Takes about two minutes.";
-  addMsg('assistant', w);
-  if (C.groq) speak(w);
+  addMsg('assistant', "Hello! I'm ARIA, your personal AI voice assistant. Click the mic and speak, or type below — I'm ready to help.");
+  speak("Hello! I'm ARIA, your personal AI voice assistant. How can I help you today?");
 });
 
-function syncBanner() {
-  D.banner.textContent = C.groq ? '✓ Connected — ARIA is operational' : '⚠ Paste your Groq key below to activate';
-  D.banner.className   = C.groq ? 'api-status ok' : 'api-status warn';
-}
-function setStatus(txt, color) {
-  D.status.textContent  = txt;
-  D.status.style.color  = color || '';
+// ── MODAL ─────────────────────────────────────────────────────
+D.gear.addEventListener('click',  () => openModal('apps'));
+D.close.addEventListener('click', () => D.modal.classList.remove('open'));
+D.modal.addEventListener('click', e => { if(e.target===D.modal) D.modal.classList.remove('open'); });
+function openModal(tab) { D.modal.classList.add('open'); switchTab(tab); }
+document.querySelectorAll('.mtab').forEach(t => t.addEventListener('click', () => switchTab(t.dataset.tab)));
+function switchTab(name) {
+  document.querySelectorAll('.mtab').forEach(t => t.classList.toggle('active', t.dataset.tab===name));
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.toggle('active', p.id==='tab-'+name));
 }
 
-function syncEngineUI() {
-  const el = D.voiceEngine.value === 'elevenlabs';
-  D.elVoiceField.style.display    = el ? 'flex' : 'none';
-  D.browserVoiceRow.style.display = el ? 'none' : 'flex';
-}
-D.voiceEngine.addEventListener('change', syncEngineUI);
-
-// ── SAVE CONFIG ────────────────────────────────────────────────
-D.saveBtn.addEventListener('click', () => {
-  const k = D.groqKey.value.trim();
-  if (!k) { D.groqKey.focus(); D.groqKey.style.borderColor='rgba(255,69,58,0.5)'; return; }
-  D.groqKey.style.borderColor = '';
-  C.save(k, D.elKey.value, D.elVoiceSel.value, D.sbUrl.value, D.sbKey.value, D.n8nUrl.value, D.voiceEngine.value);
-  D.savedOk.style.display = 'block';
-  setTimeout(() => D.savedOk.style.display='none', 3000);
-  syncBanner();
+// ── SAVE VOICE ────────────────────────────────────────────────
+$('saveVoiceBtn').addEventListener('click', () => {
+  localStorage.setItem('aria_voice', $('modalVoiceSel').value);
+  localStorage.setItem('aria_speed', $('modalSpd').value);
+  D.voiceSel.value = $('modalVoiceSel').value;
+  D.spd.value      = $('modalSpd').value;
+  $('saveVoiceOk').style.display = 'block';
+  setTimeout(() => $('saveVoiceOk').style.display = 'none', 2500);
 });
+D.voiceSel.addEventListener('change', () => localStorage.setItem('aria_voice', D.voiceSel.value));
 
 // ── SESSION TIMER ─────────────────────────────────────────────
-let elapsed = 0;
-setInterval(() => {
-  elapsed++;
-  const m = Math.floor(elapsed/60), s = elapsed%60;
-  D.nTime.textContent = m > 0 ? `${m}m${s}s` : `${s}s`;
-}, 1000);
+let sec=0;
+setInterval(()=>{sec++;D.nTime.textContent=sec<60?`${sec}s`:`${Math.floor(sec/60)}m${sec%60}s`;},1000);
 
-// ── TTS BROWSER ────────────────────────────────────────────────
-const synth = window.speechSynthesis;
-let voices  = [];
-function loadVoices() {
-  voices = synth.getVoices()
-    .filter(v => v.lang.startsWith('en'))
-    .sort((a,b) => {
-      const q = v => /google|microsoft|premium|enhanced/i.test(v.name) ? 1 : 0;
-      return q(b) - q(a);
+// ── ELEVENLABS VOICE VIA WORKER ────────────────────────────────
+// Key is in Cloudflare — this just calls /tts endpoint
+async function speakEL(txt) {
+  try {
+    setMode('generating');
+    const res = await fetch(`${WORKER_URL}/tts`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        text:     txt,
+        voice_id: D.voiceSel.value || C.voiceId,
+      })
     });
-  const sel = $('voiceSel'); sel.innerHTML = '';
-  voices.forEach((v,i) => {
-    const o = document.createElement('option'); o.value = i;
-    const star = /google|microsoft/i.test(v.name) ? '★ ' : '';
-    o.textContent = star + v.name.slice(0,20);
-    sel.appendChild(o);
-  });
+
+    if (!res.ok) {
+      console.warn('ElevenLabs via Worker failed, using browser voice');
+      speakBrowser(txt);
+      return;
+    }
+
+    const blob  = await res.blob();
+    const url   = URL.createObjectURL(blob);
+    const audio = new Audio(url);
+    S.audio     = audio;
+    audio.playbackRate = parseFloat(D.spd.value);
+    audio.onplay  = () => setMode('speaking');
+    audio.onended = audio.onerror = () => {
+      setMode('ready');
+      URL.revokeObjectURL(url);
+      if ($('autoOn').checked) startListen();
+    };
+    await audio.play();
+  } catch(e) {
+    console.warn('TTS error, using browser voice:', e);
+    speakBrowser(txt);
+  }
 }
-loadVoices();
-if (synth.onvoiceschanged !== undefined) synth.onvoiceschanged = loadVoices;
+
+// Browser voice fallback
+const synth = window.speechSynthesis;
+let bVoices = [];
+function loadBrowserVoices() {
+  bVoices = synth.getVoices().filter(v=>v.lang.startsWith('en'))
+    .sort((a,b)=>/google|microsoft/i.test(b.name)-/google|microsoft/i.test(a.name));
+}
+if(synth.onvoiceschanged!==undefined) synth.onvoiceschanged=loadBrowserVoices;
+loadBrowserVoices();
 
 function speakBrowser(txt) {
   synth.cancel();
   const u   = new SpeechSynthesisUtterance(txt);
-  const idx = parseInt($('voiceSel').value) || 0;
-  if (voices[idx]) u.voice = voices[idx];
-  u.rate  = parseFloat($('spd').value);
-  u.pitch = 1.0;
-  u.onstart = ()  => startSpeakingUI();
-  u.onend   = u.onerror = () => stopSpeakingUI();
+  if (bVoices[0]) u.voice = bVoices[0];
+  u.rate    = parseFloat(D.spd.value);
+  u.onstart = () => setMode('speaking');
+  u.onend   = u.onerror = () => { setMode('ready'); if($('autoOn').checked) startListen(); };
   synth.speak(u);
-}
-
-async function speakElevenLabs(txt) {
-  if (!C.el) { speakBrowser(txt); return; }
-  try {
-    setStatus('Generating voice...', '#ffd60a');
-    const res = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${C.elVoice}`, {
-      method: 'POST',
-      headers: { 'Accept':'audio/mpeg', 'Content-Type':'application/json', 'xi-api-key': C.el },
-      body: JSON.stringify({
-        text: txt,
-        model_id: 'eleven_turbo_v2',
-        voice_settings: { stability:0.5, similarity_boost:0.85, style:0.2, use_speaker_boost:true }
-      })
-    });
-    if (!res.ok) { speakBrowser(txt); return; }
-    const blob  = await res.blob();
-    const url   = URL.createObjectURL(blob);
-    const audio = new Audio(url);
-    S.currentAudio = audio;
-    audio.playbackRate = parseFloat($('spd').value);
-    audio.onplay   = startSpeakingUI;
-    audio.onended  = audio.onerror = () => { stopSpeakingUI(); URL.revokeObjectURL(url); };
-    await audio.play();
-  } catch(e) { speakBrowser(txt); }
 }
 
 function speak(txt) {
   if (!$('voiceOn').checked) return;
   synth.cancel();
-  if (S.currentAudio) { S.currentAudio.pause(); S.currentAudio = null; }
-  D.voiceEngine.value === 'elevenlabs' ? speakElevenLabs(txt) : speakBrowser(txt);
+  if (S.audio) { S.audio.pause(); S.audio=null; }
+  speakEL(txt); // ElevenLabs is default, browser is fallback
 }
 
-function startSpeakingUI() {
-  S.speaking = true;
-  D.mic.classList.add('speaking');
-  D.center.classList.add('speaking');
-  D.wave.classList.add('active','speaking');
-  D.micLbl.textContent = 'Speaking...';
-  D.micLbl.className   = 'mic-label speaking';
-  setStatus('Speaking', '#30d158');
-  const st = $('ariaStateText');
-  if (st) { st.textContent = 'ARIA is speaking...'; st.style.color = 'var(--green)'; }
-}
-function stopSpeakingUI() {
-  S.speaking = false;
-  D.mic.classList.remove('speaking');
-  D.center.classList.remove('speaking');
-  D.wave.classList.remove('active','speaking');
-  D.micLbl.textContent = 'Tap to speak';
-  D.micLbl.className   = 'mic-label';
-  setStatus('Ready');
-  const st = $('ariaStateText');
-  if (st) { st.textContent = 'Tap the mic to start talking'; st.style.color = ''; }
-  if ($('autoOn').checked) startListen();
-}
-
-// ── STT ────────────────────────────────────────────────────────
+// ── STT ───────────────────────────────────────────────────────
 const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-let rec = null;
-if (SR) {
-  rec = new SR(); rec.continuous = false; rec.interimResults = true; rec.lang = 'en-US';
+let rec  = null;
+
+function initRec() {
+  if (!SR) {
+    console.warn('Speech Recognition not supported in this browser');
+    return false;
+  }
+  rec = new SR();
+  rec.continuous     = false;
+  rec.interimResults = true;
+  rec.lang           = 'en-US';
+
   rec.onresult = e => {
-    const t = Array.from(e.results).map(r=>r[0].transcript).join('');
-    D.inp.value = t; autoResize();
-    if (e.results[e.results.length-1].isFinal) { stopListen(); sendMsg(); }
+    const t = Array.from(e.results).map(r => r[0].transcript).join('');
+    D.inp.value = t;
+    autoResize();
+    if (e.results[e.results.length - 1].isFinal) {
+      stopListen();
+      sendMsg();
+    }
   };
-  rec.onerror = () => stopListen();
-  rec.onend   = () => stopListen();
+
+  rec.onerror = e => {
+    console.error('Speech recognition error:', e.error);
+    stopListen();
+    if (e.error === 'not-allowed') {
+      addMsg('assistant', "Microphone access was denied. Click the lock icon 🔒 in your browser address bar → Site settings → Microphone → Allow. Then refresh the page.", true);
+    } else if (e.error === 'no-speech') {
+      setMode('ready'); // just reset, no error needed
+    } else {
+      addMsg('assistant', `Mic error: ${e.error}. Make sure you are using Chrome or Edge and have allowed microphone access.`, true);
+    }
+  };
+
+  rec.onend = () => {
+    if (S.listening) stopListen();
+  };
+
+  return true;
 }
-function startListen() {
-  if (!rec) { alert('Voice input requires Chrome or Edge.'); return; }
+
+initRec();
+
+async function startListen() {
+  // Check browser support
+  if (!SR) {
+    addMsg('assistant', 'Voice input requires Chrome or Edge browser. Please open ARIA in Chrome.', true);
+    return;
+  }
+
+  // Request mic permission explicitly first
+  try {
+    await navigator.mediaDevices.getUserMedia({ audio: true });
+  } catch(permErr) {
+    addMsg('assistant', "Microphone access denied. Click the 🔒 lock icon in your browser address bar → Site settings → Microphone → set to Allow → then refresh.", true);
+    return;
+  }
+
+  // Stop any current audio
   synth.cancel();
-  if (S.currentAudio) { S.currentAudio.pause(); S.currentAudio = null; }
-  stopSpeakingUI();
+  if (S.audio) { S.audio.pause(); S.audio = null; }
+
+  // Re-init recognition if needed
+  if (!rec) initRec();
+
   S.listening = true;
-  D.mic.classList.add('listening');
-  D.center.classList.add('listening');
-  D.wave.classList.add('active','listening');
-  D.micLbl.textContent = 'Listening...';
-  D.micLbl.className   = 'mic-label listening';
-  setStatus('Listening', '#ff453a');
-  const st = $('ariaStateText');
-  if (st) { st.textContent = 'Listening — speak now...'; st.style.color = 'var(--red)'; }
-  try { rec.start(); } catch(e) {}
+  setMode('listening');
+
+  try {
+    rec.start();
+  } catch(e) {
+    // Already started — stop and restart
+    try { rec.stop(); } catch(e2) {}
+    setTimeout(() => {
+      if (!rec) initRec();
+      try { rec.start(); } catch(e3) { console.error('Rec start failed:', e3); stopListen(); }
+    }, 300);
+  }
 }
+
 function stopListen() {
   S.listening = false;
-  D.mic.classList.remove('listening');
-  D.center.classList.remove('listening');
-  D.wave.classList.remove('active','listening');
-  D.micLbl.textContent = 'Tap to speak';
-  D.micLbl.className   = 'mic-label';
-  setStatus('Ready');
-  const st = $('ariaStateText');
-  if (st) { st.textContent = 'Tap the mic to start talking'; st.style.color = ''; }
+  setMode('ready');
   try { rec.stop(); } catch(e) {}
 }
-D.mic.addEventListener('click', () => { if (S.listening) stopListen(); else startListen(); });
 
-// ── RENDER MSG ─────────────────────────────────────────────────
-function addMsg(role, txt, isErr=false) {
-  S.msgN++; D.nMsgs.textContent = S.msgN;
-  const now = new Date().toLocaleTimeString('en-US',{hour12:true,hour:'numeric',minute:'2-digit'});
-  const d   = document.createElement('div');
-  d.className = `msg ${isErr?'err':role}`;
-  d.innerHTML = `
-    <div class="msg-avatar">${role==='user'?'You':'AI'}</div>
-    <div class="msg-content">
-      <div class="msg-bubble">${txt.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\n/g,'<br>')}</div>
-      <div class="msg-time">${now}</div>
-    </div>`;
-  D.feed.appendChild(d);
-  D.feed.scrollTop = D.feed.scrollHeight;
+D.mic.addEventListener('click', () => {
+  if (S.listening) stopListen();
+  else startListen();
+});
+
+// ── MODE ──────────────────────────────────────────────────────
+function setMode(m){
+  D.mic.classList.remove('listening','speaking'); D.viz.classList.remove('on');
+  const map={
+    ready:['Click to speak','',''],
+    listening:['Listening...','listening',''],
+    thinking:['Thinking...','',''],
+    speaking:['Speaking...','speaking','on'],
+    generating:['Generating voice...','',''],
+  };
+  const[lbl,mc,vc]=map[m]||map.ready;
+  D.micLbl.textContent=lbl; D.status.textContent=lbl;
+  if(mc)D.mic.classList.add(mc); if(vc)D.viz.classList.add(vc);
 }
 
-// ── GROQ ───────────────────────────────────────────────────────
-async function callGroq(msgs) {
-  const res  = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-    method: 'POST',
-    headers: { 'Content-Type':'application/json', 'Authorization':`Bearer ${C.groq}` },
-    body: JSON.stringify({
-      model: GROQ_MODEL, max_tokens:600, temperature:0.72, top_p:0.9,
-      messages: [
-        { role:'system', content: PERSONAS[S.persona] },
-        ...msgs.slice(-14)
-      ]
+// ── MESSAGES ──────────────────────────────────────────────────
+function addMsg(role,txt,err=false){
+  S.msgN++; D.nMsgs.textContent=S.msgN;
+  const now=new Date().toLocaleTimeString('en-US',{hour12:true,hour:'numeric',minute:'2-digit'});
+  const d=document.createElement('div');
+  d.className=`msg ${err?'err':role}`;
+  d.innerHTML=`<div class="av">${role==='user'?'Y':'A'}</div>
+    <div><div class="bbl">${txt.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}</div>
+    <div class="msg-time">${now}</div></div>`;
+  D.msgs.appendChild(d); D.msgs.scrollTop=D.msgs.scrollHeight;
+}
+
+// ── CALL WORKER ────────────────────────────────────────────────
+async function callWorker(txt){
+  const res=await fetch(WORKER_URL,{
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({
+      messages:   S.msgs.slice(-12),
+      persona:    S.persona,
+      session_id: getSession(),
+      apps:       C.apps,
     })
   });
-  const data = await res.json();
-  if (data.error) {
-    const m = (data.error.message||'').toLowerCase();
-    if (res.status===401 || m.includes('api key') || m.includes('invalid')) throw new Error('BAD_KEY');
-    if (res.status===429) throw new Error('RATE_LIMIT');
-    if (m.includes('decommission')||m.includes('deprecat')) throw new Error('DEPRECATED');
-    throw new Error(data.error.message||'GROQ_ERROR');
-  }
-  S.tokens += (data.usage?.total_tokens||0);
-  D.nTok.textContent = S.tokens > 999 ? `${(S.tokens/1000).toFixed(1)}k` : `${S.tokens}`;
-  return data.choices[0].message.content.trim();
+  const data=await res.json();
+  if(data.error) throw new Error(data.error);
+  return data.reply;
 }
 
-// ── SUPABASE SAVE ──────────────────────────────────────────────
-async function saveToSupabase(userMsg, ariaReply) {
-  if (!C.sbUrl || !C.sbKey) {
-    // Save to localStorage as fallback
-    saveToLocalStorage(userMsg, ariaReply);
-    return;
-  }
-  try {
-    await fetch(`${C.sbUrl}/rest/v1/aria_chats`, {
-      method: 'POST',
-      headers: {
-        'Content-Type':  'application/json',
-        'apikey':        C.sbKey,
-        'Authorization': `Bearer ${C.sbKey}`,
-        'Prefer':        'return=minimal'
-      },
-      body: JSON.stringify({
-        session_id: S.sessionId,
-        persona:    S.persona,
-        user_msg:   userMsg,
-        aria_reply: ariaReply,
-        created_at: new Date().toISOString()
-      })
-    });
-    saveToLocalStorage(userMsg, ariaReply);  // always keep local copy too
-  } catch(e) {
-    saveToLocalStorage(userMsg, ariaReply);
+// ── SEND ──────────────────────────────────────────────────────
+async function sendMsg(){
+  const txt=D.inp.value.trim();
+  if(!txt||D.send.disabled) return;
+  D.inp.value=''; autoResize();
+  S.msgs.push({role:'user',content:txt});
+  addMsg('user',txt);
+  D.think.classList.remove('hidden'); D.send.disabled=true; setMode('thinking');
+  try{
+    const reply=await callWorker(txt);
+    S.msgs.push({role:'assistant',content:reply});
+    D.think.classList.add('hidden'); D.send.disabled=false;
+    addMsg('assistant',reply); speak(reply);
+  }catch(err){
+    D.think.classList.add('hidden'); D.send.disabled=false; setMode('ready'); S.msgs.pop();
+    const m=`Something went wrong: ${err.message}`;
+    addMsg('assistant',m,true); speak(m);
   }
 }
+D.send.addEventListener('click',sendMsg);
+D.inp.addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendMsg();}});
+function autoResize(){D.inp.style.height='auto';D.inp.style.height=Math.min(D.inp.scrollHeight,110)+'px';}
+D.inp.addEventListener('input',autoResize);
 
-// ── LOCALSTORAGE HISTORY ───────────────────────────────────────
-function saveToLocalStorage(userMsg, ariaReply) {
-  const history = JSON.parse(localStorage.getItem('aria_history') || '[]');
-  history.unshift({
-    id:       Date.now(),
-    date:     new Date().toLocaleDateString('en-US',{month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'}),
-    preview:  userMsg.slice(0,60),
-    user:     userMsg,
-    reply:    ariaReply,
-    persona:  S.persona,
-  });
-  // Keep last 50 conversations
-  if (history.length > 50) history.pop();
-  localStorage.setItem('aria_history', JSON.stringify(history));
-  renderHistory();
-}
-
-function loadHistory() {
-  renderHistory();
-}
-
-function renderHistory() {
-  const history = JSON.parse(localStorage.getItem('aria_history') || '[]');
-  if (!history.length) {
-    D.historyList.innerHTML = '<div class="h-empty">No saved chats yet</div>';
-    return;
-  }
-  D.historyList.innerHTML = history.map(h => `
-    <div class="h-item" onclick="replayChat(${h.id})">
-      <div class="h-date">${h.date} · ${h.persona}</div>
-      <div class="h-preview">${h.preview}...</div>
-    </div>
-  `).join('');
-}
-
-function replayChat(id) {
-  const history = JSON.parse(localStorage.getItem('aria_history') || '[]');
-  const item = history.find(h => h.id === id);
-  if (!item) return;
-  // Show in chat
-  addMsg('user', item.user);
-  addMsg('assistant', item.reply);
-  speak(item.reply);
-}
-
-$('clearHistory').addEventListener('click', () => {
-  if (confirm('Clear all chat history? This cannot be undone.')) {
-    localStorage.removeItem('aria_history');
-    renderHistory();
-  }
-});
-
-// ── N8N ────────────────────────────────────────────────────────
-async function callN8N(txt) {
-  if (!C.n8n) return null;
-  try {
-    const r = await fetch(C.n8n, {
-      method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({ message:txt, persona:S.persona, history:S.msgs, sessionId:S.sessionId })
-    });
-    const d = await r.json();
-    return d.reply || d.output || null;
-  } catch(e) { return null; }
-}
-
-// ── MAIN AI ────────────────────────────────────────────────────
-async function callAI(txt) {
-  if (!C.groq) {
-    const m = "I need a Groq API key to think. Scroll down in the sidebar, paste your free key, and hit Save. I'll be ready in seconds!";
-    addMsg('assistant',m); speak(m); return;
-  }
-  S.msgs.push({ role:'user', content:txt });
-  D.think.classList.remove('hidden');
-  D.send.disabled = true;
-  setStatus('Thinking...', '#0a84ff');
-  const st = $('ariaStateText');
-  if (st) { st.textContent = 'ARIA is thinking...'; st.style.color = 'var(--blue)'; }
-
-  try {
-    let reply = await callN8N(txt);
-    if (!reply) reply = await callGroq(S.msgs);
-
-    S.msgs.push({ role:'assistant', content:reply });
-    D.think.classList.add('hidden');
-    D.send.disabled = false;
-
-    addMsg('assistant', reply);
-    speak(reply);
-
-    // Save to history
-    await saveToSupabase(txt, reply);
-
-  } catch(err) {
-    D.think.classList.add('hidden');
-    D.send.disabled = false;
-    S.msgs.pop();
-    setStatus('Error', '#ff453a');
-    setTimeout(() => setStatus('Ready'), 3000);
-
-    let m;
-    switch(err.message) {
-      case 'BAD_KEY':
-        m = "Your API key doesn't look right. Double-check it at console.groq.com and paste it again in the sidebar.";
-        localStorage.removeItem('a_groq'); syncBanner(); break;
-      case 'RATE_LIMIT':
-        m = "Hit the rate limit for this minute. Wait about 60 seconds and I'll be ready again."; break;
-      case 'DEPRECATED':
-        m = "The model was updated. Please refresh the page — the new model is already configured."; break;
-      default:
-        m = `Error: ${err.message}. Check your connection and try again.`;
+// ── CONNECT APPS ──────────────────────────────────────────────
+function connectApp(name){
+  const app=APPS[name]; if(!app) return;
+  if(app.auth==='oauth_google'||app.auth==='oauth_microsoft'){
+    const endpoint=app.auth==='oauth_google'?'google':'microsoft';
+    const w=window.open(`${WORKER_URL}/auth/${endpoint}/url?app=${name}&session=${getSession()}`,'oauth','width=500,height=620');
+    const t=setInterval(()=>{ if(w.closed){ clearInterval(t); setTimeout(()=>checkApp(name),800); } },600);
+  } else {
+    const val=window.prompt(`Connect ${app.name}\n\n${app.prompt}`,'');
+    if(val&&val.trim()){
+      C.saveApp(name,{connected:true,token:val.trim()});
+      fetch(`${WORKER_URL}/connect`,{method:'POST',headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({app:name,token:val.trim(),session:getSession()})}).catch(()=>{});
+      syncAllAppUI();
+      const m=`${app.name} is now connected! You can use voice commands to interact with it.`;
+      addMsg('assistant',m); speak(m);
     }
-    addMsg('assistant', m, true);
-    speak(m);
   }
 }
 
-// ── SEND ───────────────────────────────────────────────────────
-async function sendMsg() {
-  const txt = D.inp.value.trim();
-  if (!txt || D.send.disabled) return;
-  D.inp.value = ''; D.inp.style.height = 'auto';
-  addMsg('user', txt);
-  await callAI(txt);
+function checkApp(name){
+  fetch(`${WORKER_URL}/auth/status?app=${name}&session=${getSession()}`)
+    .then(r=>r.json())
+    .then(d=>{
+      if(d.connected){
+        C.saveApp(name,{connected:true,email:d.email||''});
+        syncAllAppUI();
+        const m=`${APPS[name]?.name} connected successfully${d.email?' as '+d.email:''}! You can now use it with voice commands.`;
+        addMsg('assistant',m); speak(m);
+      }
+    }).catch(()=>{});
 }
-D.send.addEventListener('click', sendMsg);
-D.inp.addEventListener('keydown', e => { if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendMsg();} });
-function autoResize() { D.inp.style.height='auto'; D.inp.style.height=Math.min(D.inp.scrollHeight,100)+'px'; }
-D.inp.addEventListener('input', autoResize);
 
-// ── PERSONAS ───────────────────────────────────────────────────
-document.querySelectorAll('.pcard').forEach(c => {
-  c.addEventListener('click', () => {
-    document.querySelectorAll('.pcard').forEach(x => x.classList.remove('active'));
-    c.classList.add('active');
-    S.persona = c.dataset.p;
-    S.msgs = [];
-    const m = `Switched to ${c.querySelector('.p-name').textContent} mode. How can I help?`;
-    addMsg('assistant', m); speak(m);
-  });
-});
+function disconnectApp(name){
+  if(!confirm(`Disconnect ${APPS[name]?.name}?`)) return;
+  C.removeApp(name);
+  fetch(`${WORKER_URL}/disconnect`,{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({app:name,session:getSession()})}).catch(()=>{});
+  syncAllAppUI();
+}
 
-// ── TABS ───────────────────────────────────────────────────────
-document.querySelectorAll('.tab').forEach(t => {
-  t.addEventListener('click', () => {
-    document.querySelectorAll('.tab').forEach(x => x.classList.remove('active'));
-    t.classList.add('active');
-    const view = t.dataset.view;
-    if (view === 'history') {
-      renderHistory();
-      // scroll sidebar to history section
-      $('historyList').scrollIntoView({ behavior:'smooth' });
-    } else if (view === 'integrations') {
-      $('intSection').scrollIntoView({ behavior:'smooth' });
+// ── SYNC APP UI ───────────────────────────────────────────────
+function syncAllAppUI(){
+  const apps=C.apps;
+  Object.keys(APPS).forEach(name=>{
+    const btn=$(`btn-${name}`);
+    const card=$(`card-${name}`);
+    const desc=$(`desc-${name}`);
+    if(!btn||!card) return;
+    const isConn=apps[name]?.connected;
+    card.classList.toggle('is-connected',isConn);
+    if(isConn){
+      const email=apps[name]?.email;
+      if(desc) desc.textContent=email?`✓ ${email}`:APPS[name].name+' connected';
+      btn.textContent='Disconnect'; btn.className='ac-btn disconnect';
+      btn.onclick=()=>disconnectApp(name);
+    } else {
+      if(desc) desc.textContent={gmail:'Send, read, sort emails',calendar:'Book meetings',outlook:'Microsoft email',slack:'Send channel messages',discord:'Post to channels',notion:'Create notes',airtable:'Log data'}[name]||'';
+      btn.textContent='Connect'; btn.className='ac-btn connect';
+      btn.onclick=()=>connectApp(name);
     }
   });
+
+  // Sidebar
+  const connected=Object.keys(apps).filter(k=>apps[k]?.connected);
+  D.sidebarApps.innerHTML='';
+  if(!connected.length){
+    D.sidebarApps.innerHTML='<div style="font-size:0.63rem;color:var(--muted);text-align:center;padding:4px 0">No apps connected yet.</div>';
+    return;
+  }
+  connected.forEach(name=>{
+    const app=APPS[name]; if(!app) return;
+    const d=document.createElement('div'); d.className='app-item';
+    d.innerHTML=`<div class="app-left"><div class="app-icon">${app.icon}</div>
+      <div><div class="app-name">${app.name}</div>
+      <div class="app-sub" style="color:var(--green)">✓ Connected</div></div></div>
+      <div style="width:6px;height:6px;border-radius:50%;background:var(--green);box-shadow:0 0 6px var(--green)"></div>`;
+    D.sidebarApps.appendChild(d);
+  });
+}
+
+// ── PERSONAS ──────────────────────────────────────────────────
+document.querySelectorAll('.pcard').forEach(c=>{
+  c.addEventListener('click',()=>{
+    document.querySelectorAll('.pcard').forEach(x=>x.classList.remove('active'));
+    c.classList.add('active'); S.persona=c.dataset.p; S.msgs=[];
+    const m=`Switched to ${c.querySelector('.pname').textContent}. How can I help?`;
+    addMsg('assistant',m); speak(m);
+  });
 });
 
-// ── INTEGRATION SETUP MODALS ────────────────────────────────────
-const INT_INFO = {
-  gmail: {
-    name: 'Gmail', icon: '📧',
-    steps: `<b>Connect Gmail to ARIA via N8N:</b><br><br>
-1. Open N8N → New Workflow<br>
-2. Add a <b>Webhook</b> node — copy the URL<br>
-3. Add a <b>Gmail</b> node → connect your Google account<br>
-4. Set operation to <b>Send Email</b><br>
-5. Map: To = <code>{{$json.to}}</code>, Subject = <code>{{$json.subject}}</code>, Body = <code>{{$json.body}}</code><br>
-6. Paste the webhook URL in the N8N field in ARIA sidebar<br><br>
-<b>Then say:</b> "Send an email to John at john@email.com saying the report is ready"`,
-  },
-  outlook: {
-    name: 'Outlook', icon: '📨',
-    steps: `<b>Connect Outlook to ARIA via N8N:</b><br><br>
-1. Open N8N → New Workflow → Add Webhook node<br>
-2. Add a <b>Microsoft Outlook</b> node<br>
-3. Authenticate with your Microsoft 365 account<br>
-4. Set operation to <b>Send Email</b><br>
-5. Connect and activate the workflow<br>
-6. Paste webhook URL in ARIA sidebar<br><br>
-<b>Then say:</b> "Email Professor Cantor and tell him the project is submitted"`,
-  },
-  gcal: {
-    name: 'Google Calendar', icon: '📅',
-    steps: `<b>Connect Google Calendar to ARIA:</b><br><br>
-1. Open N8N → New Workflow → Add Webhook node<br>
-2. Add a <b>Google Calendar</b> node<br>
-3. Connect your Google account (OAuth)<br>
-4. Set operation to <b>Create Event</b><br>
-5. Use AI to parse date/time from voice<br>
-6. Paste webhook URL in ARIA sidebar<br><br>
-<b>Then say:</b> "Schedule a meeting called ARIA Demo for tomorrow at 2pm"`,
-  },
-  zoom: {
-    name: 'Zoom', icon: '🎥',
-    steps: `<b>Connect Zoom to ARIA:</b><br><br>
-1. Go to <a href="https://marketplace.zoom.us" target="_blank" style="color:#0a84ff">marketplace.zoom.us</a> → Create App → JWT or OAuth<br>
-2. Copy your API Key and Secret<br>
-3. In N8N → Add Zoom node → paste credentials<br>
-4. Set operation to <b>Create Meeting</b><br>
-5. Connect to your Webhook<br><br>
-<b>Then say:</b> "Create a Zoom meeting for tomorrow at 3pm for 30 minutes"`,
-  },
-  slack: {
-    name: 'Slack', icon: '💬',
-    steps: `<b>Connect Slack to ARIA:</b><br><br>
-1. Go to <a href="https://api.slack.com/apps" target="_blank" style="color:#0a84ff">api.slack.com/apps</a> → Create App<br>
-2. Add Bot Token Scopes: chat:write<br>
-3. Install to workspace → copy Bot Token<br>
-4. In N8N → Add Slack node → paste token<br>
-5. Set operation to <b>Send Message</b><br><br>
-<b>Then say:</b> "Send a message to the team channel saying the demo is live"`,
-  },
-  notion: {
-    name: 'Notion', icon: '📝',
-    steps: `<b>Connect Notion to ARIA:</b><br><br>
-1. Go to <a href="https://www.notion.so/my-integrations" target="_blank" style="color:#0a84ff">notion.so/my-integrations</a><br>
-2. Create integration → copy API key<br>
-3. Share your database with the integration<br>
-4. In N8N → Add Notion node → paste key<br>
-5. Set operation to <b>Create Page</b><br><br>
-<b>Then say:</b> "Add a task in Notion: finish the ARIA report, due Friday, high priority"`,
-  },
-};
-
-function showIntSetup(type) {
-  const info = INT_INFO[type];
-  if (!info) return;
-  $('modalContent').innerHTML = `
-    <div style="font-size:1.5rem;margin-bottom:12px">${info.icon}</div>
-    <h3 style="font-size:1rem;font-weight:600;margin-bottom:16px;color:var(--text)">Connect ${info.name}</h3>
-    <div style="font-size:0.8rem;line-height:1.8;color:var(--text2)">${info.steps}</div>
-    <button onclick="closeModal()" style="margin-top:20px;width:100%;background:var(--blue);color:#fff;border:none;border-radius:10px;padding:10px;font-family:inherit;font-size:0.8rem;font-weight:600;cursor:pointer">Got it</button>
-  `;
-  $('intModal').style.display = 'flex';
+// ── SESSION ───────────────────────────────────────────────────
+function getSession(){
+  if(!localStorage.getItem('aria_sid'))
+    localStorage.setItem('aria_sid','sess_'+Math.random().toString(36).slice(2,10));
+  return localStorage.getItem('aria_sid');
 }
-function closeModal() { $('intModal').style.display = 'none'; }
-$('intModal').addEventListener('click', e => { if(e.target === $('intModal')) closeModal(); });
-window.showIntSetup = showIntSetup;
-window.closeModal   = closeModal;
 </script>
 </body>
 </html>
