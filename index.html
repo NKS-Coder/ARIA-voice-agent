@@ -330,6 +330,7 @@ textarea::placeholder{color:var(--muted);}
     <div class="modal-tabs">
       <button class="mtab active" data-tab="apps">🔗 Apps</button>
       <button class="mtab" data-tab="voice">🎵 Voice</button>
+      <button class="mtab" data-tab="history">📜 History</button>
       <button class="mtab" data-tab="about">ℹ️ About</button>
     </div>
 
@@ -374,6 +375,17 @@ textarea::placeholder{color:var(--muted);}
       </div>
       <button class="msave" id="saveVoice">💾 Save Voice Settings</button>
       <div class="saved" id="voiceSaved">✓ Saved!</div>
+    </div>
+
+    <!-- HISTORY TAB -->
+    <div class="tab-panel" id="tab-history">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">
+        <div class="flbl">Recent Conversations</div>
+        <button onclick="loadHistory()" style="background:var(--surface2);border:1px solid var(--border2);color:var(--muted2);border-radius:7px;padding:4px 10px;font-family:'Outfit',sans-serif;font-size:0.62rem;cursor:pointer;">↻ Refresh</button>
+      </div>
+      <div id="historyList" style="display:flex;flex-direction:column;gap:6px;max-height:400px;overflow-y:auto;">
+        <div style="font-size:0.65rem;color:var(--muted);text-align:center;padding:20px">Click Refresh to load your chat history</div>
+      </div>
     </div>
 
     <!-- ABOUT TAB -->
@@ -502,6 +514,7 @@ setInterval(()=>{ sec++; D.nTime.textContent=sec<60?`${sec}s`:`${Math.floor(sec/
 async function speakEL(txt) {
   try {
     setMode('generating');
+    console.log('🎵 Calling ElevenLabs via Worker /tts...');
     const res = await fetch(`${W}/tts`, {
       method:  'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -509,11 +522,26 @@ async function speakEL(txt) {
     });
 
     if (!res.ok) {
-      console.warn('ElevenLabs via Worker failed:', res.status);
+      // Try to read error message
+      let errMsg = 'Unknown error';
+      try {
+        const errData = await res.clone().json();
+        errMsg = errData.error || errData.detail || res.status;
+      } catch(e) { errMsg = res.status; }
+      console.warn('❌ ElevenLabs TTS failed:', errMsg);
+      console.warn('Falling back to browser voice');
       fallbackSpeak(txt);
       return;
     }
 
+    const contentType = res.headers.get('Content-Type') || '';
+    if (!contentType.includes('audio')) {
+      console.warn('❌ Worker returned non-audio response:', contentType);
+      fallbackSpeak(txt);
+      return;
+    }
+
+    console.log('✅ ElevenLabs audio received, playing...');
     const blob  = await res.blob();
     const url   = URL.createObjectURL(blob);
     const audio = new Audio(url);
@@ -527,8 +555,9 @@ async function speakEL(txt) {
       if ($('autoOn').checked) startListen();
     };
     await audio.play();
+    console.log('✅ ElevenLabs playing successfully');
   } catch(e) {
-    console.warn('TTS error:', e);
+    console.warn('❌ TTS fetch error:', e.message);
     fallbackSpeak(txt);
   }
 }
@@ -859,6 +888,50 @@ function syncApps() {
       <div style="width:6px;height:6px;border-radius:50%;background:var(--green);box-shadow:0 0 6px var(--green)"></div>`;
     D.apps.appendChild(d);
   });
+}
+
+// ── LOAD CHAT HISTORY ────────────────────────────────────────
+async function loadHistory() {
+  const list = $('historyList');
+  list.innerHTML = '<div style="font-size:0.65rem;color:var(--muted);text-align:center;padding:20px">Loading...</div>';
+
+  try {
+    const res  = await fetch(`${W}/history?session=${getSession()}`);
+    const data = await res.json();
+    const msgs = data.history || [];
+
+    if (!msgs.length) {
+      list.innerHTML = '<div style="font-size:0.65rem;color:var(--muted);text-align:center;padding:20px">No history yet. Start a conversation!</div>';
+      return;
+    }
+
+    list.innerHTML = '';
+    // Group by pairs (user + assistant)
+    for (let i = 0; i < msgs.length; i += 2) {
+      const user = msgs[i];
+      const aria = msgs[i+1];
+      if (!user) continue;
+
+      const d   = document.createElement('div');
+      const ts  = new Date(user.created_at).toLocaleString('en-US',{month:'short',day:'numeric',hour:'numeric',minute:'2-digit',hour12:true});
+      d.style.cssText = 'background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:10px 12px;cursor:pointer;transition:border-color 0.2s;';
+      d.onmouseover = () => d.style.borderColor = 'rgba(201,168,76,0.3)';
+      d.onmouseout  = () => d.style.borderColor = 'var(--border)';
+      d.innerHTML = `
+        <div style="font-size:0.58rem;color:var(--muted);margin-bottom:5px">${ts}</div>
+        <div style="font-size:0.72rem;color:var(--gold);margin-bottom:3px">You: ${(user.content||'').slice(0,60)}${user.content?.length>60?'...':''}</div>
+        ${aria ? `<div style="font-size:0.7rem;color:var(--muted2)">ARIA: ${(aria.content||'').slice(0,80)}${aria.content?.length>80?'...':''}</div>` : ''}
+      `;
+      // Click to replay this conversation
+      d.onclick = () => {
+        if (user.content) { D.inp.value = user.content; autoResize(); }
+        D.modal.classList.remove('open');
+      };
+      list.appendChild(d);
+    }
+  } catch(e) {
+    list.innerHTML = `<div style="font-size:0.65rem;color:var(--rose);text-align:center;padding:20px">Could not load history: ${e.message}</div>`;
+  }
 }
 
 // ── PERSONAS ──────────────────────────────────────────────────
