@@ -316,6 +316,27 @@ textarea::placeholder{color:var(--muted);}
       </button>
     </div>
 
+    <!-- HISTORY CARD — always visible in sidebar -->
+    <div class="card">
+      <div class="card-title" style="display:flex;align-items:center;justify-content:space-between">
+        <span>Chat History</span>
+        <button onclick="loadSidebarHistory()" id="histRefreshBtn"
+          style="background:var(--surface2);border:1px solid var(--border2);color:var(--muted2);
+                 border-radius:6px;padding:3px 8px;font-family:'Outfit',sans-serif;font-size:0.55rem;
+                 cursor:pointer;transition:all 0.2s;"
+          onmouseover="this.style.color='var(--gold)';this.style.borderColor='rgba(201,168,76,0.3)'"
+          onmouseout="this.style.color='var(--muted2)';this.style.borderColor='var(--border2)'">
+          ↻ Load
+        </button>
+      </div>
+      <div id="sidebarHistory" style="display:flex;flex-direction:column;gap:5px;max-height:240px;overflow-y:auto;
+           scrollbar-width:thin;scrollbar-color:rgba(255,255,255,0.05) transparent;">
+        <div style="font-size:0.62rem;color:var(--muted);text-align:center;padding:8px 0">
+          Click Load to see history
+        </div>
+      </div>
+    </div>
+
   </aside>
 </div>
 
@@ -503,7 +524,38 @@ $('saveVoice').addEventListener('click', () => {
   $('voiceSaved').style.display = 'block';
   setTimeout(() => $('voiceSaved').style.display='none', 2000);
 });
-D.voiceSel.addEventListener('change', () => C.setVoice(D.voiceSel.value));
+D.voiceSel.addEventListener('change', () => {
+  const newVoice = D.voiceSel.value;
+  C.setVoice(newVoice);
+  $('modalVoice').value = newVoice;
+
+  // Live switch — if currently speaking, stop and re-speak with new voice
+  if (S.audio) {
+    const currentText = S.lastSpokenText || '';
+    S.audio.pause();
+    S.audio = null;
+    synth.cancel();
+    setMode('ready');
+    if (currentText) {
+      setTimeout(() => speakEL(currentText), 200);
+    }
+  }
+});
+
+// Also sync modal voice selector live
+$('modalVoice').addEventListener('change', () => {
+  const newVoice = $('modalVoice').value;
+  C.setVoice(newVoice);
+  D.voiceSel.value = newVoice;
+  if (S.audio) {
+    const currentText = S.lastSpokenText || '';
+    S.audio.pause();
+    S.audio = null;
+    synth.cancel();
+    setMode('ready');
+    if (currentText) setTimeout(() => speakEL(currentText), 200);
+  }
+});
 
 // ── SESSION TIMER ─────────────────────────────────────────────
 let sec=0;
@@ -584,6 +636,7 @@ function fallbackSpeak(txt) {
 
 function speak(txt) {
   if (!$('voiceOn').checked) return;
+  S.lastSpokenText = txt;  // save so live voice switch can re-speak
   synth.cancel();
   if(S.audio){ S.audio.pause(); S.audio=null; }
   speakEL(txt);
@@ -945,6 +998,57 @@ document.querySelectorAll('.pcard').forEach(c => {
     addMsg('assistant', m); speak(m);
   });
 });
+
+// ── SIDEBAR HISTORY ──────────────────────────────────────────
+async function loadSidebarHistory() {
+  const list = $('sidebarHistory');
+  const btn  = $('histRefreshBtn');
+  list.innerHTML = '<div style="font-size:0.62rem;color:var(--muted);text-align:center;padding:8px">Loading...</div>';
+  if (btn) btn.textContent = '...';
+
+  try {
+    const res  = await fetch(`${W}/history?session=${getSession()}`);
+    const data = await res.json();
+    const msgs = data.history || [];
+
+    if (btn) btn.textContent = '↻ Load';
+
+    if (!msgs.length) {
+      list.innerHTML = '<div style="font-size:0.62rem;color:var(--muted);text-align:center;padding:8px">No history yet.</div>';
+      return;
+    }
+
+    list.innerHTML = '';
+
+    // Show user messages only (every other message starting from 0)
+    const userMsgs = msgs.filter(m => m.role === 'user');
+    const recent   = userMsgs.slice(-12).reverse(); // most recent first
+
+    recent.forEach(msg => {
+      const d   = document.createElement('div');
+      const ts  = new Date(msg.created_at).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit',hour12:true});
+      d.style.cssText = `background:var(--surface2);border:1px solid var(--border);border-radius:8px;
+        padding:8px 10px;cursor:pointer;transition:all 0.18s;`;
+      d.onmouseover = () => { d.style.borderColor='rgba(201,168,76,0.3)'; d.style.background='rgba(201,168,76,0.06)'; };
+      d.onmouseout  = () => { d.style.borderColor='var(--border)'; d.style.background='var(--surface2)'; };
+      d.innerHTML = `
+        <div style="font-size:0.55rem;color:var(--muted);margin-bottom:3px">${ts}</div>
+        <div style="font-size:0.68rem;color:var(--text);line-height:1.4">${(msg.content||'').slice(0,55)}${msg.content?.length>55?'...':''}</div>
+      `;
+      // Click to load this message back into input
+      d.onclick = () => {
+        D.inp.value = msg.content || '';
+        autoResize();
+        D.inp.focus();
+      };
+      list.appendChild(d);
+    });
+
+  } catch(e) {
+    if (btn) btn.textContent = '↻ Load';
+    list.innerHTML = `<div style="font-size:0.62rem;color:var(--rose);text-align:center;padding:8px">Error: ${e.message}</div>`;
+  }
+}
 
 // ── SESSION ───────────────────────────────────────────────────
 function getSession() {
