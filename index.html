@@ -1596,7 +1596,12 @@ function syncApps(){
   });
 }
 
-function getSession(){if(!localStorage.getItem('aria_sid'))localStorage.setItem('aria_sid','s_'+Math.random().toString(36).slice(2,10));return localStorage.getItem('aria_sid');}
+function getSession(){
+  let sid=localStorage.getItem('aria_sid');
+  if(!sid){sid='s_'+Date.now().toString(36)+'_'+Math.random().toString(36).slice(2,6);localStorage.setItem('aria_sid',sid);}
+  return sid;
+}
+function setSession(sid){localStorage.setItem('aria_sid',sid);return sid;}
 
 // ── MOBILE RESPONSIVE CONTROLS ────────────────────────────────
 const leftPanel    = document.querySelector('.left');
