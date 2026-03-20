@@ -1395,7 +1395,12 @@ function addMsg(role,txt,err=false){
 
 // WORKER
 async function callWorker(txt){
-  const res=await fetch(W,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({messages:S.msgs.slice(-12),persona:S.persona,session_id:getSession()})});
+  const res=await fetch(W,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({
+    messages:   S.msgs.slice(-12),
+    persona:    S.persona,
+    session_id: getSession(),
+    apps:       C.apps,  // pass connected apps so Worker can use token-based ones
+  })});
   const data=await res.json();if(data.error)throw new Error(data.error);return data.reply;
 }
 
@@ -1498,6 +1503,13 @@ window.addEventListener('message', (event) => {
   if (event.data?.type === 'ARIA_OAUTH_SUCCESS') {
     const { app, email, session } = event.data;
     console.log('OAuth success received:', app, email, session);
+
+    // CRITICAL: sync session ID — use the one from OAuth since that's what's in Supabase
+    if (session && session !== getSession()) {
+      console.log('Syncing session from', getSession(), 'to', session);
+      setSession(session);
+    }
+
     // Save to local state
     C.saveApp(app, { connected: true, email: email || '' });
     syncApps();
@@ -1540,9 +1552,22 @@ function connectApp(name){
 }
 
 function checkAppStatus(name){
-  fetch(`${W}/auth/status?app=${name}&session=${getSession()}`).then(r=>r.json()).then(d=>{
-    if(d.connected){C.saveApp(name,{connected:true,email:d.email||''});syncApps();const m=`${APPS[name]?.name} connected${d.email?' as '+d.email:''}.`;addMsg('assistant',m);speak(m);}
-  }).catch(()=>{});
+  const session = getSession();
+  console.log('Checking status:', name, 'session:', session);
+  fetch(`${W}/auth/status?app=${name}&session=${session}`)
+    .then(r=>r.json())
+    .then(d=>{
+      console.log('Status response:', JSON.stringify(d));
+      if(d.connected){
+        C.saveApp(name,{connected:true,email:d.email||''});
+        syncApps();
+        const m=`${APPS[name]?.name} connected${d.email?' as '+d.email:''}! You can now use voice commands.`;
+        addMsg('assistant',m);speak(m);
+      } else {
+        console.warn('Not connected. Debug info:', d);
+        addMsg('assistant','Gmail OAuth completed but could not verify the connection. Please try connecting again.',true);
+      }
+    }).catch(e=>console.error('checkAppStatus error:',e));
 }
 
 function disconnectApp(name){
