@@ -1501,17 +1501,22 @@ document.querySelectorAll('.pc').forEach(c=>{
 // Listen for OAuth success message from popup
 window.addEventListener('message', (event) => {
   if (event.data?.type === 'ARIA_OAUTH_SUCCESS') {
-    const { app, email, session } = event.data;
-    console.log('OAuth success received:', app, email, session);
+    const { app, email, session, access_token, refresh_token } = event.data;
+    console.log('OAuth success received:', app, email, 'session:', session);
 
-    // CRITICAL: sync session ID — use the one from OAuth since that's what's in Supabase
+    // Sync session ID to match what was saved in Supabase
     if (session && session !== getSession()) {
       console.log('Syncing session from', getSession(), 'to', session);
       setSession(session);
     }
 
-    // Save to local state
-    C.saveApp(app, { connected: true, email: email || '' });
+    // Save full token data to localStorage so Worker can use it
+    C.saveApp(app, {
+      connected:     true,
+      email:         email || '',
+      access_token:  access_token || '',
+      refresh_token: refresh_token || '',
+    });
     syncApps();
     const m = `${APPS[app]?.name || app} connected${email ? ' as ' + email : ''}! You can now use voice commands.`;
     addMsg('assistant', m);
