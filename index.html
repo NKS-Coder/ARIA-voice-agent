@@ -713,12 +713,266 @@ textarea::placeholder { color:var(--text3); }
   border-radius:9px; padding:9px 11px;
   font-size:0.6rem; color:#7ee8e0; line-height:1.75;
 }
+
+/* ═══════════════════════════════════════════════
+   RESPONSIVE & DYNAMIC — Mobile First
+   Breakpoints: 1200px, 900px, 600px, 400px
+═══════════════════════════════════════════════ */
+
+/* Smooth transitions for all interactive elements */
+.hi, .pc, .card, .acard, .mic, .send-btn, .new-btn, .hdr-btn, .icon-btn {
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* Mobile hamburger button — hidden on desktop */
+.menu-toggle {
+  display: none;
+  width: 32px; height: 32px; border-radius: 8px;
+  background: var(--glass); border: 1px solid var(--stroke2);
+  color: var(--text2); cursor: pointer; font-size: 1rem;
+  align-items: center; justify-content: center;
+  transition: all 0.2s; flex-shrink: 0;
+}
+.menu-toggle:hover { color: var(--gold); border-color: rgba(0,212,255,0.3); }
+
+/* Overlay for mobile sidebars */
+.sidebar-overlay {
+  display: none;
+  position: fixed; inset: 0; z-index: 40;
+  background: rgba(0,0,0,0.6);
+  backdrop-filter: blur(4px);
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+.sidebar-overlay.open { opacity: 1; }
+
+/* Right panel toggle button — mobile only */
+.right-toggle {
+  display: none;
+  width: 32px; height: 32px; border-radius: 8px;
+  background: var(--glass); border: 1px solid var(--stroke2);
+  color: var(--text2); cursor: pointer; font-size: 0.9rem;
+  align-items: center; justify-content: center;
+  transition: all 0.2s; flex-shrink: 0;
+}
+.right-toggle:hover { color: var(--gold); border-color: rgba(0,212,255,0.3); }
+
+/* ── LARGE DESKTOP (1400px+) — default, already handled ── */
+
+/* ── MEDIUM DESKTOP (900px - 1200px) ── */
+@media (max-width: 1200px) {
+  :root {
+    --left:  220px;
+    --right: 240px;
+  }
+  .hdr-center { display: none; } /* hide center chips, too crowded */
+  .hdr-right .chip { display: none; } /* hide model badge */
+}
+
+/* ── TABLET LANDSCAPE (768px - 900px) ── */
+@media (max-width: 900px) {
+  :root {
+    --left:  200px;
+    --right: 0px;
+  }
+
+  .right {
+    position: fixed;
+    right: -280px; top: 52px;
+    width: 260px !important;
+    height: calc(100vh - 52px);
+    z-index: 45;
+    background: rgba(5,6,12,0.97);
+    border-left: 1px solid var(--stroke2);
+    border-right: none;
+    transition: right 0.3s cubic-bezier(0.16,1,0.3,1);
+    padding: 14px 12px;
+  }
+  .right.open { right: 0; }
+
+  .right-toggle { display: flex; }
+  .sidebar-overlay { display: block; }
+
+  .hdr-center { display: none; }
+  .chip { display: none; }
+
+  .mic-stage { padding: 18px 16px 12px; }
+  .halo3 { width: 170px; height: 170px; }
+  .halo2 { width: 136px; height: 136px; }
+  .halo1 { width: 106px; height: 106px; }
+  .mic   { width: 80px; height: 80px; }
+  .mic-icon { font-size: 1.7rem; }
+}
+
+/* ── TABLET PORTRAIT (600px - 768px) ── */
+@media (max-width: 768px) {
+  :root { --left: 0px; }
+
+  .left {
+    position: fixed;
+    left: -270px; top: 52px;
+    width: 260px !important;
+    height: calc(100vh - 52px);
+    z-index: 45;
+    background: rgba(5,6,12,0.97);
+    border-right: 1px solid var(--stroke2);
+    transition: left 0.3s cubic-bezier(0.16,1,0.3,1);
+  }
+  .left.open { left: 0; }
+
+  .menu-toggle { display: flex; }
+
+  /* Stack layout */
+  .layout { flex-direction: column; }
+  .center { border-right: none; border-bottom: none; }
+  .chat { padding: 0 16px 12px; }
+  .chat-label { font-size: 0.46rem; }
+
+  .mic-stage { padding: 16px 16px 10px; }
+  .halo3 { width: 160px; height: 160px; }
+  .halo2 { width: 128px; height: 128px; }
+  .halo1 { width: 100px; height: 100px; }
+  .mic   { width: 76px; height: 76px; }
+  .mic-icon { font-size: 1.6rem; }
+  .mic-label { font-size: 0.6rem; }
+
+  /* Header */
+  .brand-name { font-size: 1rem; }
+  .brand-sub  { display: none; }
+  .logo-orb   { width: 26px; height: 26px; }
+  .orb-dot    { width: 7px; height: 7px; }
+
+  /* Messages */
+  .bbl { font-size: 0.76rem; padding: 8px 11px; }
+  .msg-time { font-size: 0.48rem; }
+  .av { width: 22px; height: 22px; font-size: 0.56rem; }
+
+  /* Input */
+  textarea { font-size: 0.78rem; }
+  .send-btn { padding: 8px 14px; font-size: 0.72rem; }
+}
+
+/* ── MOBILE (max 600px) ── */
+@media (max-width: 600px) {
+  .mic-stage { padding: 14px 12px 8px; gap: 10px; }
+  .halo3 { width: 148px; height: 148px; }
+  .halo2 { width: 118px; height: 118px; }
+  .halo1 { width: 92px; height: 92px; }
+  .mic   { width: 70px; height: 70px; }
+  .mic-icon { font-size: 1.5rem; }
+
+  .chat { padding: 0 12px 10px; }
+  .msgs { gap: 8px; }
+  .bbl { font-size: 0.74rem; max-width: 86%; }
+
+  .inp-row { gap: 6px; }
+  .send-btn { padding: 8px 12px; height: 38px; font-size: 0.7rem; }
+
+  /* Modal fullscreen on mobile */
+  .modal-bg { align-items: flex-end; }
+  .modal {
+    width: 100% !important;
+    max-width: 100% !important;
+    border-radius: 18px 18px 0 0;
+    max-height: 85vh;
+    transform: translateY(100%) !important;
+  }
+  .modal-bg.open .modal { transform: translateY(0) !important; }
+
+  /* Status pill condensed */
+  .status-pill { padding: 4px 10px; font-size: 0.56rem; }
+}
+
+/* ── SMALL MOBILE (max 400px) ── */
+@media (max-width: 400px) {
+  .halo3 { width: 136px; height: 136px; }
+  .halo2 { width: 108px; height: 108px; }
+  .halo1 { width: 84px; height: 84px; }
+  .mic   { width: 64px; height: 64px; }
+  .mic-icon { font-size: 1.35rem; }
+
+  .brand-name { font-size: 0.9rem; letter-spacing: 0.12em; }
+  .hdr { padding: 0 14px; }
+
+  .bbl { font-size: 0.72rem; }
+  .send-btn { padding: 7px 10px; font-size: 0.68rem; }
+}
+
+/* ── DYNAMIC HOVER EFFECTS ── */
+
+/* Cards lift on hover */
+.card:hover {
+  transform: translateY(-1px);
+  border-color: var(--stroke2);
+  box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+}
+
+/* History items */
+.hi:hover .hi-title { color: var(--gold); }
+
+/* Mic button active press */
+.mic:active { transform: scale(0.95); }
+
+/* Send button press */
+.send-btn:active:not(:disabled) { transform: translateY(0) scale(0.98); }
+
+/* New chat button shimmer */
+.new-btn::after {
+  content: '';
+  position: absolute; inset: 0;
+  border-radius: 10px;
+  background: linear-gradient(105deg, transparent 40%, rgba(255,255,255,0.05) 50%, transparent 60%);
+  transform: translateX(-100%);
+  transition: transform 0.6s ease;
+}
+.new-btn:hover::after { transform: translateX(100%); }
+
+/* Persona cards pulse when active */
+.pc.active {
+  box-shadow: 0 0 12px rgba(0,212,255,0.15), inset 0 0 8px rgba(0,212,255,0.04);
+}
+
+/* Input focus glow */
+.inp-shell:focus-within {
+  box-shadow: 0 0 0 3px rgba(0,212,255,0.08), 0 4px 16px rgba(0,0,0,0.3);
+}
+
+/* Message bubble hover */
+.bbl:hover {
+  border-color: rgba(255,255,255,0.12);
+}
+
+/* Smooth scroll for messages */
+.msgs {
+  scroll-behavior: smooth;
+}
+
+/* Touch devices — remove hover effects that feel wrong */
+@media (hover: none) {
+  .card:hover { transform: none; box-shadow: none; }
+  .hi:hover .hi-title { color: var(--text); }
+  .mic:hover::before { border-color: rgba(0,212,255,0.4); box-shadow: 0 0 28px rgba(0,212,255,0.12); }
+}
+
+/* Landscape mobile fix */
+@media (max-width: 768px) and (orientation: landscape) {
+  .mic-stage { padding: 8px 16px 6px; }
+  .halo3 { width: 120px; height: 120px; }
+  .halo2 { width: 96px; height: 96px; }
+  .halo1 { width: 76px; height: 76px; }
+  .mic   { width: 58px; height: 58px; }
+  .mic-icon { font-size: 1.25rem; }
+  .viz { height: 20px; }
+  body { overflow-y: auto; }
+}
 </style>
 </head>
 <body>
 
 <!-- HEADER -->
+<div class="sidebar-overlay" id="sidebarOverlay"></div>
 <header class="hdr">
+  <button class="menu-toggle" id="menuToggle" title="History">☰</button>
   <div class="logo">
     <div class="orb"><div class="orb-inner"><div class="orb-dot"></div></div></div>
     <div class="brand">
@@ -1239,6 +1493,20 @@ document.querySelectorAll('.pc').forEach(c=>{
 });
 
 // CONNECT APPS
+// Listen for OAuth success message from popup
+window.addEventListener('message', (event) => {
+  if (event.data?.type === 'ARIA_OAUTH_SUCCESS') {
+    const { app, email, session } = event.data;
+    console.log('OAuth success received:', app, email, session);
+    // Save to local state
+    C.saveApp(app, { connected: true, email: email || '' });
+    syncApps();
+    const m = `${APPS[app]?.name || app} connected${email ? ' as ' + email : ''}! You can now use voice commands.`;
+    addMsg('assistant', m);
+    speak(m);
+  }
+});
+
 function connectApp(name){
   const app=APPS[name];if(!app)return;
   if(app.auth==='google'||app.auth==='microsoft'){
@@ -1249,7 +1517,16 @@ function connectApp(name){
         if(!data.url){console.error('No OAuth URL returned from Worker');return;}
         const w=window.open(data.url,'oauth','width=520,height=640,left=400,top=80');
         if(!w){alert('Please allow popups for this site to connect apps.');return;}
-        const t=setInterval(()=>{if(w.closed){clearInterval(t);setTimeout(()=>checkAppStatus(name),800);}},600);
+        // Listen for popup close as backup
+        const t=setInterval(()=>{
+          if(w.closed){
+            clearInterval(t);
+            // Check if postMessage already handled it
+            setTimeout(()=>{
+              if(!C.apps[name]?.connected) checkAppStatus(name);
+            }, 1000);
+          }
+        },600);
       })
       .catch(err=>{console.error('OAuth fetch error:',err);addMsg('assistant','Could not start OAuth. Check your internet connection.',true);});
   }else{
@@ -1295,6 +1572,50 @@ function syncApps(){
 }
 
 function getSession(){if(!localStorage.getItem('aria_sid'))localStorage.setItem('aria_sid','s_'+Math.random().toString(36).slice(2,10));return localStorage.getItem('aria_sid');}
+
+// ── MOBILE RESPONSIVE CONTROLS ────────────────────────────────
+const leftPanel    = document.querySelector('.left');
+const rightPanel   = document.querySelector('.right');
+const overlay      = $('sidebarOverlay');
+const menuToggle   = $('menuToggle');
+const rightToggle  = $('rightToggle');
+
+function closeAllPanels() {
+  leftPanel?.classList.remove('open');
+  rightPanel?.classList.remove('open');
+  overlay?.classList.remove('open');
+}
+
+menuToggle?.addEventListener('click', () => {
+  const isOpen = leftPanel?.classList.contains('open');
+  closeAllPanels();
+  if (!isOpen) {
+    leftPanel?.classList.add('open');
+    overlay?.classList.add('open');
+  }
+});
+
+rightToggle?.addEventListener('click', () => {
+  const isOpen = rightPanel?.classList.contains('open');
+  closeAllPanels();
+  if (!isOpen) {
+    rightPanel?.classList.add('open');
+    overlay?.classList.add('open');
+  }
+});
+
+overlay?.addEventListener('click', closeAllPanels);
+
+// Close panels when window resizes to desktop
+window.addEventListener('resize', () => {
+  if (window.innerWidth > 768) closeAllPanels();
+});
+
+// Dynamic textarea auto-resize with max height
+D.inp.addEventListener('input', () => {
+  D.inp.style.height = 'auto';
+  D.inp.style.height = Math.min(D.inp.scrollHeight, window.innerWidth < 600 ? 80 : 110) + 'px';
+});
 </script>
 </body>
 </html>
