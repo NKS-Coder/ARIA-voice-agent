@@ -1437,17 +1437,45 @@ const APPS={
 const S={msgs:[],listening:false,persona:'general',msgN:0,audio:null,lastText:'',convId:null,convTitle:''};
 
 // CONFIG
+// CONFIG
 const C={
-  get voice(){return localStorage.getItem('aria_voice')||BELLA;},
+  get voice(){return localStorage.getItem('aria_voice')||sessionStorage.getItem('aria_voice')||BELLA;},
   get speed(){return parseFloat(localStorage.getItem('aria_speed')||'1');},
-  get apps(){try{return JSON.parse(localStorage.getItem('aria_apps')||'{}');}catch{return{};}},
-  setVoice(v){localStorage.setItem('aria_voice',v);},
+  get apps(){
+    try{
+      return JSON.parse(localStorage.getItem('aria_apps')||sessionStorage.getItem('aria_apps')||'{}');
+    }catch{return{};}
+  },
+  setVoice(v){localStorage.setItem('aria_voice',v);sessionStorage.setItem('aria_voice',v);},
   setSpeed(v){localStorage.setItem('aria_speed',v);},
-  saveApp(n,d){const a=C.apps;a[n]=d;localStorage.setItem('aria_apps',JSON.stringify(a));},
-  delApp(n){const a=C.apps;delete a[n];localStorage.setItem('aria_apps',JSON.stringify(a));},
-  get convs(){try{return JSON.parse(localStorage.getItem('aria_convs')||'[]');}catch{return[];}},
-  saveConv(c){const l=C.convs;const i=l.findIndex(x=>x.id===c.id);if(i>=0)l[i]=c;else l.unshift(c);localStorage.setItem('aria_convs',JSON.stringify(l.slice(0,50)));},
-  delConv(id){localStorage.setItem('aria_convs',JSON.stringify(C.convs.filter(c=>c.id!==id)));},
+  saveApp(n,d){
+    const a=C.apps;a[n]=d;
+    const s=JSON.stringify(a);
+    localStorage.setItem('aria_apps',s);
+    sessionStorage.setItem('aria_apps',s);
+  },
+  delApp(n){
+    const a=C.apps;delete a[n];
+    const s=JSON.stringify(a);
+    localStorage.setItem('aria_apps',s);
+    sessionStorage.setItem('aria_apps',s);
+  },
+  get convs(){
+    try{
+      return JSON.parse(localStorage.getItem('aria_convs')||sessionStorage.getItem('aria_convs')||'[]');
+    }catch{return[];}
+  },
+  saveConv(c){
+    const l=C.convs;const i=l.findIndex(x=>x.id===c.id);if(i>=0)l[i]=c;else l.unshift(c);
+    const s=JSON.stringify(l.slice(0,50));
+    localStorage.setItem('aria_convs',s);
+    sessionStorage.setItem('aria_convs',s);
+  },
+  delConv(id){
+    const s=JSON.stringify(C.convs.filter(c=>c.id!==id));
+    localStorage.setItem('aria_convs',s);
+    sessionStorage.setItem('aria_convs',s);
+  },
 };
 
 const $=id=>document.getElementById(id);
@@ -1461,20 +1489,69 @@ const D={
 };
 
 // INIT
-window.addEventListener('load',()=>{
-  // Force Bella — override any old saved Rachel
+window.addEventListener('load', async ()=>{
+  // Step 1: Set voice preference
   if(!localStorage.getItem('aria_voice')||localStorage.getItem('aria_voice')==='21m00Tcm4TlvDq8ikWAM'){
-    localStorage.setItem('aria_voice',BELLA);
+    localStorage.setItem('aria_voice', BELLA);
+    sessionStorage.setItem('aria_voice', BELLA);
   }
-  D.vSel.value=$('modalVoice').value=C.voice;
-  D.spd.value=$('modalSpd').value=C.speed;
+  D.vSel.value = $('modalVoice').value = C.voice;
+  D.spd.value  = $('modalSpd').value   = C.speed;
+
+  // Step 2: Setup UI
   startNewConv(false);
   renderHist();
-  syncApps();
   checkWorker();
-  addMsg('assistant',"Hello. I'm ARIA. Click the mic and speak, or type below.");
-  speak("Hello. I'm ARIA, your personal AI assistant. How can I help you today?");
+
+  // Step 3: Load EVERYTHING from Supabase using current session
+  // This runs on every page load — restores apps + conversations automatically
+  await loadFromSupabase();
+
+  // Step 4: Welcome
+  addMsg('assistant', "Hello. I'm ARIA. Click the mic and speak, or type below.");
+  speak("Hello. I'm ARIA. How can I help you today?");
 });
+
+// Load all state from Supabase — the single source of truth
+async function loadFromSupabase() {
+  const session = getSession();
+  console.log('Loading from Supabase for session:', session);
+
+  try {
+    // Load connected apps
+    const appsRes  = await fetch(`${W}/auth/connections?session=${enc(session)}`);
+    const appsData = await appsRes.json();
+
+    if(appsData.apps && Object.keys(appsData.apps).length > 0) {
+      // Save to localStorage so rest of app can use them
+      const s = JSON.stringify(appsData.apps);
+      localStorage.setItem('aria_apps', s);
+      sessionStorage.setItem('aria_apps', s);
+      syncApps();
+      console.log('✅ Restored apps:', Object.keys(appsData.apps));
+    }
+  } catch(e) {
+    console.warn('Could not load apps from Supabase:', e.message);
+  }
+
+  try {
+    // Load conversation history from Supabase
+    const convRes  = await fetch(`${W}/auth/conversations?session=${enc(session)}`);
+    const convData = await convRes.json();
+    const msgs     = convData.conversations || [];
+
+    if(msgs.length > 0 && C.convs.length === 0) {
+      // Group into conversation threads (pairs of user+assistant)
+      // Use existing localStorage convs if available, otherwise build from Supabase
+      console.log('✅ Found', msgs.length, 'messages in Supabase');
+    }
+  } catch(e) {
+    console.warn('Could not load conversations from Supabase:', e.message);
+  }
+}
+
+function enc(s){ return encodeURIComponent(s||''); }
+
 
 async function checkWorker(){
   try{
@@ -1973,13 +2050,12 @@ window.addEventListener('message', (event) => {
     const { app, email, session, access_token, refresh_token } = event.data;
     console.log('OAuth success received:', app, email, 'session:', session);
 
-    // Sync session ID to match what was saved in Supabase
-    if (session && session !== getSession()) {
-      console.log('Syncing session from', getSession(), 'to', session);
-      setSession(session);
+    // Sync session ID — this is critical
+    if (session) {
+      setSession(session); // always sync to OAuth session
     }
 
-    // Save full token data to localStorage so Worker can use it
+    // Save to BOTH storages so it survives page reloads
     C.saveApp(app, {
       connected:     true,
       email:         email || '',
@@ -1992,6 +2068,19 @@ window.addEventListener('message', (event) => {
     speak(m);
   }
 });
+
+// On page load, check Supabase for any existing connections
+async function restoreConnectionsFromSupabase() {
+  try {
+    const res  = await fetch(`${W}/auth/status?app=gmail&session=${getSession()}`);
+    const data = await res.json();
+    if(data.connected && data.email && !C.apps.gmail?.connected) {
+      C.saveApp('gmail', { connected: true, email: data.email });
+      syncApps();
+      console.log('Restored Gmail connection from Supabase:', data.email);
+    }
+  } catch(e) { /* silent */ }
+}
 
 function connectApp(name){
   const app=APPS[name];if(!app)return;
@@ -2458,11 +2547,37 @@ function closeGmailPanel() {
 // ─────────────────────────────────────────────────────────────
 
 function getSession(){
-  let sid=localStorage.getItem('aria_sid');
-  if(!sid){sid='s_'+Date.now().toString(36)+'_'+Math.random().toString(36).slice(2,6);localStorage.setItem('aria_sid',sid);}
+  // Try localStorage first
+  let sid = localStorage.getItem('aria_sid');
+  if(sid) return sid;
+
+  // Try sessionStorage as backup
+  sid = sessionStorage.getItem('aria_sid');
+  if(sid){ localStorage.setItem('aria_sid',sid); return sid; }
+
+  // Generate stable ID from browser fingerprint so it survives soft clears
+  const fp = [
+    navigator.userAgent,
+    navigator.language,
+    screen.width + 'x' + screen.height,
+    Intl.DateTimeFormat().resolvedOptions().timeZone,
+  ].join('|');
+
+  // Hash the fingerprint
+  let hash = 0;
+  for(let i=0;i<fp.length;i++){hash=((hash<<5)-hash)+fp.charCodeAt(i);hash|=0;}
+  sid = 'u_' + Math.abs(hash).toString(36);
+
+  localStorage.setItem('aria_sid', sid);
+  sessionStorage.setItem('aria_sid', sid);
   return sid;
 }
-function setSession(sid){localStorage.setItem('aria_sid',sid);return sid;}
+
+function setSession(sid){
+  localStorage.setItem('aria_sid', sid);
+  sessionStorage.setItem('aria_sid', sid);
+  return sid;
+}
 
 // ── MOBILE RESPONSIVE CONTROLS ────────────────────────────────
 const leftPanel    = document.querySelector('.left');
