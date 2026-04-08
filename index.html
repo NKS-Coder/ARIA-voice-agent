@@ -2183,8 +2183,7 @@ function renderEmailDetail(data, container) {
   const el = document.createElement('div');
   el.style.cssText = 'background:#fff;border:1px solid #e0e0e0;border-radius:12px;overflow:hidden;width:100%;margin-top:6px;box-shadow:0 1px 6px rgba(32,33,36,0.15);font-family:Google Sans,Roboto,Arial,sans-serif;';
 
-  const safeReply   = (detail.suggested_reply || '').replace(/'/g, "\'").replace(/
-/g,'\n');
+  const safeReply   = (detail.suggested_reply || '').replace(/'/g, "\'").replace(/\n/g,' ');
   const safeFrom    = (email?.from || '').replace(/'/g, "\'");
   const safeSubject = (email?.subject || '').replace(/'/g, "\'");
 
