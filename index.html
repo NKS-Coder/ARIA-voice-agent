@@ -1256,14 +1256,15 @@ textarea::placeholder { color:var(--text3); }
       </div></div></div>
       <div class="mic-label" id="micLbl">Click to speak</div>
 
-      <!-- STOP button — only visible when speaking -->
+      <!-- STOP button — visible when speaking -->
       <button id="stopBtn" onclick="stopSpeaking()" style="
         display:none; align-items:center; justify-content:center; gap:6px;
-        background:rgba(240,101,122,0.1); border:1px solid rgba(240,101,122,0.3);
-        color:var(--rose); border-radius:20px; padding:6px 16px;
-        font-family:'DM Sans',sans-serif; font-size:0.66rem; font-weight:500;
-        cursor:pointer; transition:all 0.2s; letter-spacing:0.04em;">
-        ⏹ Stop
+        background:#c5221f; border:1px solid #a50e0e;
+        color:#fff; border-radius:20px; padding:8px 20px;
+        font-family:'DM Sans',sans-serif; font-size:0.68rem; font-weight:600;
+        cursor:pointer; transition:all 0.2s; letter-spacing:0.05em;
+        box-shadow: 0 2px 12px rgba(197,34,31,0.4);">
+        ⏹ Stop Speaking
       </button>
 
       <div class="viz" id="viz">
@@ -1685,9 +1686,32 @@ async function speakEL(txt) {
 
 function speak(txt) {
   if (!$('voiceOn').checked) return;
-  S.lastText = txt;
+  // For email responses — only speak the first 2 sentences, not the full list
+  let spokenTxt = txt;
+  if (txt.trim().startsWith('{')) {
+    // Structured response — extract just the summary to speak
+    try {
+      const data = JSON.parse(txt.trim());
+      if (data.type === 'email_list') {
+        spokenTxt = data.summary
+          ? data.summary.split('.').slice(0,2).join('.') + '.'
+          : `You have ${data.count} unread emails. I've listed them below.`;
+      } else if (data.type === 'email_detail') {
+        spokenTxt = data.detail?.summary
+          ? data.detail.summary.split('.').slice(0,2).join('.') + '.'
+          : 'Here is the email summary.';
+      } else if (data.type === 'inbox_stats') {
+        spokenTxt = `Your inbox has ${data.total} total emails with ${data.unread} unread.`;
+      }
+    } catch(e) {}
+  }
+  // Cap spoken text at 300 chars max regardless
+  if (spokenTxt.length > 300) {
+    spokenTxt = spokenTxt.slice(0, 297) + '...';
+  }
+  S.lastText = spokenTxt;
   stopSpeaking();
-  speakEL(txt);
+  speakEL(spokenTxt);
 }
 
 // MICROPHONE
@@ -1822,16 +1846,18 @@ async function sendMsg(){
     renderHist();
     // Generate smart AI title in background — only once, no loop
     const titleMsg = txt;
+    const rawTitleSnapshot = rawTitle;
     setTimeout(() => {
       generateTitle(titleMsg).then(smartTitle => {
-        if(smartTitle && S.convTitle === rawTitle){ // only update if still showing raw
+        // Only update if title hasn't been changed by user
+        if(smartTitle && S.convTitle === rawTitleSnapshot){
           S.convTitle = smartTitle;
           D.convLabel.textContent = smartTitle;
-          saveCurrentConv();
+          // Don't save here — saveCurrentConv runs after AI reply
           renderHist();
         }
       }).catch(()=>{});
-    }, 500); // slight delay so main chat response goes first
+    }, 800);
   }
   D.think.classList.remove('hidden');D.send.disabled=true;setMode('thinking');
   try{
