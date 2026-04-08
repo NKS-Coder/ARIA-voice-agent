@@ -1153,21 +1153,21 @@ textarea::placeholder { color:var(--text3); }
 .gmail-panel.open { transform: translateX(0); }
 .gmail-panel-hdr {
   display: flex; align-items: center; justify-content: space-between;
-  padding: 12px 16px; border-bottom: 1px solid var(--gmail-border);
-  background: var(--gmail-bg); flex-shrink: 0;
+  padding: 12px 16px; border-bottom: 1px solid #c5221f;
+  background: #EA4335; flex-shrink: 0;
 }
 .gmail-panel-title {
   display: flex; align-items: center; gap: 8px;
-  font-size: 0.8rem; font-weight: 600; color: var(--gmail-text);
+  font-size: 0.8rem; font-weight: 600; color: #fff;
   font-family: 'Google Sans', sans-serif;
 }
 .gmail-panel-close {
   width: 28px; height: 28px; border-radius: 50%;
   background: transparent; border: none;
-  color: var(--gmail-muted); cursor: pointer; font-size: 1rem;
+  color: rgba(255,255,255,0.8); cursor: pointer; font-size: 1rem;
   display: flex; align-items: center; justify-content: center; transition: background 0.15s;
 }
-.gmail-panel-close:hover { background: rgba(32,33,36,0.08); }
+.gmail-panel-close:hover { background: rgba(255,255,255,0.2); }
 .gmail-panel-body { flex: 1; overflow-y: auto; background: var(--gmail-white); }
 .gmail-notice {
   padding: 24px; text-align: center;
@@ -1781,10 +1781,12 @@ function addMsg(role, txt, err=false) {
   if (role === 'assistant' && !err && txt.trim().startsWith('{')) {
     const av   = document.createElement('div'); av.className = 'av'; av.textContent = 'A';
     const wrap = document.createElement('div');
+    wrap.style.cssText = 'flex:1;min-width:0;width:100%;'; // full width for email cards
     const timeEl = document.createElement('div'); timeEl.className = 'msg-time'; timeEl.textContent = now;
     const rendered = renderEmailResponse(txt.trim(), wrap);
     if (rendered) {
       wrap.appendChild(timeEl);
+      d.style.alignItems = 'flex-start';
       d.appendChild(av); d.appendChild(wrap);
       D.msgs.appendChild(d); D.msgs.scrollTop = D.msgs.scrollHeight;
       return;
@@ -2069,9 +2071,9 @@ function renderInboxStats(data, container) {
   const el = document.createElement('div');
   el.style.cssText = 'background:#fff;border:1px solid #e0e0e0;border-radius:12px;overflow:hidden;width:100%;margin-top:6px;box-shadow:0 1px 6px rgba(32,33,36,0.15);font-family:Google Sans,Roboto,Arial,sans-serif;';
   el.innerHTML = `
-    <div style="display:flex;align-items:center;gap:8px;padding:12px 16px;background:#f6f8fc;border-bottom:1px solid #e0e0e0;">
-      <span style="font-size:1rem;">📬</span>
-      <span style="font-size:0.78rem;font-weight:600;color:#202124;">Gmail Inbox Overview</span>
+    <div style="display:flex;align-items:center;gap:8px;padding:12px 16px;background:#EA4335;border-bottom:1px solid #c5221f;">
+      <span style="font-size:1rem;filter:brightness(10)">📬</span>
+      <span style="font-size:0.78rem;font-weight:600;color:#fff;">Gmail Inbox Overview</span>
     </div>
     <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:1px;background:#e0e0e0;">
       <div style="background:#fff;padding:16px 10px;text-align:center;">
@@ -2120,13 +2122,13 @@ function renderEmailList(data, container) {
 
   // Header
   panel.innerHTML = `
-    <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 14px;background:#f6f8fc;border-bottom:1px solid #e0e0e0;">
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 14px;background:#EA4335;border-bottom:1px solid #c5221f;">
       <div style="display:flex;align-items:center;gap:7px;">
-        <img src="https://ssl.gstatic.com/ui/v1/icons/mail/rfr/gmail.ico" width="16" height="16" onerror="this.style.display='none'">
-        <span style="font-size:0.74rem;font-weight:600;color:#202124;">Inbox</span>
-        <span style="font-size:0.65rem;color:#5f6368;background:#e8eaed;border-radius:10px;padding:1px 7px;">${data.count}</span>
+        <img src="https://ssl.gstatic.com/ui/v1/icons/mail/rfr/gmail.ico" width="16" height="16" onerror="this.style.display='none'" style="filter:brightness(10)">
+        <span style="font-size:0.74rem;font-weight:600;color:#fff;">Inbox</span>
+        <span style="font-size:0.65rem;color:#fff;background:rgba(255,255,255,0.25);border-radius:10px;padding:1px 7px;">${data.count}</span>
       </div>
-      <button onclick="openGmailPanel(window._lastEmails)" style="display:flex;align-items:center;gap:4px;padding:5px 12px;border-radius:20px;border:1px solid #dadce0;background:#fff;color:#1a73e8;font-size:0.65rem;font-weight:500;cursor:pointer;">
+      <button onclick="openGmailPanel(window._lastEmails)" style="display:flex;align-items:center;gap:4px;padding:5px 12px;border-radius:20px;border:1px solid rgba(255,255,255,0.4);background:rgba(255,255,255,0.15);color:#fff;font-size:0.65rem;font-weight:500;cursor:pointer;">
         Open Gmail ↗
       </button>
     </div>
