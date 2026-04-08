@@ -2,7 +2,11 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#04050a">
 <title>ARIA</title>
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,200;0,9..40,300;0,9..40,400;0,9..40,500;1,9..40,300&family=DM+Serif+Display:ital@0;1&display=swap" rel="stylesheet">
 <style>
@@ -1353,13 +1357,39 @@ function buildRec(){
 }
 
 async function startListen(){
-  if(!SR){addMsg('assistant','Voice input requires Chrome or Edge.',true);return;}
-  if(location.protocol!=='https:'&&location.hostname!=='localhost'){addMsg('assistant','Microphone only works on HTTPS.',true);return;}
-  try{await navigator.mediaDevices.getUserMedia({audio:true});}
-  catch(err){addMsg('assistant','Microphone access denied. Click the lock icon → Microphone → Allow → refresh.',true);return;}
-  synth.cancel();if(S.audio){S.audio.pause();S.audio=null;}
+  if(!SR){
+    addMsg('assistant','Voice input requires Chrome on desktop or Safari on iPhone. Please open ARIA in one of those browsers.',true);
+    return;
+  }
+  if(location.protocol!=='https:'&&location.hostname!=='localhost'){
+    addMsg('assistant','Microphone only works on HTTPS. Please open the GitHub Pages URL.',true);
+    return;
+  }
+
+  synth.cancel();
+  if(S.audio){S.audio.pause();S.audio=null;}
   if(!rec)buildRec();
-  try{rec.start();}catch(e){if(e.name==='InvalidStateError'){buildRec();setTimeout(()=>{try{rec.start();}catch(e2){setMode('ready');}},350);}}
+
+  const isMobile=/iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+
+  if(!isMobile){
+    // Desktop: explicitly request mic permission first for better UX
+    try{
+      await navigator.mediaDevices.getUserMedia({audio:true});
+    }catch(err){
+      addMsg('assistant','🎤 Microphone blocked. Click the 🔒 lock icon in your address bar → Site settings → Microphone → Allow → refresh the page.',true);
+      return;
+    }
+  }
+
+  try{
+    rec.start();
+  }catch(e){
+    if(e.name==='InvalidStateError'){
+      buildRec();
+      setTimeout(()=>{try{rec.start();}catch(e2){setMode('ready');}},350);
+    }
+  }
 }
 
 function stopListen(){S.listening=false;setMode('ready');try{rec?.stop();}catch(e){}}
@@ -1409,7 +1439,21 @@ async function sendMsg(){
   const txt=D.inp.value.trim();if(!txt||D.send.disabled)return;
   D.inp.value='';autoResize();
   S.msgs.push({role:'user',content:txt});addMsg('user',txt);
-  if(S.msgs.length===1){S.convTitle=txt.slice(0,38)+(txt.length>38?'…':'');D.convLabel.textContent=S.convTitle;}
+  if(S.msgs.length===1){
+    // Set raw title immediately so sidebar updates right away
+    const rawTitle = txt.slice(0,38)+(txt.length>38?'…':'');
+    S.convTitle = rawTitle;
+    D.convLabel.textContent = rawTitle;
+    renderHist();
+    // Then generate a smart AI title in the background
+    generateTitle(txt).then(smartTitle => {
+      if(smartTitle){
+        S.convTitle = smartTitle;
+        D.convLabel.textContent = smartTitle;
+        saveCurrentConv();
+      }
+    }).catch(()=>{});
+  }
   D.think.classList.remove('hidden');D.send.disabled=true;setMode('thinking');
   try{
     const reply=await callWorker(txt);
@@ -1426,6 +1470,22 @@ D.send.addEventListener('click',sendMsg);
 D.inp.addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendMsg();}});
 function autoResize(){D.inp.style.height='auto';D.inp.style.height=Math.min(D.inp.scrollHeight,110)+'px';}
 D.inp.addEventListener('input',autoResize);
+
+// ── SMART AI TITLE GENERATION ────────────────────────────────
+async function generateTitle(firstMessage) {
+  try {
+    const res = await fetch(`${W}/title`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ message: firstMessage })
+    });
+    const data = await res.json();
+    return data.title || null;
+  } catch(e) {
+    console.warn('Title generation failed:', e.message);
+    return null;
+  }
+}
 
 // CONVERSATIONS
 function genId(){return'c_'+Date.now()+'_'+Math.random().toString(36).slice(2,5);}
