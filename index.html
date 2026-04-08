@@ -2281,14 +2281,6 @@ async function showEmailDetail(email) {
   }
 }
 
-  } catch(e) {
-    D.think.classList.add('hidden');
-    D.send.disabled = false;
-    setMode('ready');
-    console.error('showEmailDetail error:', e);
-  }
-}
-
 function renderEmailResponse(raw, container) {
   try {
     // Try to parse as structured JSON
