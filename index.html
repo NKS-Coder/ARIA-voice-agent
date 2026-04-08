@@ -969,6 +969,131 @@ textarea::placeholder { color:var(--text3); }
   .viz { height: 20px; }
   body { overflow-y: auto; }
 }
+
+/* ── EMAIL CARDS ─────────────────────────────────────────── */
+.email-panel {
+  background: var(--glass); border: 1px solid var(--stroke2);
+  border-radius: var(--r); overflow: hidden; width: 100%;
+  margin-top: 6px; animation: msg-in 0.3s cubic-bezier(0.16,1,0.3,1);
+}
+.email-panel-hdr {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 10px 14px; border-bottom: 1px solid var(--stroke);
+  background: rgba(0,212,255,0.04);
+}
+.email-panel-title { font-size: 0.65rem; font-weight: 500; color: var(--gold); letter-spacing: 0.08em; text-transform: uppercase; }
+.email-panel-count { font-size: 0.6rem; color: var(--text3); }
+.email-summary-text { padding: 10px 14px; font-size: 0.75rem; color: var(--text2); line-height: 1.7; border-bottom: 1px solid var(--stroke); }
+
+.email-card {
+  display: flex; align-items: flex-start; gap: 10px;
+  padding: 10px 14px; border-bottom: 1px solid rgba(255,255,255,0.03);
+  cursor: pointer; transition: background 0.18s;
+}
+.email-card:hover { background: rgba(0,212,255,0.04); }
+.email-card:last-child { border-bottom: none; }
+.email-avatar {
+  width: 28px; height: 28px; border-radius: 50%; flex-shrink: 0;
+  background: linear-gradient(135deg, rgba(0,212,255,0.2), rgba(0,212,255,0.06));
+  border: 1px solid rgba(0,212,255,0.2);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 0.65rem; font-weight: 600; color: var(--gold);
+  text-transform: uppercase;
+}
+.email-body { flex: 1; min-width: 0; }
+.email-from { font-size: 0.7rem; font-weight: 500; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.email-subject { font-size: 0.68rem; color: var(--text2); margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.email-snippet { font-size: 0.62rem; color: var(--text3); margin-top: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.email-meta { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; flex-shrink: 0; }
+.email-date { font-size: 0.55rem; color: var(--text3); }
+.email-badge { font-size: 0.48rem; padding: 2px 7px; border-radius: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; }
+.badge-urgent   { background: rgba(240,101,122,0.12); color: var(--rose); border: 1px solid rgba(240,101,122,0.2); }
+.badge-positive { background: rgba(52,211,153,0.1);  color: #34d399;    border: 1px solid rgba(52,211,153,0.2); }
+.badge-neutral  { background: rgba(255,255,255,0.05); color: var(--text3); border: 1px solid var(--stroke); }
+
+/* Email detail card */
+.email-detail {
+  border-radius: var(--r); overflow: hidden; width: 100%;
+  margin-top: 6px; animation: msg-in 0.3s cubic-bezier(0.16,1,0.3,1);
+  border: 1px solid var(--stroke2);
+}
+.email-detail-hdr { padding: 12px 14px; background: rgba(0,212,255,0.05); border-bottom: 1px solid var(--stroke); }
+.email-detail-subject { font-size: 0.82rem; font-weight: 500; color: var(--text); margin-bottom: 4px; }
+.email-detail-from    { font-size: 0.65rem; color: var(--text2); }
+.email-detail-date    { font-size: 0.58rem; color: var(--text3); margin-top: 2px; }
+.email-section { padding: 10px 14px; border-bottom: 1px solid rgba(255,255,255,0.04); }
+.email-section:last-child { border-bottom: none; }
+.email-section-label { font-size: 0.5rem; letter-spacing: 0.18em; text-transform: uppercase; color: var(--text3); margin-bottom: 6px; }
+.email-section-text { font-size: 0.74rem; color: var(--text2); line-height: 1.75; }
+.email-points { list-style: none; display: flex; flex-direction: column; gap: 4px; }
+.email-points li { font-size: 0.72rem; color: var(--text2); padding-left: 14px; position: relative; line-height: 1.5; }
+.email-points li::before { content: '◆'; position: absolute; left: 0; font-size: 0.4rem; color: var(--gold); top: 4px; }
+.reply-box { background: rgba(255,255,255,0.02); border: 1px solid var(--stroke); border-radius: 9px; padding: 10px 12px; font-size: 0.72rem; color: var(--text2); line-height: 1.75; white-space: pre-wrap; }
+.send-reply-btn {
+  margin-top: 10px; width: 100%;
+  background: linear-gradient(135deg, var(--gold), #0090bb);
+  color: var(--void); border: none; border-radius: 8px; padding: 9px;
+  font-family: 'DM Sans', sans-serif; font-size: 0.72rem; font-weight: 500;
+  cursor: pointer; transition: all 0.2s; letter-spacing: 0.03em;
+}
+.send-reply-btn:hover { transform: translateY(-1px); box-shadow: 0 4px 14px rgba(0,212,255,0.25); }
+
+/* Inbox stats card */
+.inbox-stats {
+  border-radius: var(--r); border: 1px solid var(--stroke2);
+  overflow: hidden; width: 100%; margin-top: 6px;
+  animation: msg-in 0.3s cubic-bezier(0.16,1,0.3,1);
+}
+.inbox-stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1px; background: var(--stroke); }
+.inbox-stat-cell { background: var(--void); padding: 14px; text-align: center; }
+.inbox-stat-val  { font-size: 1.6rem; font-weight: 300; color: var(--gold); }
+.inbox-stat-lbl  { font-size: 0.5rem; text-transform: uppercase; letter-spacing: 0.12em; color: var(--text3); margin-top: 3px; }
+.inbox-actions   { display: flex; gap: 6px; padding: 12px 14px; border-top: 1px solid var(--stroke); flex-wrap: wrap; }
+.inbox-action-btn {
+  flex: 1; min-width: 80px; padding: 7px 10px; border-radius: 8px;
+  font-family: 'DM Sans', sans-serif; font-size: 0.64rem; font-weight: 400;
+  cursor: pointer; transition: all 0.2s; border: 1px solid var(--stroke2);
+  background: var(--glass); color: var(--text2); letter-spacing: 0.02em;
+}
+.inbox-action-btn:hover { background: rgba(0,212,255,0.08); color: var(--gold); border-color: rgba(0,212,255,0.25); }
+
+/* Gmail iframe panel */
+.gmail-panel {
+  position: fixed; right: 0; top: 56px;
+  width: 520px; height: calc(100vh - 56px);
+  background: var(--bg1); border-left: 1px solid var(--stroke2);
+  z-index: 60; display: flex; flex-direction: column;
+  transform: translateX(100%); transition: transform 0.35s cubic-bezier(0.16,1,0.3,1);
+  box-shadow: -8px 0 40px rgba(0,0,0,0.5);
+}
+.gmail-panel.open { transform: translateX(0); }
+.gmail-panel-hdr {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 12px 16px; border-bottom: 1px solid var(--stroke);
+  background: rgba(0,212,255,0.04); flex-shrink: 0;
+}
+.gmail-panel-title { font-size: 0.72rem; font-weight: 500; color: var(--gold); letter-spacing: 0.08em; }
+.gmail-panel-close {
+  width: 26px; height: 26px; border-radius: 50%;
+  background: var(--glass); border: 1px solid var(--stroke2);
+  color: var(--text2); cursor: pointer; font-size: 0.8rem;
+  display: flex; align-items: center; justify-content: center; transition: all 0.2s;
+}
+.gmail-panel-close:hover { background: rgba(240,101,122,0.1); color: var(--rose); }
+.gmail-panel-body { flex: 1; overflow: hidden; }
+.gmail-panel-body iframe { width: 100%; height: 100%; border: none; }
+.gmail-open-btn {
+  display: flex; align-items: center; gap: 6px;
+  padding: 5px 12px; border-radius: 8px; cursor: pointer;
+  background: rgba(0,212,255,0.08); border: 1px solid rgba(0,212,255,0.2);
+  color: var(--gold); font-family: 'DM Sans', sans-serif;
+  font-size: 0.62rem; font-weight: 500; transition: all 0.2s;
+}
+.gmail-open-btn:hover { background: rgba(0,212,255,0.14); }
+
+@media (max-width: 768px) {
+  .gmail-panel { width: 100%; }
+}
 </style>
 </head>
 <body>
@@ -1414,13 +1539,28 @@ function setMode(m){
 }
 
 // MESSAGES
-function addMsg(role,txt,err=false){
-  S.msgN++;D.nMsgs.textContent=S.msgN;
-  const now=new Date().toLocaleTimeString('en-US',{hour12:true,hour:'numeric',minute:'2-digit'});
-  const d=document.createElement('div');
-  d.className=`msg ${err?'err':role}`;
-  d.innerHTML=`<div class="av">${role==='user'?'Y':'A'}</div><div><div class="bbl">${txt.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}</div><div class="msg-time">${now}</div></div>`;
-  D.msgs.appendChild(d);D.msgs.scrollTop=D.msgs.scrollHeight;
+function addMsg(role, txt, err=false) {
+  S.msgN++; D.nMsgs.textContent = S.msgN;
+  const now = new Date().toLocaleTimeString('en-US',{hour12:true,hour:'numeric',minute:'2-digit'});
+  const d   = document.createElement('div');
+  d.className = `msg ${err?'err':role}`;
+
+  // For assistant messages check if structured JSON (email cards)
+  if (role === 'assistant' && !err && txt.trim().startsWith('{')) {
+    const av   = document.createElement('div'); av.className = 'av'; av.textContent = 'A';
+    const wrap = document.createElement('div');
+    const timeEl = document.createElement('div'); timeEl.className = 'msg-time'; timeEl.textContent = now;
+    const rendered = renderEmailResponse(txt.trim(), wrap);
+    if (rendered) {
+      wrap.appendChild(timeEl);
+      d.appendChild(av); d.appendChild(wrap);
+      D.msgs.appendChild(d); D.msgs.scrollTop = D.msgs.scrollHeight;
+      return;
+    }
+  }
+
+  d.innerHTML = `<div class="av">${role==='user'?'Y':'A'}</div><div><div class="bbl">${txt.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}</div><div class="msg-time">${now}</div></div>`;
+  D.msgs.appendChild(d); D.msgs.scrollTop = D.msgs.scrollHeight;
 }
 
 // WORKER
@@ -1661,6 +1801,191 @@ function syncApps(){
   });
 }
 
+// ── EMAIL CARD RENDERER ──────────────────────────────────────
+function renderEmailResponse(raw, container) {
+  try {
+    // Try to parse as structured JSON
+    const data = JSON.parse(raw);
+
+    if (data.type === 'inbox_stats') {
+      renderInboxStats(data, container);
+      return true;
+    }
+    if (data.type === 'email_list') {
+      renderEmailList(data, container);
+      return true;
+    }
+    if (data.type === 'email_detail') {
+      renderEmailDetail(data, container);
+      return true;
+    }
+  } catch(e) {
+    // Not JSON — render as plain text
+  }
+  return false;
+}
+
+function renderInboxStats(data, container) {
+  const el = document.createElement('div');
+  el.className = 'inbox-stats';
+  el.innerHTML = `
+    <div class="inbox-stats-grid">
+      <div class="inbox-stat-cell">
+        <div class="inbox-stat-val">${data.total?.toLocaleString() || 0}</div>
+        <div class="inbox-stat-lbl">Total Emails</div>
+      </div>
+      <div class="inbox-stat-cell">
+        <div class="inbox-stat-val" style="color:var(--rose)">${data.unread?.toLocaleString() || 0}</div>
+        <div class="inbox-stat-lbl">Unread</div>
+      </div>
+      <div class="inbox-stat-cell">
+        <div class="inbox-stat-val" style="color:var(--cyan)">${data.important_count || 0}</div>
+        <div class="inbox-stat-lbl">Important</div>
+      </div>
+      <div class="inbox-stat-cell">
+        <div class="inbox-stat-val" style="font-size:0.9rem;color:var(--text2)">📬</div>
+        <div class="inbox-stat-lbl">Gmail</div>
+      </div>
+    </div>
+    <div class="inbox-actions">
+      <button class="inbox-action-btn" onclick="sendMsg_quick('mark all emails as read')">✓ Mark All Read</button>
+      <button class="inbox-action-btn" onclick="sendMsg_quick('read my important emails')">⭐ Important</button>
+      <button class="inbox-action-btn" onclick="openGmailPanel()">📧 Open Gmail</button>
+    </div>
+  `;
+  container.appendChild(el);
+}
+
+function renderEmailList(data, container) {
+  if (!data.emails?.length && data.count === 0) {
+    const el = document.createElement('div');
+    el.style.cssText = 'padding:10px;font-size:0.74rem;color:var(--text3);';
+    el.textContent = data.summary;
+    container.appendChild(el);
+    return;
+  }
+
+  const panel = document.createElement('div');
+  panel.className = 'email-panel';
+
+  const hdr = document.createElement('div');
+  hdr.className = 'email-panel-hdr';
+  hdr.innerHTML = `
+    <span class="email-panel-title">📧 Emails</span>
+    <div style="display:flex;align-items:center;gap:8px">
+      <span class="email-panel-count">${data.count} found</span>
+      <button class="gmail-open-btn" onclick="openGmailPanel()">Open Gmail ↗</button>
+    </div>`;
+  panel.appendChild(hdr);
+
+  if (data.summary) {
+    const sumEl = document.createElement('div');
+    sumEl.className = 'email-summary-text';
+    sumEl.textContent = data.summary;
+    panel.appendChild(sumEl);
+  }
+
+  data.emails.forEach(email => {
+    const initial = (email.from || 'U').replace(/"([^"]+)".*/, '$1').trim()[0]?.toUpperCase() || '?';
+    const fromName = email.from.replace(/<[^>]+>/, '').replace(/"/g,'').trim().slice(0, 24);
+    const dateStr  = email.date ? new Date(email.date).toLocaleDateString('en-US',{month:'short',day:'numeric'}) : '';
+
+    const card = document.createElement('div');
+    card.className = 'email-card';
+    card.innerHTML = `
+      <div class="email-avatar">${initial}</div>
+      <div class="email-body">
+        <div class="email-from">${fromName}</div>
+        <div class="email-subject">${email.subject || '(no subject)'}</div>
+        <div class="email-snippet">${email.snippet || ''}</div>
+      </div>
+      <div class="email-meta">
+        <div class="email-date">${dateStr}</div>
+      </div>`;
+    card.onclick = () => sendMsg_quick(`read the email from ${fromName} about ${email.subject}`);
+    panel.appendChild(card);
+  });
+
+  container.appendChild(panel);
+}
+
+function renderEmailDetail(data, container) {
+  const { email, detail } = data;
+  if (!detail) return;
+
+  const fromName = (email?.from || '').replace(/<[^>]+>/, '').replace(/"/g,'').trim();
+  const dateStr  = email?.date ? new Date(email.date).toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric'}) : '';
+
+  const el = document.createElement('div');
+  el.className = 'email-detail';
+  el.innerHTML = `
+    <div class="email-detail-hdr">
+      <div class="email-detail-subject">${email?.subject || '(no subject)'}</div>
+      <div class="email-detail-from">From: ${fromName}</div>
+      <div class="email-detail-date">${dateStr}</div>
+    </div>
+
+    <div class="email-section">
+      <div class="email-section-label">Summary</div>
+      <div class="email-section-text">${detail.summary || ''}</div>
+    </div>
+
+    ${detail.key_points?.length ? `
+    <div class="email-section">
+      <div class="email-section-label">Key Points</div>
+      <ul class="email-points">
+        ${detail.key_points.map(p => `<li>${p}</li>`).join('')}
+      </ul>
+    </div>` : ''}
+
+    ${detail.suggested_reply ? `
+    <div class="email-section">
+      <div class="email-section-label">Suggested Reply</div>
+      <div class="reply-box">${detail.suggested_reply}</div>
+      <button class="send-reply-btn" onclick="sendEmailReply('${encodeURIComponent(email?.from||'')}','${encodeURIComponent(email?.subject||'')}','${encodeURIComponent(detail.suggested_reply||'')}')">
+        ↩ Send This Reply
+      </button>
+    </div>` : ''}
+  `;
+
+  container.appendChild(el);
+}
+
+// Quick message sender for card buttons
+function sendMsg_quick(txt) {
+  D.inp.value = txt;
+  autoResize();
+  sendMsg();
+}
+
+// Send reply directly
+function sendEmailReply(to, subject, body) {
+  const decoded = {
+    to:      decodeURIComponent(to),
+    subject: 'Re: ' + decodeURIComponent(subject),
+    body:    decodeURIComponent(body),
+  };
+  const cmd = `Send email to ${decoded.to} with subject "${decoded.subject}" saying: ${decoded.body}`;
+  sendMsg_quick(cmd);
+}
+
+// ── GMAIL PANEL ───────────────────────────────────────────────
+function openGmailPanel() {
+  const panel = $('gmailPanel');
+  const frame = $('gmailFrame');
+  // Open Gmail in iframe — will show login if not logged in
+  if (!frame.src || frame.src === window.location.href) {
+    frame.src = 'https://mail.google.com';
+  }
+  panel.classList.add('open');
+}
+
+function closeGmailPanel() {
+  $('gmailPanel').classList.remove('open');
+}
+
+// ─────────────────────────────────────────────────────────────
+
 function getSession(){
   let sid=localStorage.getItem('aria_sid');
   if(!sid){sid='s_'+Date.now().toString(36)+'_'+Math.random().toString(36).slice(2,6);localStorage.setItem('aria_sid',sid);}
@@ -1712,5 +2037,16 @@ D.inp.addEventListener('input', () => {
   D.inp.style.height = Math.min(D.inp.scrollHeight, window.innerWidth < 600 ? 80 : 110) + 'px';
 });
 </script>
+
+<!-- GMAIL PANEL -->
+<div class="gmail-panel" id="gmailPanel">
+  <div class="gmail-panel-hdr">
+    <div class="gmail-panel-title">📧 Gmail</div>
+    <button class="gmail-panel-close" onclick="closeGmailPanel()">✕</button>
+  </div>
+  <div class="gmail-panel-body">
+    <iframe id="gmailFrame" src="" title="Gmail"></iframe>
+  </div>
+</div>
 </body>
 </html>
