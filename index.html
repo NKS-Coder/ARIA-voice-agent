@@ -1879,6 +1879,45 @@ function setMode(m){
 }
 
 // MESSAGES
+
+// ── Email plain-text card helpers ─────────────────────────────────
+function _ariaIsEmailMsg(txt) {
+  if (!txt || txt.length < 60 || txt.trim().startsWith('{')) return false;
+  let score = 0;
+  if (/\b(email|e-mail|message|inbox|gmail)\b/i.test(txt)) score += 2;
+  if (/\b(subject|from:|sent by|sender|received)\b/i.test(txt)) score += 2;
+  if (/\b(summary|key point|suggest|mention|states?|deadline|attached|link|reply|unread|read|starred)\b/i.test(txt)) score += 1;
+  return score >= 3;
+}
+
+function _ariaBuildEmailSummaryCard(txt) {
+  const outer = document.createElement('div');
+  outer.style.cssText = 'background:#fff;border:1px solid #e0e0e0;border-radius:12px;overflow:hidden;width:100%;margin-top:4px;box-shadow:0 1px 6px rgba(32,33,36,.15);font-family:Google Sans,Roboto,Arial,sans-serif;';
+  const hdr = document.createElement('div');
+  hdr.style.cssText = 'display:flex;align-items:center;gap:8px;padding:11px 16px;background:#c5221f;border-bottom:2px solid #a50e0e;';
+  hdr.innerHTML = '<svg width="16" height="16" viewBox="0 0 48 48"><path fill="#fff" d="M5.5 40h8V23.1L4 16.2V37.5C4 38.9 4.6 40 5.5 40z"/><path fill="#fff" d="M34.5 40h8c.9 0 1.5-1.1 1.5-2.5V16.2l-9.5 6.9z"/><path fill="#fff" d="M34.5 8h-21L24 17.4z"/><path fill="#ffcdd2" d="M13.5 23.1V8H5.5C4.6 8 4 9.1 4 10.5v5.7l9.5 6.9z"/><path fill="#ffcdd2" d="M44 10.5V16.2L34.5 23.1V8H42.5C43.4 8 44 9.1 44 10.5z"/></svg><span style="font-size:.76rem;font-weight:600;color:#fff;letter-spacing:.02em;">Email Summary</span>';
+  outer.appendChild(hdr);
+  const body = document.createElement('div');
+  body.style.cssText = 'padding:12px 16px;';
+  const label = document.createElement('div');
+  label.style.cssText = 'font-size:.55rem;letter-spacing:.1em;text-transform:uppercase;color:#EA4335;font-weight:600;margin-bottom:6px;';
+  label.textContent = 'Summary';
+  const content = document.createElement('div');
+  content.style.cssText = 'font-size:.76rem;color:#202124;line-height:1.75;';
+  content.textContent = txt;
+  body.appendChild(label); body.appendChild(content);
+  if (window._lastEmails && window._lastEmails.length) {
+    const ob = document.createElement('button');
+    ob.textContent = '\u2197 Open in Gmail';
+    ob.style.cssText = 'margin-top:10px;width:100%;background:#1a73e8;color:#fff;border:none;border-radius:20px;padding:9px;font-family:Google Sans,Arial,sans-serif;font-size:.76rem;font-weight:500;cursor:pointer;';
+    ob.onclick = function() { if (typeof openGmailPanel === 'function') openGmailPanel(window._lastEmails); };
+    body.appendChild(ob);
+  }
+  outer.appendChild(body);
+  return outer;
+}
+// ─────────────────────────────────────────────────────────────────
+
 function addMsg(role, txt, err=false) {
   S.msgN++; D.nMsgs.textContent = S.msgN;
   const now = new Date().toLocaleTimeString('en-US',{hour12:true,hour:'numeric',minute:'2-digit'});
@@ -1900,6 +1939,19 @@ function addMsg(role, txt, err=false) {
       D.msgs.appendChild(d); D.msgs.scrollTop = D.msgs.scrollHeight;
       return;
     }
+  }
+
+  // For assistant messages that look like email analysis — wrap in Gmail card
+  if (role === 'assistant' && !err && _ariaIsEmailMsg(txt)) {
+    const av   = document.createElement('div'); av.className = 'av'; av.textContent = 'A'; av.style.marginTop = '8px';
+    const wrap = document.createElement('div'); wrap.style.cssText = 'flex:1;min-width:0;width:100%;';
+    const timeEl = document.createElement('div'); timeEl.className = 'msg-time'; timeEl.textContent = now;
+    const card = _ariaBuildEmailSummaryCard(txt);
+    wrap.appendChild(card); wrap.appendChild(timeEl);
+    d.style.cssText = 'display:flex;gap:8px;align-items:flex-start;animation:msg-in 0.3s cubic-bezier(0.16,1,0.3,1);overflow:visible;';
+    d.appendChild(av); d.appendChild(wrap);
+    D.msgs.appendChild(d); D.msgs.scrollTop = D.msgs.scrollHeight;
+    return;
   }
 
   d.innerHTML = `<div class="av">${role==='user'?'Y':'A'}</div><div><div class="bbl">${txt.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}</div><div class="msg-time">${now}</div></div>`;
@@ -2162,7 +2214,19 @@ function syncApps(){
   connected.forEach(name=>{
     const app=APPS[name];if(!app)return;
     const d=document.createElement('div');d.className='ai';
-    d.innerHTML=`<div class="ai-l"><div class="ai-ico">${app.icon}</div><div><div class="ai-name">${app.name}</div><div class="ai-sub" style="color:var(--cyan)">✓ Active</div></div></div><div style="width:5px;height:5px;border-radius:50%;background:var(--cyan);box-shadow:0 0 5px var(--cyan)"></div>`;
+    d.innerHTML=`<div class="ai-l"><div class="ai-ico">${app.icon}</div><div><div class="ai-name">${app.name}</div><div class="ai-sub" style="color:var(--cyan)">✓ Active</div></div></div><div style="display:flex;align-items:center;gap:6px;"><div style="width:5px;height:5px;border-radius:50%;background:var(--cyan);box-shadow:0 0 5px var(--cyan)"></div></div>`;
+    // Add "Open" button for Gmail
+    if (name === 'gmail') {
+      const rightEl = d.lastElementChild;
+      const ob = document.createElement('button');
+      ob.textContent = '\u2197 Open';
+      ob.title = 'Open Gmail side panel';
+      ob.style.cssText = 'font-size:9px;padding:2px 8px;border-radius:10px;border:1px solid rgba(93,230,216,.4);background:rgba(93,230,216,.08);color:var(--cyan,#5de6d8);cursor:pointer;font-family:inherit;transition:background .15s;white-space:nowrap;';
+      ob.onmouseenter = function(){ ob.style.background='rgba(93,230,216,.22)'; };
+      ob.onmouseleave = function(){ ob.style.background='rgba(93,230,216,.08)'; };
+      ob.addEventListener('click', function(e){ e.stopPropagation(); if(typeof openGmailPanel==='function') openGmailPanel(window._lastEmails||null); });
+      rightEl.insertBefore(ob, rightEl.firstChild);
+    }
     D.sApps.appendChild(d);
   });
 }
@@ -2624,217 +2688,44 @@ D.inp.addEventListener('input', () => {
 });
 </script>
 
-<!-- GMAIL PANEL -->
-<div class="gmail-panel" id="gmailPanel">
-  <div class="gmail-panel-hdr">
-    <div class="gmail-panel-title">📧 Gmail</div>
-    <button class="gmail-panel-close" onclick="closeGmailPanel()">✕</button>
-  </div>
-  <div class="gmail-panel-body">
-    <iframe id="gmailFrame" src="" title="Gmail"></iframe>
-  </div>
-</div>
-
+<!-- ARIA Wake Word — clean v6 (no window.S bug, no SR conflict) -->
 <script>
-
-/* ================================================================
-   ARIA v4 — Minimal helper (no duplicate API calls, no SR conflicts)
-   - Protected Gmail token store
-   - "Hey ARIA" wake word (pauses when main mic is active)
-   ================================================================ */
-
-// ── Protected token store ────────────────────────────────────────
-var _ARIA_TOK = 'aria_gm_tok_v4';
-function _saveTok(t){ if(t){ try{localStorage.setItem(_ARIA_TOK,t);}catch(e){} try{sessionStorage.setItem(_ARIA_TOK,t);}catch(e){} } }
-function _loadTok(){ try{ return sessionStorage.getItem(_ARIA_TOK)||localStorage.getItem(_ARIA_TOK)||null; }catch(e){ return null; } }
-
-// Capture token on OAuth postMessage
-window.addEventListener('message', function(ev){
-  if(ev.data && ev.data.type==='ARIA_OAUTH_SUCCESS'){
-    var t = ev.data.access_token || ev.data.token;
-    if(t) _saveTok(t);
-  }
-}, false);
-
-// On page ready: push protected token into C.apps.gmail if missing
-window.addEventListener('load', function(){
-  setTimeout(function(){
-    var t = _loadTok();
-    if(t && window.C && C.apps && C.apps.gmail && !C.apps.gmail.access_token){
-      C.apps.gmail.access_token = t;
-      // Persist back to localStorage
-      try{
-        var a=C.apps; a.gmail.access_token=t;
-        var s=JSON.stringify(a);
-        localStorage.setItem('aria_apps',s); sessionStorage.setItem('aria_apps',s);
-      }catch(e){}
-    }
-    if(typeof syncApps==='function') syncApps();
-  }, 1800); // after loadFromSupabase finishes
-});
-
-// Save token whenever OAuth flow sets gmail in C
-(function patchSaveApp(){
-  if(!window.C || typeof C.saveApp!=='function'){ setTimeout(patchSaveApp,400); return; }
-  var _o = C.saveApp.bind(C);
-  C.saveApp = function(n,d){
-    if(n==='gmail' && d){
-      if(d.access_token) _saveTok(d.access_token);
-      else{ var t=_loadTok(); if(t) d.access_token=t; }
-    }
-    return _o(n,d);
-  };
-})();
-
-// ── "Hey ARIA" wake word ──────────────────────────────────────────
-(function initWake(){
-  var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-  if(!SR) return;
-
-  var wakeRec=null, wakeOn=false, wakeCooldown=false;
-  var WAKE = /\b(hey\s+aria|hi\s+aria|hello\s+aria|okay\s+aria)\b/i;
-
-  // Hook into the main mic state so wake word pauses when mic is active
-  // (Two SR instances cannot run simultaneously in Chrome)
-  var origStartListen = null, origStopListen = null;
-
-  function startWake(){
-    if(wakeOn || (window.S && S.listening)) return; // yield to main mic
-    try{
-      wakeRec = new SR();
-      wakeRec.continuous = true;
-      wakeRec.interimResults = false;
-      wakeRec.lang = 'en-US';
-      wakeRec.onresult = function(ev){
-        var t = ev.results[ev.results.length-1][0].transcript.trim();
-        if(!WAKE.test(t) || wakeCooldown) return;
-        wakeCooldown=true; setTimeout(function(){ wakeCooldown=false; }, 3000);
-        var cmd = t.replace(WAKE,'').trim();
-        if(typeof speak==='function') speak('Yes?');
-        if(cmd){
-          var inp = document.getElementById('inp') || document.querySelector('textarea,input[type=text]');
-          if(inp){ inp.value=cmd; if(typeof autoResize==='function') autoResize(); }
-          if(typeof sendMsg==='function') setTimeout(sendMsg, 100);
-        } else {
-          // Just activate the main mic
-          stopWake();
-          if(typeof startListen==='function') startListen();
+(function ariaWakeWord() {
+  // ── 1. sendMsg hook: strip "Hey ARIA" prefix from typed/dictated text ─
+  function patchSendMsg() {
+    if (typeof sendMsg === 'undefined') { setTimeout(patchSendMsg, 500); return; }
+    var WAKE_RE = /^\s*(hey\s+aria|hi\s+aria|hello\s+aria|okay\s+aria|aria)\s*[,.]?\s*/i;
+    var _orig = window.sendMsg;
+    window.sendMsg = async function _wakeAwareSend() {
+      var inp = document.getElementById('inp') || document.querySelector('textarea,input[type=text]');
+      if (inp && WAKE_RE.test(inp.value)) {
+        var cmd = inp.value.replace(WAKE_RE, '').trim();
+        if (!cmd) {
+          inp.value = '';
+          if (typeof autoResize === 'function') autoResize();
+          if (typeof speak === 'function') speak('Yes? How can I help?');
+          if (typeof startListen === 'function') setTimeout(startListen, 800);
+          return;
         }
-      };
-      wakeRec.onerror = function(){ wakeOn=false; setTimeout(startWake, 2000); };
-      wakeRec.onend   = function(){ wakeOn=false; if(wakeBtn && wakeBtn._enabled && !(window.S&&S.listening)) setTimeout(startWake,800); };
-      wakeRec.start();
-      wakeOn = true;
-    }catch(e){ console.warn('[ARIA] Wake word error:',e.message); }
-  }
-
-  function stopWake(){
-    wakeOn=false;
-    try{ if(wakeRec) wakeRec.stop(); }catch(e){}
-  }
-
-  // Intercept startListen/stopListen to pause/resume wake word
-  window.addEventListener('load', function(){
-    setTimeout(function(){
-      if(typeof startListen==='function'){
-        var _origStart = window.startListen;
-        window.startListen = function(){
-          stopWake(); // pause wake word while mic is active
-          return _origStart.apply(this, arguments);
-        };
-      }
-      if(typeof stopListen==='function'){
-        var _origStop = window.stopListen;
-        window.stopListen = function(){
-          var r = _origStop.apply(this, arguments);
-          // Resume wake word after main mic stops (if button is on)
-          if(wakeBtn && wakeBtn._enabled) setTimeout(startWake, 1000);
-          return r;
-        };
-      }
-    }, 500);
-  });
-
-  // Wake word toggle button
-  var wakeBtn = document.createElement('button');
-  wakeBtn._enabled = false;
-  wakeBtn.id = 'ariaWakeBtn';
-  wakeBtn.textContent = 'Wake: OFF';
-  wakeBtn.style.cssText = [
-    'position:fixed', 'top:12px', 'right:56px', 'z-index:9999',
-    'background:rgba(255,255,255,.06)', 'border:1px solid rgba(255,255,255,.15)',
-    'border-radius:8px', 'padding:4px 10px', 'color:#6b7eaa',
-    'cursor:pointer', 'font-size:11px', 'font-family:inherit',
-    'transition:all .2s', 'backdrop-filter:blur(8px)',
-  ].join(';');
-  wakeBtn.addEventListener('click', function(){
-    wakeBtn._enabled = !wakeBtn._enabled;
-    if(wakeBtn._enabled){
-      startWake();
-      wakeBtn.textContent = 'Hey ARIA: ON';
-      wakeBtn.style.color = '#5de6d8';
-      wakeBtn.style.borderColor = '#5de6d8';
-      wakeBtn.style.background = 'rgba(93,230,216,.08)';
-    } else {
-      stopWake();
-      wakeBtn.textContent = 'Wake: OFF';
-      wakeBtn.style.color = '#6b7eaa';
-      wakeBtn.style.borderColor = 'rgba(255,255,255,.15)';
-      wakeBtn.style.background = 'rgba(255,255,255,.06)';
-    }
-  });
-  document.body.appendChild(wakeBtn);
-})();
-
-console.log('[ARIA v4] Token guard + Wake word loaded.');
-
-</script>
-
-<script>
-
-/* ================================================================
-   ARIA v5 — Three targeted fixes
-   1. Wake word via sendMsg hook (no conflicting SR)
-   2. Email responses wrapped in Gmail card format
-   3. "Open Gmail" button in sidebar Connected Apps
-   ================================================================ */
-
-// ── 1. WAKE WORD via sendMsg hook ────────────────────────────────
-// Works with the EXISTING mic — no background SR conflict.
-// When user says "Hey ARIA, read my emails" → strips the prefix,
-// passes the command through normally.
-(function patchWakeWord() {
-  if (typeof sendMsg === 'undefined') { setTimeout(patchWakeWord, 500); return; }
-  var WAKE_RE = /^\s*(hey\s+aria|hi\s+aria|hello\s+aria|okay\s+aria|aria)\s*[,.]?\s*/i;
-  var _orig = window.sendMsg;
-  window.sendMsg = async function _wakeAwareSend() {
-    var inp = document.getElementById('inp') || document.querySelector('textarea,input[type=text]');
-    if (inp && WAKE_RE.test(inp.value)) {
-      var cmd = inp.value.replace(WAKE_RE, '').trim();
-      if (!cmd) {
-        // Pure wake word with no command — speak acknowledgement and activate mic
-        inp.value = '';
+        inp.value = cmd;
         if (typeof autoResize === 'function') autoResize();
-        if (typeof speak === 'function') speak('Yes? How can I help?');
-        if (typeof startListen === 'function') setTimeout(startListen, 800);
-        return;
       }
-      inp.value = cmd;
-      if (typeof autoResize === 'function') autoResize();
-    }
-    return _orig && _orig.apply(this, arguments);
-  };
+      return _orig && _orig.apply(this, arguments);
+    };
+  }
+  patchSendMsg();
 
-  // Also try a background continuous SR for true hands-free experience
-  // (stops itself when the main mic is used, so no conflict)
+  // ── 2. Background continuous SR for hands-free wake word ─────────────
   var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
   if (!SR) return;
 
   var bgRec = null, bgActive = false, bgEnabled = false, bgCooldown = false;
-  window._ariaWakeBgEnabled = false;
+  var WAKE_RE2 = /^\s*(hey\s+aria|hi\s+aria|hello\s+aria|okay\s+aria|aria)\s*[,.]?\s*/i;
 
   function bgStart() {
-    if (bgActive || !bgEnabled || (window.S && S.listening)) return;
+    if (bgActive || !bgEnabled) return;
+    // Yield to main mic if it is active
+    if (window.S && S.listening) return;
     try {
       bgRec = new SR();
       bgRec.continuous = true;
@@ -2842,26 +2733,22 @@ console.log('[ARIA v4] Token guard + Wake word loaded.');
       bgRec.lang = 'en-US';
       bgRec.onresult = function(ev) {
         var t = ev.results[ev.results.length - 1][0].transcript.trim();
-        if (!WAKE_RE.test(t) || bgCooldown) return;
-        bgCooldown = true;
-        setTimeout(function() { bgCooldown = false; }, 3000);
-        var cmd = t.replace(WAKE_RE, '').trim();
+        if (!WAKE_RE2.test(t) || bgCooldown) return;
+        bgCooldown = true; setTimeout(function() { bgCooldown = false; }, 3000);
+        var cmd = t.replace(WAKE_RE2, '').trim();
+        bgStop();
         if (cmd) {
-          var inp2 = document.getElementById('inp') || document.querySelector('textarea');
-          if (inp2) { inp2.value = cmd; if (typeof autoResize === 'function') autoResize(); }
-          bgStop(); // stop bg SR before starting sendMsg (avoids two SR instances)
+          var inp = document.getElementById('inp') || document.querySelector('textarea');
+          if (inp) { inp.value = cmd; if (typeof autoResize === 'function') autoResize(); }
           setTimeout(function() { if (typeof sendMsg === 'function') sendMsg(); }, 200);
         } else {
-          if (typeof speak === 'function') speak('Yes?');
-          bgStop();
-          setTimeout(function() {
-            if (typeof startListen === 'function') startListen();
-          }, 800);
+          if (typeof speak === 'function') speak('Yes? How can I help?');
+          setTimeout(function() { if (typeof startListen === 'function') startListen(); }, 800);
         }
       };
       bgRec.onerror = function(e) {
         bgActive = false;
-        if (e.error === 'not-allowed') { bgEnabled = false; return; }
+        if (e.error === 'not-allowed') { bgEnabled = false; updateBtn(); return; }
         if (bgEnabled) setTimeout(bgStart, 2500);
       };
       bgRec.onend = function() {
@@ -2872,7 +2759,7 @@ console.log('[ARIA v4] Token guard + Wake word loaded.');
       bgActive = true;
     } catch(e) {
       bgActive = false;
-      console.warn('[ARIA] BG wake SR error:', e.message);
+      console.warn('[ARIA] Wake SR error:', e.message);
     }
   }
 
@@ -2896,181 +2783,63 @@ console.log('[ARIA v4] Token guard + Wake word loaded.');
           return r;
         };
       }
-    }, 600);
+    }, 700);
   });
 
-  // Update wake button to control both hook + background SR
-  var existing = document.getElementById('ariaWakeBtn');
-  if (existing) existing.remove();
+  // ── 3. Wake button UI ─────────────────────────────────────────────────
+  function updateBtn() {
+    if (!wakeBtn) return;
+    if (bgEnabled) {
+      wakeBtn.textContent = 'Hey ARIA: ON';
+      wakeBtn.style.color = '#5de6d8';
+      wakeBtn.style.borderColor = '#5de6d8';
+      wakeBtn.style.background = 'rgba(93,230,216,.1)';
+    } else {
+      wakeBtn.textContent = 'Wake: OFF';
+      wakeBtn.style.color = '#6b7eaa';
+      wakeBtn.style.borderColor = 'rgba(255,255,255,.18)';
+      wakeBtn.style.background = 'rgba(4,5,10,.85)';
+    }
+  }
 
-  var wakeBtn2 = document.createElement('button');
-  wakeBtn2.id = 'ariaWakeBtn';
-  wakeBtn2.textContent = 'Wake: OFF';
-  wakeBtn2.title = 'Enable "Hey ARIA" wake word. Works with mic OR in background.';
-  wakeBtn2.style.cssText = [
-    'position:fixed', 'top:11px', 'right:56px', 'z-index:99999',
-    'background:rgba(4,5,10,.85)', 'border:1px solid rgba(255,255,255,.18)',
-    'border-radius:8px', 'padding:4px 11px', 'color:#6b7eaa',
-    'cursor:pointer', 'font-size:11px', 'font-family:inherit',
-    'backdrop-filter:blur(10px)', 'transition:all .2s',
-  ].join(';');
+  var wakeBtn = document.createElement('button');
+  wakeBtn.id = 'ariaWakeBtn';
+  wakeBtn.textContent = 'Wake: OFF';
+  wakeBtn.title = 'Toggle "Hey ARIA" hands-free wake word';
+  wakeBtn.style.cssText = 'position:fixed;top:11px;right:56px;z-index:99999;background:rgba(4,5,10,.85);border:1px solid rgba(255,255,255,.18);border-radius:8px;padding:4px 11px;color:#6b7eaa;cursor:pointer;font-size:11px;font-family:inherit;backdrop-filter:blur(10px);transition:all .2s;';
 
-  var wakeOn = false;
-  wakeBtn2.addEventListener('click', async function() {
-    wakeOn = !wakeOn;
-    if (wakeOn) {
-      // Request mic permission first
+  wakeBtn.addEventListener('click', async function() {
+    if (!bgEnabled) {
       try {
         await navigator.mediaDevices.getUserMedia({ audio: true });
       } catch(e) {
-        alert('Microphone permission required for wake word.');
-        wakeOn = false; return;
+        alert('Microphone permission required for wake word.'); return;
       }
       bgEnabled = true;
-      window._ariaWakeBgEnabled = true;
       bgStart();
-      wakeBtn2.textContent = 'Hey ARIA: ON';
-      wakeBtn2.style.color = '#5de6d8';
-      wakeBtn2.style.borderColor = '#5de6d8';
-      wakeBtn2.style.background = 'rgba(93,230,216,.1)';
     } else {
       bgEnabled = false;
-      window._ariaWakeBgEnabled = false;
       bgStop();
-      wakeBtn2.textContent = 'Wake: OFF';
-      wakeBtn2.style.color = '#6b7eaa';
-      wakeBtn2.style.borderColor = 'rgba(255,255,255,.18)';
-      wakeBtn2.style.background = 'rgba(4,5,10,.85)';
     }
+    updateBtn();
   });
-  document.body.appendChild(wakeBtn2);
+
+  document.body.appendChild(wakeBtn);
+  console.log('[ARIA v6] Wake word + email cards + Gmail sidebar button loaded.');
 })();
-
-// ── 2. EMAIL RESPONSES AS GMAIL CARDS ────────────────────────────
-// Patches addMsg: if the Worker returns a plain-text email analysis
-// (not JSON), wrap it in the same Gmail-card style as showEmailDetail.
-(function patchAddMsg() {
-  if (typeof addMsg === 'undefined') { setTimeout(patchAddMsg, 500); return; }
-  var _orig = window.addMsg;
-
-  function looksLikeEmailAnalysis(txt) {
-    if (txt.length < 60 || txt.trim().startsWith('{')) return false;
-    var emailScore = 0;
-    if (/\b(email|e-mail|message|inbox)\b/i.test(txt)) emailScore += 2;
-    if (/\b(subject|from:|sent by|sender)\b/i.test(txt)) emailScore += 2;
-    if (/\b(summary|key point|suggests?|mention|states?|deadline|attached|link|file|reply)\b/i.test(txt)) emailScore += 1;
-    if (/\b(unread|read|starred|archived|forward|cc:|bcc:)\b/i.test(txt)) emailScore += 1;
-    return emailScore >= 3;
-  }
-
-  function buildEmailSummaryCard(txt) {
-    var outer = document.createElement('div');
-    outer.style.cssText = 'background:#fff;border:1px solid #e0e0e0;border-radius:12px;overflow:hidden;width:100%;margin-top:4px;box-shadow:0 1px 6px rgba(32,33,36,.15);font-family:Google Sans,Roboto,Arial,sans-serif;';
-
-    // Header
-    var hdr = document.createElement('div');
-    hdr.style.cssText = 'display:flex;align-items:center;gap:8px;padding:11px 16px;background:#c5221f;border-bottom:2px solid #a50e0e;';
-    hdr.innerHTML = '<svg width="16" height="16" viewBox="0 0 48 48"><path fill="#fff" d="M5.5 40h8V23.1L4 16.2V37.5C4 38.9 4.6 40 5.5 40z"/><path fill="#fff" d="M34.5 40h8c.9 0 1.5-1.1 1.5-2.5V16.2l-9.5 6.9z"/><path fill="#fff" d="M34.5 8h-21L24 17.4z"/><path fill="#ffcdd2" d="M13.5 23.1V8H5.5C4.6 8 4 9.1 4 10.5v5.7l9.5 6.9z"/><path fill="#ffcdd2" d="M44 10.5V16.2L34.5 23.1V8H42.5C43.4 8 44 9.1 44 10.5z"/></svg><span style="font-size:.76rem;font-weight:600;color:#fff;">Email Summary</span>';
-    outer.appendChild(hdr);
-
-    // Body
-    var body = document.createElement('div');
-    body.style.cssText = 'padding:12px 16px;';
-
-    var label = document.createElement('div');
-    label.style.cssText = 'font-size:.55rem;letter-spacing:.1em;text-transform:uppercase;color:#EA4335;font-weight:600;margin-bottom:6px;';
-    label.textContent = 'Summary';
-
-    var content = document.createElement('div');
-    content.style.cssText = 'font-size:.76rem;color:#202124;line-height:1.75;';
-    content.textContent = txt;
-
-    body.appendChild(label);
-    body.appendChild(content);
-
-    // "Open in Gmail" button if we have emails to show
-    if (window._lastEmails && window._lastEmails.length) {
-      var openBtn = document.createElement('button');
-      openBtn.textContent = '\u2197 Open in Gmail';
-      openBtn.style.cssText = 'margin-top:10px;width:100%;background:#1a73e8;color:#fff;border:none;border-radius:20px;padding:9px;font-family:Google Sans,Arial,sans-serif;font-size:.76rem;font-weight:500;cursor:pointer;';
-      openBtn.onclick = function() { if (typeof openGmailPanel === 'function') openGmailPanel(window._lastEmails); };
-      body.appendChild(openBtn);
-    }
-
-    outer.appendChild(body);
-    return outer;
-  }
-
-  window.addMsg = function(role, txt, err) {
-    if (role === 'assistant' && !err && typeof txt === 'string' && looksLikeEmailAnalysis(txt)) {
-      // Build card manually (mirrors original addMsg assistant path)
-      var S2 = window.S; S2.msgN++; D.nMsgs.textContent = S2.msgN;
-      var now = new Date().toLocaleTimeString('en-US',{hour12:true,hour:'numeric',minute:'2-digit'});
-      var d2 = document.createElement('div');
-      d2.className = 'msg assistant';
-      d2.style.cssText = 'display:flex;gap:8px;align-items:flex-start;animation:msg-in 0.3s cubic-bezier(0.16,1,0.3,1);overflow:visible;';
-      var av = document.createElement('div'); av.className = 'av'; av.textContent = 'A'; av.style.marginTop = '8px';
-      var wrap = document.createElement('div'); wrap.style.cssText = 'flex:1;min-width:0;width:100%;';
-      var card = buildEmailSummaryCard(txt);
-      var timeEl = document.createElement('div'); timeEl.className = 'msg-time'; timeEl.textContent = now;
-      wrap.appendChild(card);
-      wrap.appendChild(timeEl);
-      d2.appendChild(av); d2.appendChild(wrap);
-      D.msgs.appendChild(d2); D.msgs.scrollTop = D.msgs.scrollHeight;
-      return;
-    }
-    return _orig.apply(this, arguments);
-  };
-})();
-
-// ── 3. OPEN GMAIL BUTTON IN SIDEBAR ─────────────────────────────
-// Patches syncApps so the sidebar "Gmail / Active" item
-// has a clickable "Open" button that opens the Gmail side panel.
-(function patchSyncApps() {
-  if (typeof syncApps === 'undefined') { setTimeout(patchSyncApps, 500); return; }
-  var _orig = window.syncApps;
-  window.syncApps = function() {
-    _orig.apply(this, arguments);
-    // After original renders the list, add "Open" button to Gmail entry
-    var sApps = document.getElementById('sidebarApps');
-    if (!sApps) return;
-    var items = sApps.querySelectorAll('.ai');
-    items.forEach(function(item) {
-      var nameEl = item.querySelector('.ai-name');
-      if (!nameEl || nameEl.textContent.toLowerCase() !== 'gmail') return;
-      if (item.querySelector('.aria-gmail-open-btn')) return; // already added
-      var btn = document.createElement('button');
-      btn.className = 'aria-gmail-open-btn';
-      btn.textContent = '\u2197 Open';
-      btn.title = 'Open Gmail side panel';
-      btn.style.cssText = [
-        'font-size:9px', 'padding:2px 8px', 'border-radius:10px',
-        'border:1px solid rgba(93,230,216,.4)', 'background:rgba(93,230,216,.08)',
-        'color:var(--cyan,#5de6d8)', 'cursor:pointer', 'margin-left:4px',
-        'font-family:inherit', 'transition:background .15s',
-      ].join(';');
-      btn.onmouseenter = function() { btn.style.background = 'rgba(93,230,216,.2)'; };
-      btn.onmouseleave = function() { btn.style.background = 'rgba(93,230,216,.08)'; };
-      btn.addEventListener('click', function(e) {
-        e.stopPropagation();
-        if (typeof openGmailPanel === 'function') openGmailPanel(window._lastEmails || null);
-      });
-      // Append to the right-side part of the ai item
-      var right = item.lastElementChild || item;
-      right.style.display = 'flex';
-      right.style.flexDirection = 'column';
-      right.style.alignItems = 'flex-end';
-      right.style.gap = '4px';
-      right.appendChild(btn);
-    });
-  };
-
-  // Trigger immediately in case syncApps already ran
-  if (typeof syncApps === 'function') syncApps();
-})();
-
-console.log('[ARIA v5] Wake word hook, email cards, Gmail sidebar button — loaded.');
-
 </script>
+
+<!-- GMAIL PANEL -->
+<div class="gmail-panel" id="gmailPanel">
+  <div class="gmail-panel-hdr">
+    <div class="gmail-panel-title">📧 Gmail</div>
+    <button class="gmail-panel-close" onclick="closeGmailPanel()">✕</button>
+  </div>
+  <div class="gmail-panel-body">
+    <iframe id="gmailFrame" src="" title="Gmail"></iframe>
+  </div>
+</div>
+
+
 </body>
 </html>
