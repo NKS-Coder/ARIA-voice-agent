@@ -1,1423 +1,418 @@
 <!DOCTYPE html>
-<html lang="en">
+<html class="dark" lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-<meta name="mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="theme-color" content="#04050a">
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0, user-scalable=no" name="viewport"/>
+<meta name="theme-color" content="#05070A"/>
+<meta name="mobile-web-app-capable" content="yes"/>
+<meta name="apple-mobile-web-app-capable" content="yes"/>
 <title>ARIA</title>
-<link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,200;0,9..40,300;0,9..40,400;0,9..40,500;1,9..40,300&family=DM+Serif+Display:ital@0;1&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@200;300;400;500;600;700;800&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script>
+tailwind.config={darkMode:"class",theme:{extend:{colors:{"surface":"#05070A","primary":"#00E5FF","azure":"#007BFF","background":"#05070A"},fontFamily:{headline:["Manrope"],body:["Manrope"]}}}}
+</script>
 <style>
-/* ═══════════════════════════════════════════════
-   ARIA — Apple × Stark Industries
-   Ultra-dark glass, surgical precision, zero noise
-═══════════════════════════════════════════════ */
-:root {
-  --void:    #04050a;
-  --deep:    #070810;
-  --glass:   rgba(255,255,255,0.03);
-  --glass2:  rgba(255,255,255,0.055);
-  --stroke:  rgba(255,255,255,0.07);
-  --stroke2: rgba(255,255,255,0.12);
-  --gold:    #00d4ff;
-  --gold2:   #80eaff;
-  --gold3:   rgba(0,212,255,0.12);
-  --cyan:    #5de6d8;
-  --cyan2:   rgba(93,230,216,0.12);
-  --rose:    #f0657a;
-  --text:    #f0f2fc;
-  --text2:   #9098c0;
-  --text3:   #545878;
-  --r:       14px;
-  --left:    248px;
-  --right:   268px;
-}
-
-* { margin:0; padding:0; box-sizing:border-box; }
-
-body {
-  background:var(--void);
-  color:var(--text);
-  font-family:'DM Sans', sans-serif;
-  font-weight:300;
-  height:100vh;
-  overflow:hidden;
-  display:flex;
-  flex-direction:column;
-}
-
-/* Ambient light — barely visible, like atmosphere */
-body::before {
-  content:'';
-  position:fixed; inset:0; z-index:0; pointer-events:none;
-  background:
-    radial-gradient(ellipse 80% 40% at 50% -10%, rgba(0,212,255,0.05) 0%, transparent 60%),
-    radial-gradient(ellipse 40% 60% at 0% 100%, rgba(93,230,216,0.03) 0%, transparent 50%),
-    radial-gradient(ellipse 40% 60% at 100% 0%, rgba(0,212,255,0.03) 0%, transparent 50%);
-}
-
-/* Subtle grid overlay */
-body::after {
-  content:'';
-  position:fixed; inset:0; z-index:0; pointer-events:none; opacity:0.018;
-  background-image:
-    linear-gradient(rgba(255,255,255,0.5) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(255,255,255,0.5) 1px, transparent 1px);
-  background-size:48px 48px;
-}
-
-/* ── HEADER ─────────────────────────────────── */
-.hdr {
-  position:relative; z-index:50; flex-shrink:0;
-  height:52px; padding:0 24px;
-  display:flex; align-items:center; justify-content:space-between;
-  border-bottom:1px solid var(--stroke);
-  background:rgba(4,5,10,0.85);
-  backdrop-filter:blur(24px) saturate(180%);
-}
-
-.logo {
-  display:flex; align-items:center; gap:12px;
-}
-
-/* The ARIA orb — minimal, precise */
-.orb {
-  width:28px; height:28px; border-radius:50%;
-  position:relative; flex-shrink:0;
-  background:conic-gradient(from 0deg, var(--gold), var(--gold2), var(--gold));
-  padding:1px;
-}
-.orb-inner {
-  width:100%; height:100%; border-radius:50%;
-  background:var(--void);
-  display:flex; align-items:center; justify-content:center;
-}
-.orb-dot {
-  width:8px; height:8px; border-radius:50%;
-  background:radial-gradient(circle, var(--gold2), var(--gold));
-  box-shadow:0 0 10px rgba(0,212,255,0.78);
-  animation:pulse-dot 3s ease-in-out infinite;
-}
-@keyframes pulse-dot {
-  0%,100% { transform:scale(1); box-shadow:0 0 10px rgba(0,212,255,0.78); }
-  50%      { transform:scale(1.2); box-shadow:0 0 18px rgba(0,212,255,1); }
-}
-
-.brand { line-height:1; }
-.brand-name {
-  font-family:'DM Serif Display', serif;
-  font-size:1.1rem; letter-spacing:0.22em;
-  color:var(--gold); font-style:italic;
-}
-.brand-sub {
-  font-size:0.44rem; letter-spacing:0.32em;
-  text-transform:uppercase; color:var(--text3);
-  margin-top:2px;
-}
-
-.hdr-center {
-  position:absolute; left:50%; transform:translateX(-50%);
-  display:flex; align-items:center; gap:6px;
-}
-.status-pill {
-  display:flex; align-items:center; gap:6px;
-  background:var(--glass); border:1px solid var(--stroke);
-  border-radius:20px; padding:5px 14px;
-  font-size:0.6rem; color:var(--text2); letter-spacing:0.08em;
-}
-.pulse {
-  width:5px; height:5px; border-radius:50%;
-  background:var(--cyan);
-  box-shadow:0 0 6px var(--cyan);
-  animation:blink 2.8s ease-in-out infinite;
-  flex-shrink:0;
-}
-@keyframes blink { 0%,100%{opacity:1;} 50%{opacity:0.2;} }
-
-.model-badge {
-  background:var(--gold3); border:1px solid rgba(0,212,255,0.18);
-  border-radius:20px; padding:5px 12px;
-  font-size:0.58rem; color:var(--gold); letter-spacing:0.06em;
-}
-
-.hdr-right { display:flex; align-items:center; gap:8px; }
-.hdr-btn {
-  width:30px; height:30px; border-radius:50%;
-  background:var(--glass); border:1px solid var(--stroke2);
-  color:var(--text2); cursor:pointer; font-size:0.85rem;
-  display:flex; align-items:center; justify-content:center;
-  transition:all 0.2s; flex-shrink:0;
-}
-.hdr-btn:hover { background:var(--glass2); color:var(--gold); border-color:rgba(0,212,255,0.28); }
-
-/* ── THREE COLUMN LAYOUT ─────────────────────── */
-.layout {
-  position:relative; z-index:10;
-  flex:1; display:flex; overflow:hidden;
-}
-
-/* ══════════════════════════════════════════════
-   LEFT — Conversation History
-══════════════════════════════════════════════ */
-.left {
-  width:var(--left); flex-shrink:0;
-  background:rgba(5,6,12,0.9);
-  border-right:1px solid var(--stroke);
-  display:flex; flex-direction:column;
-  overflow:hidden;
-}
-
-.new-btn {
-  flex-shrink:0; margin:14px 12px 10px;
-  display:flex; align-items:center; justify-content:center; gap:8px;
-  background:linear-gradient(135deg, rgba(0,212,255,0.15), rgba(0,212,255,0.08));
-  border:1px solid rgba(0,212,255,0.26);
-  border-radius:10px; padding:10px;
-  cursor:pointer; color:var(--gold);
-  font-family:'DM Sans',sans-serif; font-size:0.72rem; font-weight:400;
-  letter-spacing:0.06em; transition:all 0.2s;
-}
-.new-btn:hover {
-  background:linear-gradient(135deg, rgba(0,212,255,0.26), rgba(0,212,255,0.12));
-  box-shadow:0 0 20px rgba(0,212,255,0.12);
-}
-.new-btn-icon { font-size:0.75rem; opacity:0.8; }
-
-.search-wrap {
-  flex-shrink:0; margin:0 12px 10px;
-  display:flex; align-items:center; gap:8px;
-  background:var(--glass); border:1px solid var(--stroke);
-  border-radius:9px; padding:8px 11px;
-  transition:border-color 0.2s;
-}
-.search-wrap:focus-within { border-color:var(--stroke2); }
-.search-wrap input {
-  flex:1; background:transparent; border:none; outline:none;
-  color:var(--text); font-family:'DM Sans',sans-serif; font-size:0.7rem; font-weight:300;
-}
-.search-wrap input::placeholder { color:var(--text3); }
-.search-ico { font-size:0.7rem; color:var(--text3); flex-shrink:0; }
-
-.hist-label {
-  flex-shrink:0; padding:4px 14px 6px;
-  font-size:0.5rem; letter-spacing:0.22em;
-  text-transform:uppercase; color:var(--text3);
-  font-weight:400;
-}
-
-.hist-scroll {
-  flex:1; overflow-y:auto; padding:0 8px 16px;
-  scrollbar-width:thin; scrollbar-color:rgba(255,255,255,0.04) transparent;
-}
-.hist-scroll::-webkit-scrollbar { width:2px; }
-.hist-scroll::-webkit-scrollbar-thumb { background:rgba(255,255,255,0.05); }
-
-.hi {
-  display:flex; align-items:center; gap:8px;
-  padding:9px 10px; border-radius:9px;
-  cursor:pointer; transition:all 0.18s;
-  margin-bottom:2px; border:1px solid transparent;
-  position:relative;
-}
-.hi:hover  { background:var(--glass2); border-color:var(--stroke); }
-.hi.active {
-  background:linear-gradient(135deg,rgba(0,212,255,0.08),rgba(0,212,255,0.04));
-  border-color:rgba(0,212,255,0.18);
-}
-.hi-ico { font-size:0.78rem; flex-shrink:0; opacity:0.5; }
-.hi-body { flex:1; min-width:0; }
-.hi-title { font-size:0.68rem; font-weight:400; color:var(--text); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-.hi-time  { font-size:0.52rem; color:var(--text3); margin-top:2px; }
-.hi-del {
-  opacity:0; flex-shrink:0; width:16px; height:16px; border-radius:4px;
-  background:rgba(240,101,122,0.1); border:none; color:var(--rose);
-  cursor:pointer; font-size:0.55rem; display:flex; align-items:center; justify-content:center;
-  transition:all 0.15s;
-}
-.hi:hover .hi-del { opacity:1; }
-
-.hist-empty {
-  text-align:center; padding:32px 16px;
-  font-size:0.65rem; color:var(--text3); line-height:2;
-}
-
-/* ══════════════════════════════════════════════
-   CENTER — The Stage
-══════════════════════════════════════════════ */
-.center {
-  flex:1; display:flex; flex-direction:column;
-  align-items:center; overflow:hidden;
-  border-right:1px solid var(--stroke);
-}
-
-/* Mic stage */
-.stage {
-  flex-shrink:0;
-  display:flex; flex-direction:column; align-items:center;
-  gap:16px; padding:28px 20px 14px;
-}
-
-/* The orb system — rings are light halos not spinners */
-.halo3 {
-  width:188px; height:188px; border-radius:50%;
-  display:flex; align-items:center; justify-content:center;
-  position:relative;
-}
-.halo3::before {
-  content:''; position:absolute; inset:0; border-radius:50%;
-  border:1px solid rgba(0,212,255,0.09);
-  animation:halo-breathe 5s ease-in-out infinite;
-}
-@keyframes halo-breathe {
-  0%,100% { transform:scale(1); opacity:1; }
-  50%      { transform:scale(1.03); opacity:0.6; }
-}
-
-.halo2 {
-  width:150px; height:150px; border-radius:50%;
-  display:flex; align-items:center; justify-content:center;
-  position:relative;
-}
-.halo2::before {
-  content:''; position:absolute; inset:0; border-radius:50%;
-  border:1px solid rgba(0,212,255,0.14);
-}
-
-.halo1 {
-  width:116px; height:116px; border-radius:50%;
-  display:flex; align-items:center; justify-content:center;
-  position:relative;
-}
-.halo1::before {
-  content:''; position:absolute; inset:0; border-radius:50%;
-  border:1px solid rgba(0,212,255,0.22);
-}
-
-/* The mic button — the hero element */
-.mic {
-  width:88px; height:88px; border-radius:50%;
-  position:relative;
-  cursor:pointer; user-select:none;
-  display:flex; align-items:center; justify-content:center;
-  transition:all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
-}
-
-/* Glass disc */
-.mic::before {
-  content:''; position:absolute; inset:0; border-radius:50%;
-  background:radial-gradient(circle at 35% 30%,
-    rgba(0,212,255,0.15) 0%,
-    rgba(0,212,255,0.06) 40%,
-    rgba(0,0,0,0) 70%);
-  border:1.5px solid rgba(0,212,255,0.32);
-  box-shadow:
-    0 0 0 0 rgba(200,169,110,0),
-    inset 0 1px 0 rgba(255,255,255,0.06),
-    0 8px 32px rgba(0,0,0,0.5),
-    0 2px 8px rgba(0,0,0,0.3);
-  transition:all 0.3s ease;
-}
-
-.mic:hover::before {
-  border-color:rgba(0,212,255,0.58);
-  box-shadow:0 0 0 8px rgba(0,212,255,0.06), inset 0 1px 0 rgba(255,255,255,0.08), 0 12px 40px rgba(0,0,0,0.5);
-}
-
-.mic-icon {
-  font-size:1.85rem; position:relative; z-index:1;
-  filter:drop-shadow(0 2px 6px rgba(0,0,0,0.5));
-  transition:transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
-}
-.mic:hover .mic-icon { transform:scale(1.08); }
-
-/* States */
-.mic.listening::before {
-  border-color:var(--rose);
-  background:radial-gradient(circle at 35% 30%, rgba(240,101,122,0.2) 0%, transparent 70%);
-  animation:mic-listen 1s ease-in-out infinite;
-}
-@keyframes mic-listen {
-  0%,100% { box-shadow:0 0 0 0 rgba(240,101,122,0.3), inset 0 1px 0 rgba(255,255,255,0.06); }
-  50%      { box-shadow:0 0 0 12px rgba(240,101,122,0.05), inset 0 1px 0 rgba(255,255,255,0.06); }
-}
-.mic.speaking::before {
-  border-color:var(--cyan);
-  background:radial-gradient(circle at 35% 30%, rgba(93,230,216,0.14) 0%, transparent 70%);
-  box-shadow:0 0 0 8px rgba(93,230,216,0.06), inset 0 1px 0 rgba(255,255,255,0.06);
-}
-
-/* Status label */
-.mic-label {
-  font-size:0.62rem; font-weight:300;
-  letter-spacing:0.16em; text-transform:uppercase;
-  color:var(--text3); min-height:16px;
-  transition:all 0.3s ease;
-}
-.mic-label.listening { color:var(--rose); }
-.mic-label.speaking  { color:var(--cyan); }
-
-/* Visualizer — ultra-minimal */
-.viz {
-  display:flex; align-items:center; gap:2.5px; height:28px;
-}
-.vb {
-  width:2px; border-radius:2px;
-  background:linear-gradient(to top, var(--gold), var(--cyan));
-  height:3px; opacity:0.2;
-  transition:height 0.1s ease;
-}
-.viz.on .vb { opacity:0.7; animation:vw 0.7s ease-in-out infinite; }
-.vb:nth-child(1){animation-delay:0s}.vb:nth-child(2){animation-delay:.06s}.vb:nth-child(3){animation-delay:.12s}
-.vb:nth-child(4){animation-delay:.18s}.vb:nth-child(5){animation-delay:.24s}.vb:nth-child(6){animation-delay:.18s}
-.vb:nth-child(7){animation-delay:.12s}.vb:nth-child(8){animation-delay:.06s}.vb:nth-child(9){animation-delay:0s}
-.vb:nth-child(10){animation-delay:.06s}.vb:nth-child(11){animation-delay:.12s}.vb:nth-child(12){animation-delay:.18s}
-.vb:nth-child(13){animation-delay:.24s}.vb:nth-child(14){animation-delay:.18s}.vb:nth-child(15){animation-delay:.12s}
-@keyframes vw { 0%,100%{height:3px;} 50%{height:22px;} }
-
-/* Chat area */
-.chat {
-  flex:1; width:100%; max-width:640px; align-self:center;
-  display:flex; flex-direction:column;
-  padding:0 24px 16px; overflow:hidden; gap:6px;
-}
-
-.chat-label {
-  font-size:0.48rem; letter-spacing:0.22em;
-  text-transform:uppercase; color:var(--text3);
-  flex-shrink:0; font-weight:400;
-}
-
-.msgs {
-  flex:1; overflow-y:auto; overflow-x:hidden; display:flex; flex-direction:column; gap:10px;
-  padding-right:2px; padding-top:4px;
-  scrollbar-width:thin; scrollbar-color:rgba(255,255,255,0.04) transparent;
-}
-.msgs::-webkit-scrollbar { width:2px; }
-.msgs::-webkit-scrollbar-thumb { background:rgba(255,255,255,0.05); }
-
-.msg { display:flex; gap:8px; animation:msg-in 0.3s cubic-bezier(0.16,1,0.3,1); }
-@keyframes msg-in { from{opacity:0;transform:translateY(8px);} to{opacity:1;transform:translateY(0);} }
-.msg.user { flex-direction:row-reverse; }
-
-.av {
-  width:24px; height:24px; border-radius:50%; flex-shrink:0;
-  display:flex; align-items:center; justify-content:center;
-  font-size:0.58rem; font-weight:500;
-}
-.msg.user .av {
-  background:linear-gradient(135deg,rgba(0,212,255,0.18),rgba(0,212,255,0.08));
-  border:1px solid rgba(0,212,255,0.22); color:var(--gold);
-}
-.msg.assistant .av {
-  background:linear-gradient(135deg,rgba(93,230,216,0.12),rgba(93,230,216,0.04));
-  border:1px solid rgba(93,230,216,0.2); color:var(--cyan);
-}
-
-.bbl {
-  max-width:76%; padding:10px 14px;
-  font-size:0.78rem; line-height:1.8; font-weight:300;
-}
-.msg.user .bbl {
-  background:linear-gradient(135deg,rgba(0,212,255,0.09),rgba(0,212,255,0.04));
-  border:1px solid rgba(0,212,255,0.12);
-  border-radius:var(--r) var(--r) 3px var(--r);
-}
-.msg.assistant .bbl {
-  background:var(--glass);
-  border:1px solid var(--stroke);
-  border-radius:var(--r) var(--r) var(--r) 3px;
-}
-.msg.err .bbl {
-  background:rgba(240,101,122,0.05);
-  border:1px solid rgba(240,101,122,0.18); color:#f8a0ad;
-}
-.msg-time { font-size:0.48rem; color:var(--text3); margin-top:4px; padding:0 2px; }
-
-.think {
-  display:flex; align-items:center; gap:8px;
-  font-size:0.6rem; color:var(--text3); padding:2px 0;
-  flex-shrink:0; letter-spacing:0.04em;
-}
-.tdots span {
-  display:inline-block; width:4px; height:4px; border-radius:50%;
-  background:var(--cyan); margin-right:3px; opacity:0.4;
-  animation:td 1.4s ease-in-out infinite;
-}
-.tdots span:nth-child(2){animation-delay:.22s}.tdots span:nth-child(3){animation-delay:.44s}
-@keyframes td { 0%,80%,100%{transform:scale(.5);opacity:.3;} 40%{transform:scale(1);opacity:1;} }
-.hidden { display:none !important; }
-
-/* Input — Apple-level refinement */
-.inp-row { display:flex; gap:8px; align-items:flex-end; flex-shrink:0; }
-.inp-shell {
-  flex:1;
-  background:var(--glass);
-  border:1px solid var(--stroke2);
-  border-radius:var(--r);
-  padding:3px 3px 3px 15px;
-  display:flex; align-items:flex-end;
-  transition:all 0.2s ease;
-}
-.inp-shell:focus-within {
-  background:var(--glass2);
-  border-color:rgba(0,212,255,0.32);
-  box-shadow:0 0 0 3px rgba(0,212,255,0.06);
-}
-textarea {
-  flex:1; background:transparent; border:none; outline:none;
-  color:var(--text); font-family:'DM Sans',sans-serif;
-  font-size:0.8rem; font-weight:300; line-height:1.65;
-  padding:10px 0; resize:none; min-height:40px; max-height:110px;
-}
-textarea::placeholder { color:var(--text3); }
-.send-btn {
-  background:linear-gradient(135deg,var(--gold),#0090bb);
-  color:#04050a; border:none; border-radius:10px;
-  padding:9px 18px; cursor:pointer;
-  font-family:'DM Sans',sans-serif; font-size:0.76rem; font-weight:500;
-  transition:all 0.2s cubic-bezier(0.34,1.56,0.64,1);
-  height:40px; white-space:nowrap; align-self:flex-end; margin:3px;
-  letter-spacing:0.02em; flex-shrink:0;
-}
-.send-btn:hover:not(:disabled) {
-  transform:translateY(-1px) scale(1.02);
-  box-shadow:0 6px 20px rgba(0,212,255,0.28);
-}
-.send-btn:disabled { background:rgba(255,255,255,0.05); color:var(--text3); cursor:not-allowed; transform:none; }
-
-/* ══════════════════════════════════════════════
-   RIGHT — Controls
-══════════════════════════════════════════════ */
-.right {
-  width:var(--right); flex-shrink:0;
-  overflow-y:auto; padding:14px 12px;
-  display:flex; flex-direction:column; gap:10px;
-  scrollbar-width:thin; scrollbar-color:rgba(255,255,255,0.04) transparent;
-}
-.right::-webkit-scrollbar { width:2px; }
-.right::-webkit-scrollbar-thumb { background:rgba(255,255,255,0.05); }
-
-/* Glass card */
-.card {
-  background:var(--glass);
-  border:1px solid var(--stroke);
-  border-radius:var(--r);
-  padding:12px 13px;
-  display:flex; flex-direction:column; gap:8px;
-  flex-shrink:0;
-  transition:border-color 0.2s;
-}
-.card:hover { border-color:var(--stroke2); }
-
-.card-hd {
-  font-size:0.48rem; letter-spacing:0.22em;
-  text-transform:uppercase; color:var(--text3);
-  padding-bottom:8px; border-bottom:1px solid var(--stroke);
-  font-weight:400;
-}
-
-/* Stats */
-.stats { display:grid; grid-template-columns:1fr 1fr 1fr; gap:4px; }
-.stat {
-  background:rgba(255,255,255,0.02);
-  border:1px solid var(--stroke);
-  border-radius:9px; padding:8px 4px; text-align:center;
-}
-.sv { font-size:1.05rem; font-weight:300; color:var(--gold); }
-.sl { font-size:0.42rem; color:var(--text3); text-transform:uppercase; letter-spacing:0.1em; margin-top:2px; }
-
-/* Personas */
-.pgrid { display:grid; grid-template-columns:1fr 1fr; gap:4px; }
-.pc {
-  padding:9px 8px; border-radius:9px;
-  border:1px solid var(--stroke); cursor:pointer;
-  transition:all 0.2s; background:transparent;
-  color:var(--text); font-family:'DM Sans',sans-serif;
-  text-align:left;
-}
-.pc:hover  { border-color:rgba(0,212,255,0.22); background:rgba(0,212,255,0.04); }
-.pc.active {
-  border-color:rgba(0,212,255,0.38);
-  background:linear-gradient(135deg,rgba(0,212,255,0.09),rgba(0,212,255,0.04));
-}
-.pi { font-size:0.8rem; margin-bottom:3px; }
-.pn { font-size:0.6rem; font-weight:400; letter-spacing:0.02em; }
-.pd { font-size:0.47rem; color:var(--text3); margin-top:1px; }
-
-/* Row controls */
-.row {
-  display:flex; align-items:center; justify-content:space-between;
-  padding:5px 0; border-bottom:1px solid rgba(255,255,255,0.03); gap:8px;
-}
-.row:last-child { border-bottom:none; padding-bottom:0; }
-.rl { font-size:0.64rem; font-weight:400; color:var(--text); }
-.rs { font-size:0.5rem; color:var(--text3); margin-top:1px; }
-
+:root{--cyan:#00E5FF;--azure:#007BFF;--text3:#4a5568;--rose:#f56565;--void:#05070A;}
+*{box-sizing:border-box;}
+body{font-family:'Manrope',sans-serif;}
+.material-symbols-outlined{font-variation-settings:'FILL' 0,'wght' 300,'GRAD' 0,'opsz' 20;}
+::-webkit-scrollbar{width:3px;}::-webkit-scrollbar-track{background:transparent;}::-webkit-scrollbar-thumb{background:rgba(255,255,255,0.06);border-radius:10px;}
+.glass-1{backdrop-filter:blur(12px) saturate(180%);background:rgba(10,12,16,0.5);}
+.glass-2{backdrop-filter:blur(40px) saturate(160%);background:rgba(8,10,14,0.75);}
+.micro-border{border:0.5px solid rgba(255,255,255,0.08);}
+.gradient-text{background:linear-gradient(135deg,#007BFF,#00E5FF);-webkit-background-clip:text;-webkit-text-fill-color:transparent;}
 /* Toggle */
-.tog { position:relative; width:30px; height:16px; cursor:pointer; flex-shrink:0; }
-.tog input { display:none; }
-.trk {
-  width:30px; height:16px; border-radius:8px;
-  background:rgba(255,255,255,0.07);
-  position:relative; transition:background .25s;
+.toggle-checkbox:checked + .toggle-label{background:linear-gradient(135deg,#007BFF,#00E5FF);}
+.toggle-checkbox:checked + .toggle-label .toggle-dot{transform:translateX(12px);box-shadow:0 0 8px rgba(0,229,255,0.5);}
+/* Orb */
+@keyframes orb-pulse{0%,100%{box-shadow:0 0 80px 10px rgba(0,123,255,0.12),0 0 140px 20px rgba(0,229,255,0.06);}50%{box-shadow:0 0 100px 20px rgba(0,123,255,0.22),0 0 180px 40px rgba(0,229,255,0.1);}}
+@keyframes orb-listen{0%,100%{transform:scale(1);}50%{transform:scale(1.07);}}
+@keyframes orb-speak{0%{transform:scale(1);}25%{transform:scale(1.05);}50%{transform:scale(0.96);}75%{transform:scale(1.05);}100%{transform:scale(1);}}
+.orb-glow{animation:orb-pulse 4s ease-in-out infinite;}
+body[data-mode="listening"] .orb-main{animation:orb-listen 0.8s ease-in-out infinite;}
+body[data-mode="speaking"] .orb-main{animation:orb-speak 0.5s ease-in-out infinite;}
+/* Hero collapse */
+#heroWrap{transition:max-height 0.5s cubic-bezier(0.16,1,0.3,1),opacity 0.4s ease,padding 0.4s ease;overflow:hidden;max-height:500px;opacity:1;}
+#heroWrap.collapsed{max-height:0!important;opacity:0;padding:0!important;}
+/* Messages */
+#msgs{flex:1;overflow-y:auto;padding:16px 28px;display:flex;flex-direction:column;gap:14px;}
+@keyframes msg-in{from{opacity:0;transform:translateY(8px);}to{opacity:1;transform:translateY(0);}}
+.msg{display:flex;gap:10px;align-items:flex-start;animation:msg-in 0.3s cubic-bezier(0.16,1,0.3,1);}
+.msg.user{flex-direction:row-reverse;}
+.av{width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:0.65rem;font-weight:700;flex-shrink:0;letter-spacing:0.05em;}
+.msg.user .av{background:linear-gradient(135deg,#007BFF,#00E5FF);color:#000;}
+.msg.assistant .av{background:rgba(0,229,255,0.08);border:1px solid rgba(0,229,255,0.2);color:#00E5FF;}
+.msg.err .av{background:rgba(245,101,101,0.1);border:1px solid rgba(245,101,101,0.2);color:#f56565;}
+.bbl{padding:10px 14px;border-radius:16px;font-size:0.8rem;line-height:1.65;max-width:500px;white-space:pre-wrap;word-break:break-word;}
+.msg.user .bbl{background:linear-gradient(135deg,rgba(0,123,255,0.2),rgba(0,229,255,0.12));border:1px solid rgba(0,229,255,0.2);color:rgba(255,255,255,0.92);border-radius:16px 4px 16px 16px;}
+.msg.assistant .bbl{background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.07);color:rgba(255,255,255,0.82);border-radius:4px 16px 16px 16px;}
+.msg.err .bbl{background:rgba(245,101,101,0.08);border:1px solid rgba(245,101,101,0.2);color:#fc8181;border-radius:4px 16px 16px 16px;}
+.msg-time{font-size:0.58rem;color:rgba(255,255,255,0.2);margin-top:4px;padding:0 4px;}
+.msg.user .msg-time{text-align:right;}
+/* Think */
+#think{padding:8px 28px 4px;display:flex;align-items:center;gap:8px;font-size:0.72rem;color:rgba(0,229,255,0.5);}
+#think.hidden{display:none!important;}
+.think-dots{display:flex;gap:4px;}
+.think-dots span{width:5px;height:5px;border-radius:50%;background:rgba(0,229,255,0.5);animation:think-b 1.2s ease-in-out infinite;}
+.think-dots span:nth-child(2){animation-delay:0.2s;}.think-dots span:nth-child(3){animation-delay:0.4s;}
+@keyframes think-b{0%,80%,100%{transform:scale(0.7);opacity:0.4;}40%{transform:scale(1.2);opacity:1;}}
+/* Mic states */
+#micBtn{transition:all 0.2s;}
+#micBtn.listening .ms-icon{color:#00E5FF!important;}
+#micBtn.speaking .ms-icon{color:#007BFF!important;}
+#micBtn.listening{box-shadow:0 0 0 4px rgba(0,229,255,0.15);}
+#micBtn.speaking{box-shadow:0 0 0 4px rgba(0,123,255,0.15);}
+/* Viz */
+#viz{display:none;}
+#viz.on{display:flex;gap:2px;align-items:center;height:14px;}
+#viz.on::before,#viz.on::after{content:'';width:3px;border-radius:2px;background:#00E5FF;animation:viz-b 0.6s ease-in-out infinite alternate;}
+#viz.on::before{height:8px;animation-delay:0.1s;}#viz.on::after{height:14px;}
+@keyframes viz-b{from{transform:scaleY(0.4);}to{transform:scaleY(1);}}
+/* mic-label */
+.mic-label{font-size:0.62rem;color:rgba(255,255,255,0.25);white-space:nowrap;}
+.mic-label.listening{color:#00E5FF;}.mic-label.speaking{color:#007BFF;}
+/* History */
+.hi{display:flex;align-items:center;gap:8px;padding:7px 10px;border-radius:10px;cursor:pointer;transition:background 0.15s;}
+.hi:hover{background:rgba(255,255,255,0.04);}
+.hi.active{background:rgba(0,229,255,0.06);border:1px solid rgba(0,229,255,0.12);}
+.hi-ico{font-size:0.6rem;color:rgba(0,229,255,0.35);flex-shrink:0;width:14px;}
+.hi-body{flex:1;min-width:0;}
+.hi-title{font-size:0.71rem;font-weight:500;color:rgba(255,255,255,0.6);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.hi.active .hi-title{color:rgba(255,255,255,0.9);}
+.hi-time{font-size:0.58rem;color:rgba(255,255,255,0.2);margin-top:2px;}
+.hi-del{opacity:0;font-size:0.65rem;color:rgba(255,255,255,0.3);background:none;border:none;cursor:pointer;padding:2px 4px;border-radius:4px;flex-shrink:0;}
+.hi:hover .hi-del{opacity:1;}.hi-del:hover{color:#fc8181;}
+.hist-empty{font-size:0.68rem;color:rgba(255,255,255,0.2);text-align:center;padding:20px 8px;line-height:1.6;}
+/* Sidebar apps */
+.ai{display:flex;align-items:center;justify-content:space-between;padding:8px 10px;border-radius:10px;background:rgba(0,229,255,0.04);border:1px solid rgba(0,229,255,0.1);}
+.ai-l{display:flex;align-items:center;gap:8px;}
+.ai-ico{font-size:1rem;}
+.ai-name{font-size:0.72rem;font-weight:600;color:rgba(255,255,255,0.8);}
+.ai-sub{font-size:0.58rem;color:#00E5FF;margin-top:1px;}
+/* App cards */
+.acard{display:flex;align-items:center;justify-content:space-between;padding:10px 12px;border-radius:10px;background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.06);margin-bottom:6px;transition:background 0.15s;}
+.acard.on{background:rgba(0,229,255,0.05);border-color:rgba(0,229,255,0.2);}
+.acl{display:flex;align-items:center;gap:10px;}
+.acico{font-size:1.1rem;}
+.acname{font-size:0.76rem;font-weight:600;color:rgba(255,255,255,0.8);}
+.acdesc{font-size:0.62rem;color:rgba(255,255,255,0.3);margin-top:1px;}
+.acard.on .acdesc{color:#00E5FF;}
+.abtn{font-size:0.62rem;font-weight:600;padding:5px 12px;border-radius:8px;border:none;cursor:pointer;transition:all 0.15s;font-family:inherit;}
+.abtn.connect{background:rgba(0,123,255,0.15);color:#007BFF;border:1px solid rgba(0,123,255,0.3);}
+.abtn.connect:hover{background:rgba(0,123,255,0.25);}
+.abtn.disco{background:rgba(245,101,101,0.1);color:#fc8181;border:1px solid rgba(245,101,101,0.2);}
+.abtn.disco:hover{background:rgba(245,101,101,0.2);}
+/* Persona chips */
+.pc{display:flex;align-items:center;gap:6px;padding:6px 12px;border-radius:20px;border:1px solid rgba(255,255,255,0.08);cursor:pointer;font-size:0.68rem;color:rgba(255,255,255,0.4);transition:all 0.15s;}
+.pc:hover{border-color:rgba(0,229,255,0.3);color:rgba(255,255,255,0.7);}
+.pc.active{background:rgba(0,229,255,0.08);border-color:rgba(0,229,255,0.3);color:#00E5FF;}
+.pn{font-weight:600;}
+/* Modal */
+#modal{display:none;position:fixed;inset:0;z-index:1000;background:rgba(0,0,0,0.75);backdrop-filter:blur(8px);align-items:center;justify-content:center;}
+#modal.open{display:flex;}
+.modal-box{background:#080a0d;border:1px solid rgba(255,255,255,0.08);border-radius:18px;width:520px;max-width:95vw;max-height:85vh;overflow-y:auto;}
+.modal-hdr{display:flex;align-items:center;justify-content:space-between;padding:20px 24px 0;}
+.modal-title{font-size:0.9rem;font-weight:700;color:rgba(255,255,255,0.9);}
+.modal-close{width:28px;height:28px;border-radius:8px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);color:rgba(255,255,255,0.4);font-size:0.8rem;cursor:pointer;display:flex;align-items:center;justify-content:center;}
+.modal-close:hover{background:rgba(255,255,255,0.08);color:white;}
+.modal-tabs{display:flex;gap:4px;padding:16px 24px 0;border-bottom:1px solid rgba(255,255,255,0.06);}
+.mtab{padding:6px 14px;border-radius:8px 8px 0 0;font-size:0.68rem;font-weight:600;color:rgba(255,255,255,0.3);cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-1px;transition:all 0.15s;}
+.mtab:hover{color:rgba(255,255,255,0.6);}.mtab.on{color:#00E5FF;border-bottom-color:#00E5FF;}
+.tpanel{display:none;padding:20px 24px 24px;}.tpanel.on{display:block;}
+.msec{font-size:0.6rem;letter-spacing:0.15em;text-transform:uppercase;color:rgba(255,255,255,0.2);font-weight:700;margin:14px 0 8px;}
+.msec:first-child{margin-top:0;}
+.mnote{font-size:0.72rem;color:rgba(255,255,255,0.3);line-height:1.6;padding:10px 12px;background:rgba(255,255,255,0.02);border-radius:8px;margin-bottom:12px;}
+.mfld{margin-bottom:12px;}
+.mlbl{font-size:0.65rem;font-weight:600;color:rgba(255,255,255,0.4);margin-bottom:6px;text-transform:uppercase;letter-spacing:0.08em;}
+.mhint{font-size:0.6rem;color:rgba(255,255,255,0.2);margin-top:4px;}
+.minp{width:100%;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:10px;padding:8px 12px;color:rgba(255,255,255,0.7);font-size:0.76rem;font-family:inherit;outline:none;}
+.minp:focus{border-color:rgba(0,229,255,0.3);}
+select.minp option{background:#0a0c10;}
+.msave-btn{width:100%;padding:10px;border-radius:10px;background:linear-gradient(135deg,#007BFF,#00E5FF);color:#000;font-weight:700;font-size:0.72rem;border:none;cursor:pointer;font-family:inherit;transition:opacity 0.15s;}
+.msave-btn:hover{opacity:0.9;}
+.msaved{font-size:0.65rem;color:#00E5FF;text-align:center;margin-top:8px;display:none;}
+/* Gmail panel */
+.gmail-panel{position:fixed;top:0;right:-380px;width:360px;height:100vh;background:#0a0c10;border-left:1px solid rgba(255,255,255,0.08);z-index:999;display:flex;flex-direction:column;transition:right 0.35s cubic-bezier(0.16,1,0.3,1);}
+.gmail-panel.open{right:0;}
+.gmail-panel-hdr{display:flex;align-items:center;justify-content:space-between;padding:18px 20px;border-bottom:1px solid rgba(255,255,255,0.06);}
+.gmail-panel-title{font-size:0.85rem;font-weight:700;color:rgba(255,255,255,0.85);}
+.gmail-panel-close{width:28px;height:28px;border-radius:8px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);color:rgba(255,255,255,0.4);cursor:pointer;font-size:0.8rem;display:flex;align-items:center;justify-content:center;}
+.gmail-panel-close:hover{background:rgba(255,255,255,0.08);}
+.gmail-panel-body{flex:1;overflow-y:auto;}
+.gmail-panel-emails{display:flex;flex-direction:column;}
+.gmail-panel-email-item{display:flex;align-items:center;gap:10px;padding:10px 16px;border-bottom:1px solid rgba(255,255,255,0.04);text-decoration:none;transition:background 0.15s;}
+.gmail-panel-email-item:hover{background:rgba(255,255,255,0.03);}
+.gmail-panel-email-from{font-size:0.72rem;font-weight:600;color:rgba(255,255,255,0.7);}
+.gmail-panel-email-subj{font-size:0.68rem;color:rgba(255,255,255,0.35);margin-top:2px;}
+.gmail-notice{display:flex;flex-direction:column;align-items:center;padding:32px 20px;text-align:center;}
+.gmail-notice-icon{font-size:2rem;margin-bottom:12px;}
+.gmail-notice-title{font-size:0.85rem;font-weight:700;color:rgba(255,255,255,0.8);margin-bottom:8px;}
+.gmail-notice-text{font-size:0.72rem;color:rgba(255,255,255,0.3);line-height:1.6;margin-bottom:16px;}
+.gmail-open-full{padding:10px 24px;background:#EA4335;color:white;border-radius:20px;text-decoration:none;font-size:0.76rem;font-weight:600;}
+.email-avatar{width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:0.65rem;font-weight:700;color:white;}
+.av-color-0{background:#EA4335;}.av-color-1{background:#1a73e8;}.av-color-2{background:#34A853;}.av-color-3{background:#9c27b0;}.av-color-4{background:#FF5722;}
+/* Mobile overlay */
+#sidebarOverlay{display:none;position:fixed;inset:0;z-index:400;background:rgba(0,0,0,0.6);backdrop-filter:blur(4px);}
+#sidebarOverlay.open{display:block;}
+/* Stop button */
+#stopBtn{align-items:center;gap:4px;padding:4px 10px;border-radius:8px;border:1px solid rgba(245,101,101,0.3);background:rgba(245,101,101,0.08);color:#fc8181;font-size:0.65rem;cursor:pointer;font-family:inherit;}
+@media(max-width:768px){
+  .left{position:fixed!important;left:-270px!important;top:0;bottom:0;z-index:500;width:256px!important;transition:left 0.3s ease;}
+  .left.open{left:0!important;}
+  .right{position:fixed!important;right:-300px!important;top:0;bottom:0;z-index:500;width:272px!important;transition:right 0.3s ease;overflow-y:auto;}
+  .right.open{right:0!important;}
+  #menuToggle,#rightToggle{display:flex!important;}
 }
-.trk::after {
-  content:''; position:absolute;
-  width:10px; height:10px; border-radius:50%;
-  background:var(--text3); top:3px; left:3px; transition:all .25s;
-}
-.tog input:checked + .trk { background:var(--gold); }
-.tog input:checked + .trk::after { background:var(--void); transform:translateX(14px); }
-
-/* Select */
-.sel {
-  background:#08090e; border:1px solid var(--stroke2);
-  color:var(--text); font-family:'DM Sans',sans-serif;
-  font-size:0.6rem; font-weight:300;
-  padding:4px 7px; border-radius:7px;
-  cursor:pointer; outline:none; max-width:118px;
-  transition:border-color 0.2s;
-}
-.sel:focus { border-color:rgba(0,212,255,0.32); }
-.sel option { background:#08090e; color:var(--text); }
-
-/* Range */
-.rng { accent-color:var(--gold); cursor:pointer; width:78px; }
-
-/* Save voice btn */
-.save-voice-btn {
-  width:100%; margin-top:2px;
-  background:transparent; border:1px solid var(--stroke2);
-  color:var(--text2); border-radius:8px; padding:7px;
-  font-family:'DM Sans',sans-serif; font-size:0.64rem; font-weight:400;
-  cursor:pointer; transition:all 0.2s; letter-spacing:0.03em;
-}
-.save-voice-btn:hover { border-color:rgba(0,212,255,0.32); color:var(--gold); }
-.save-voice-saved {
-  font-size:0.58rem; color:#5de6d8;
-  text-align:center; display:none; margin-top:2px;
-}
-
-/* Apps */
-.ai {
-  display:flex; align-items:center; justify-content:space-between;
-  padding:5px 0; border-bottom:1px solid rgba(255,255,255,0.03); gap:6px;
-}
-.ai:last-child { border-bottom:none; }
-.ai-l { display:flex; align-items:center; gap:7px; }
-.ai-ico { font-size:0.85rem; width:20px; text-align:center; }
-.ai-name { font-size:0.63rem; font-weight:400; }
-.ai-sub  { font-size:0.49rem; margin-top:1px; }
-
-.connect-btn {
-  width:100%; margin-top:3px;
-  background:linear-gradient(135deg,rgba(0,212,255,0.15),rgba(0,212,255,0.08));
-  border:1px solid rgba(0,212,255,0.28); color:var(--gold);
-  border-radius:8px; padding:8px;
-  font-family:'DM Sans',sans-serif; font-size:0.66rem; font-weight:400;
-  cursor:pointer; transition:all 0.2s; letter-spacing:0.04em;
-}
-.connect-btn:hover { background:linear-gradient(135deg,rgba(0,212,255,0.2),rgba(200,169,110,0.1)); }
-
-/* ── MODAL ─────────────────────────────────── */
-.modal-bg {
-  position:fixed; inset:0; z-index:200;
-  background:rgba(0,0,0,0.8);
-  backdrop-filter:blur(12px);
-  display:flex; align-items:center; justify-content:center;
-  opacity:0; pointer-events:none; transition:opacity 0.3s ease;
-}
-.modal-bg.open { opacity:1; pointer-events:all; }
-.modal {
-  background:rgba(8,9,16,0.96);
-  border:1px solid var(--stroke2);
-  border-radius:18px; padding:24px;
-  width:450px; max-width:94vw; max-height:85vh;
-  overflow-y:auto; display:flex; flex-direction:column; gap:14px;
-  box-shadow:0 32px 80px rgba(0,0,0,0.7), 0 0 0 1px rgba(255,255,255,0.04) inset;
-  transform:translateY(14px) scale(0.98);
-  transition:transform 0.3s cubic-bezier(0.16,1,0.3,1);
-  scrollbar-width:thin;
-}
-.modal-bg.open .modal { transform:translateY(0) scale(1); }
-.mhdr { display:flex; align-items:center; justify-content:space-between; }
-.mtitle {
-  font-family:'DM Serif Display',serif; font-size:0.95rem;
-  color:var(--gold); font-style:italic; letter-spacing:0.04em;
-}
-.mclose {
-  width:26px; height:26px; border-radius:50%;
-  background:var(--glass); border:1px solid var(--stroke2);
-  color:var(--text2); cursor:pointer; font-size:0.8rem;
-  display:flex; align-items:center; justify-content:center; transition:all 0.2s;
-}
-.mclose:hover { background:rgba(240,101,122,0.1); color:var(--rose); }
-.mtabs {
-  display:flex; gap:4px; background:rgba(255,255,255,0.02);
-  border-radius:10px; padding:3px;
-  border:1px solid var(--stroke);
-}
-.mtab {
-  flex:1; padding:6px; border:none; border-radius:8px;
-  font-family:'DM Sans',sans-serif; font-size:0.64rem; font-weight:400;
-  cursor:pointer; transition:all 0.2s; background:transparent; color:var(--text3);
-  letter-spacing:0.03em;
-}
-.mtab.on { background:rgba(0,212,255,0.12); color:var(--gold); border:1px solid rgba(0,212,255,0.15); }
-.tpanel { display:none; flex-direction:column; gap:12px; }
-.tpanel.on { display:flex; }
-.msec {
-  font-size:0.48rem; letter-spacing:0.2em; text-transform:uppercase;
-  color:var(--text3); padding-bottom:7px; border-bottom:1px solid var(--stroke);
-}
-
-/* App cards in modal */
-.acard {
-  display:flex; align-items:center; justify-content:space-between;
-  background:var(--glass); border:1px solid var(--stroke);
-  border-radius:11px; padding:11px 13px; gap:10px; transition:border-color 0.2s;
-}
-.acard.on { border-color:rgba(93,230,216,0.2); background:rgba(93,230,216,0.03); }
-.acl { display:flex; align-items:center; gap:10px; }
-.acico { font-size:1.2rem; width:26px; text-align:center; }
-.acname { font-size:0.72rem; font-weight:400; }
-.acdesc { font-size:0.56rem; color:var(--text3); margin-top:2px; }
-.abtn {
-  padding:6px 13px; border-radius:7px;
-  font-family:'DM Sans',sans-serif; font-size:0.64rem; font-weight:400;
-  cursor:pointer; transition:all 0.2s; white-space:nowrap; border:none;
-}
-.abtn.connect { background:linear-gradient(135deg,var(--gold),#0090bb); color:var(--void); }
-.abtn.connect:hover { transform:translateY(-1px); box-shadow:0 4px 14px rgba(0,212,255,0.22); }
-.abtn.disco { background:rgba(240,101,122,0.08); color:var(--rose); border:1px solid rgba(240,101,122,0.18); font-size:0.58rem; padding:4px 9px; }
-
-/* Modal form fields */
-.mfld { display:flex; flex-direction:column; gap:5px; }
-.mlbl { font-size:0.6rem; font-weight:400; color:var(--text2); letter-spacing:0.04em; }
-.minp {
-  width:100%; background:var(--glass); border:1px solid var(--stroke2);
-  color:var(--text); font-family:'DM Sans',sans-serif; font-size:0.66rem; font-weight:300;
-  padding:9px 11px; outline:none; border-radius:9px; transition:border-color .2s;
-}
-.minp:focus { border-color:rgba(0,212,255,0.38); box-shadow:0 0 0 3px rgba(0,212,255,0.06); }
-.minp option { background:#08090e; color:var(--text); }
-.mhint { font-size:0.52rem; color:var(--text3); line-height:1.65; }
-.msave-btn {
-  width:100%; background:linear-gradient(135deg,var(--gold),#0090bb);
-  color:#ffffff; border:none; border-radius:10px; padding:10px;
-  font-family:'DM Sans',sans-serif; font-size:0.74rem; font-weight:500;
-  cursor:pointer; transition:all 0.2s; letter-spacing:0.04em;
-}
-.msave-btn:hover { transform:translateY(-1px); box-shadow:0 6px 20px rgba(0,212,255,0.22); }
-.msaved { font-size:0.6rem; color:var(--cyan); text-align:center; display:none; }
-.mnote {
-  background:rgba(93,230,216,0.04); border:1px solid rgba(93,230,216,0.14);
-  border-radius:9px; padding:9px 11px;
-  font-size:0.6rem; color:#7ee8e0; line-height:1.75;
-}
-
-/* ═══════════════════════════════════════════════
-   RESPONSIVE & DYNAMIC — Mobile First
-   Breakpoints: 1200px, 900px, 600px, 400px
-═══════════════════════════════════════════════ */
-
-/* Smooth transitions for all interactive elements */
-.hi, .pc, .card, .acard, .mic, .send-btn, .new-btn, .hdr-btn, .icon-btn {
-  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
-}
-
-/* Mobile hamburger button — hidden on desktop */
-.menu-toggle {
-  display: none;
-  width: 32px; height: 32px; border-radius: 8px;
-  background: var(--glass); border: 1px solid var(--stroke2);
-  color: var(--text2); cursor: pointer; font-size: 1rem;
-  align-items: center; justify-content: center;
-  transition: all 0.2s; flex-shrink: 0;
-}
-.menu-toggle:hover { color: var(--gold); border-color: rgba(0,212,255,0.3); }
-
-/* Overlay for mobile sidebars */
-.sidebar-overlay {
-  display: none;
-  position: fixed; inset: 0; z-index: 40;
-  background: rgba(0,0,0,0.6);
-  backdrop-filter: blur(4px);
-  opacity: 0;
-  transition: opacity 0.3s ease;
-}
-.sidebar-overlay.open { opacity: 1; }
-
-/* Right panel toggle button — mobile only */
-.right-toggle {
-  display: none;
-  width: 32px; height: 32px; border-radius: 8px;
-  background: var(--glass); border: 1px solid var(--stroke2);
-  color: var(--text2); cursor: pointer; font-size: 0.9rem;
-  align-items: center; justify-content: center;
-  transition: all 0.2s; flex-shrink: 0;
-}
-.right-toggle:hover { color: var(--gold); border-color: rgba(0,212,255,0.3); }
-
-/* ── LARGE DESKTOP (1400px+) — default, already handled ── */
-
-/* ── MEDIUM DESKTOP (900px - 1200px) ── */
-@media (max-width: 1200px) {
-  :root {
-    --left:  220px;
-    --right: 240px;
-  }
-  .hdr-center { display: none; } /* hide center chips, too crowded */
-  .hdr-right .chip { display: none; } /* hide model badge */
-}
-
-/* ── TABLET LANDSCAPE (768px - 900px) ── */
-@media (max-width: 900px) {
-  :root {
-    --left:  200px;
-    --right: 0px;
-  }
-
-  .right {
-    position: fixed;
-    right: -280px; top: 52px;
-    width: 260px !important;
-    height: calc(100vh - 52px);
-    z-index: 45;
-    background: rgba(5,6,12,0.97);
-    border-left: 1px solid var(--stroke2);
-    border-right: none;
-    transition: right 0.3s cubic-bezier(0.16,1,0.3,1);
-    padding: 14px 12px;
-  }
-  .right.open { right: 0; }
-
-  .right-toggle { display: flex; }
-  .sidebar-overlay { display: block; }
-
-  .hdr-center { display: none; }
-  .chip { display: none; }
-
-  .mic-stage { padding: 18px 16px 12px; }
-  .halo3 { width: 170px; height: 170px; }
-  .halo2 { width: 136px; height: 136px; }
-  .halo1 { width: 106px; height: 106px; }
-  .mic   { width: 80px; height: 80px; }
-  .mic-icon { font-size: 1.7rem; }
-}
-
-/* ── TABLET PORTRAIT (600px - 768px) ── */
-@media (max-width: 768px) {
-  :root { --left: 0px; }
-
-  .left {
-    position: fixed;
-    left: -270px; top: 52px;
-    width: 260px !important;
-    height: calc(100vh - 52px);
-    z-index: 45;
-    background: rgba(5,6,12,0.97);
-    border-right: 1px solid var(--stroke2);
-    transition: left 0.3s cubic-bezier(0.16,1,0.3,1);
-  }
-  .left.open { left: 0; }
-
-  .menu-toggle { display: flex; }
-
-  /* Stack layout */
-  .layout { flex-direction: column; }
-  .center { border-right: none; border-bottom: none; }
-  .chat { padding: 0 16px 12px; }
-  .chat-label { font-size: 0.46rem; }
-
-  .mic-stage { padding: 16px 16px 10px; }
-  .halo3 { width: 160px; height: 160px; }
-  .halo2 { width: 128px; height: 128px; }
-  .halo1 { width: 100px; height: 100px; }
-  .mic   { width: 76px; height: 76px; }
-  .mic-icon { font-size: 1.6rem; }
-  .mic-label { font-size: 0.6rem; }
-
-  /* Header */
-  .brand-name { font-size: 1rem; }
-  .brand-sub  { display: none; }
-  .logo-orb   { width: 26px; height: 26px; }
-  .orb-dot    { width: 7px; height: 7px; }
-
-  /* Messages */
-  .bbl { font-size: 0.76rem; padding: 8px 11px; }
-  .msg-time { font-size: 0.48rem; }
-  .av { width: 22px; height: 22px; font-size: 0.56rem; }
-
-  /* Input */
-  textarea { font-size: 0.78rem; }
-  .send-btn { padding: 8px 14px; font-size: 0.72rem; }
-}
-
-/* ── MOBILE (max 600px) ── */
-@media (max-width: 600px) {
-  .mic-stage { padding: 14px 12px 8px; gap: 10px; }
-  .halo3 { width: 148px; height: 148px; }
-  .halo2 { width: 118px; height: 118px; }
-  .halo1 { width: 92px; height: 92px; }
-  .mic   { width: 70px; height: 70px; }
-  .mic-icon { font-size: 1.5rem; }
-
-  .chat { padding: 0 12px 10px; }
-  .msgs { gap: 8px; }
-  .bbl { font-size: 0.74rem; max-width: 86%; }
-
-  .inp-row { gap: 6px; }
-  .send-btn { padding: 8px 12px; height: 38px; font-size: 0.7rem; }
-
-  /* Modal fullscreen on mobile */
-  .modal-bg { align-items: flex-end; }
-  .modal {
-    width: 100% !important;
-    max-width: 100% !important;
-    border-radius: 18px 18px 0 0;
-    max-height: 85vh;
-    transform: translateY(100%) !important;
-  }
-  .modal-bg.open .modal { transform: translateY(0) !important; }
-
-  /* Status pill condensed */
-  .status-pill { padding: 4px 10px; font-size: 0.56rem; }
-}
-
-/* ── SMALL MOBILE (max 400px) ── */
-@media (max-width: 400px) {
-  .halo3 { width: 136px; height: 136px; }
-  .halo2 { width: 108px; height: 108px; }
-  .halo1 { width: 84px; height: 84px; }
-  .mic   { width: 64px; height: 64px; }
-  .mic-icon { font-size: 1.35rem; }
-
-  .brand-name { font-size: 0.9rem; letter-spacing: 0.12em; }
-  .hdr { padding: 0 14px; }
-
-  .bbl { font-size: 0.72rem; }
-  .send-btn { padding: 7px 10px; font-size: 0.68rem; }
-}
-
-/* ── DYNAMIC HOVER EFFECTS ── */
-
-/* Cards lift on hover */
-.card:hover {
-  transform: translateY(-1px);
-  border-color: var(--stroke2);
-  box-shadow: 0 4px 20px rgba(0,0,0,0.3);
-}
-
-/* History items */
-.hi:hover .hi-title { color: var(--gold); }
-
-/* Mic button active press */
-.mic:active { transform: scale(0.95); }
-
-/* Send button press */
-.send-btn:active:not(:disabled) { transform: translateY(0) scale(0.98); }
-
-/* New chat button shimmer */
-.new-btn::after {
-  content: '';
-  position: absolute; inset: 0;
-  border-radius: 10px;
-  background: linear-gradient(105deg, transparent 40%, rgba(255,255,255,0.05) 50%, transparent 60%);
-  transform: translateX(-100%);
-  transition: transform 0.6s ease;
-}
-.new-btn:hover::after { transform: translateX(100%); }
-
-/* Persona cards pulse when active */
-.pc.active {
-  box-shadow: 0 0 12px rgba(0,212,255,0.15), inset 0 0 8px rgba(0,212,255,0.04);
-}
-
-/* Input focus glow */
-.inp-shell:focus-within {
-  box-shadow: 0 0 0 3px rgba(0,212,255,0.08), 0 4px 16px rgba(0,0,0,0.3);
-}
-
-/* Message bubble hover */
-.bbl:hover {
-  border-color: rgba(255,255,255,0.12);
-}
-
-/* Smooth scroll for messages */
-.msgs {
-  scroll-behavior: smooth;
-}
-
-/* Touch devices — remove hover effects that feel wrong */
-@media (hover: none) {
-  .card:hover { transform: none; box-shadow: none; }
-  .hi:hover .hi-title { color: var(--text); }
-  .mic:hover::before { border-color: rgba(0,212,255,0.4); box-shadow: 0 0 28px rgba(0,212,255,0.12); }
-}
-
-/* Landscape mobile fix */
-@media (max-width: 768px) and (orientation: landscape) {
-  .mic-stage { padding: 8px 16px 6px; }
-  .halo3 { width: 120px; height: 120px; }
-  .halo2 { width: 96px; height: 96px; }
-  .halo1 { width: 76px; height: 76px; }
-  .mic   { width: 58px; height: 58px; }
-  .mic-icon { font-size: 1.25rem; }
-  .viz { height: 20px; }
-  body { overflow-y: auto; }
-}
-
-/* ── EMAIL CARDS — Gmail accurate colors ─────────────────── */
-/* Gmail color palette */
-:root {
-  --gmail-red:    #EA4335;
-  --gmail-bg:     #f6f8fc;
-  --gmail-white:  #ffffff;
-  --gmail-border: #e0e0e0;
-  --gmail-text:   #202124;
-  --gmail-muted:  #5f6368;
-  --gmail-blue:   #1a73e8;
-  --gmail-hover:  #f2f6fc;
-  --gmail-unread: #202124;
-  --gmail-star:   #f4b400;
-}
-
-.email-panel {
-  background: var(--gmail-white);
-  border: 1px solid var(--gmail-border);
-  border-radius: 12px; overflow: hidden; width: 100%;
-  margin-top: 6px; animation: msg-in 0.3s cubic-bezier(0.16,1,0.3,1);
-  box-shadow: 0 2px 8px rgba(0,0,0,0.12);
-}
-.email-panel-hdr {
-  display: flex; align-items: center; justify-content: space-between;
-  padding: 10px 14px; border-bottom: 1px solid var(--gmail-border);
-  background: var(--gmail-bg);
-}
-.email-panel-title {
-  display: flex; align-items: center; gap-7px;
-  font-size: 0.72rem; font-weight: 600; color: var(--gmail-text);
-  letter-spacing: 0; font-family: 'Google Sans',sans-serif;
-}
-.email-panel-count { font-size: 0.62rem; color: var(--gmail-muted); }
-.email-summary-text {
-  padding: 10px 14px; font-size: 0.76rem; color: var(--gmail-muted);
-  line-height: 1.65; border-bottom: 1px solid var(--gmail-border);
-  background: var(--gmail-bg); font-style: italic;
-}
-
-.email-card {
-  display: flex; align-items: center; gap: 10px;
-  padding: 8px 14px; border-bottom: 1px solid var(--gmail-border);
-  cursor: pointer; transition: background 0.15s; background: var(--gmail-white);
-}
-.email-card:hover { background: var(--gmail-hover); }
-.email-card:last-child { border-bottom: none; }
-.email-card.unread { background: var(--gmail-white); }
-.email-card.unread .email-from { font-weight: 700; color: var(--gmail-unread); }
-.email-card.unread .email-subject { font-weight: 600; color: var(--gmail-unread); }
-
-.email-avatar {
-  width: 32px; height: 32px; border-radius: 50%; flex-shrink: 0;
-  display: flex; align-items: center; justify-content: center;
-  font-size: 0.72rem; font-weight: 600; color: #fff;
-  text-transform: uppercase;
-}
-/* Avatar colors matching Gmail's palette */
-.av-color-0 { background: #EA4335; }
-.av-color-1 { background: #1a73e8; }
-.av-color-2 { background: #34A853; }
-.av-color-3 { background: #FBBC04; color: #202124; }
-.av-color-4 { background: #9c27b0; }
-.av-color-5 { background: #00BCD4; }
-.av-color-6 { background: #FF5722; }
-.av-color-7 { background: #607D8B; }
-
-.email-body { flex: 1; min-width: 0; }
-.email-from    { font-size: 0.74rem; font-weight: 500; color: var(--gmail-text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.email-subject { font-size: 0.72rem; color: var(--gmail-text); margin-top: 1px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.email-snippet { font-size: 0.66rem; color: var(--gmail-muted); margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.email-meta    { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; flex-shrink: 0; }
-.email-date    { font-size: 0.6rem; color: var(--gmail-muted); white-space: nowrap; }
-.email-star    { font-size: 0.8rem; cursor: pointer; opacity: 0.3; }
-.email-star:hover { opacity: 1; }
-
-/* Email detail card — Gmail light theme */
-.email-detail {
-  border-radius: 12px; overflow: hidden; width: 100%;
-  margin-top: 6px; animation: msg-in 0.3s cubic-bezier(0.16,1,0.3,1);
-  border: 1px solid var(--gmail-border);
-  background: var(--gmail-white);
-  box-shadow: 0 2px 8px rgba(0,0,0,0.12);
-}
-.email-detail-hdr {
-  padding: 14px 16px; background: var(--gmail-bg);
-  border-bottom: 1px solid var(--gmail-border);
-}
-.email-detail-subject {
-  font-size: 0.88rem; font-weight: 600; color: var(--gmail-text);
-  margin-bottom: 6px; line-height: 1.3;
-}
-.email-detail-from { font-size: 0.68rem; color: var(--gmail-text); font-weight: 500; }
-.email-detail-date { font-size: 0.6rem; color: var(--gmail-muted); margin-top: 3px; }
-
-.email-section { padding: 12px 16px; border-bottom: 1px solid var(--gmail-border); background: var(--gmail-white); }
-.email-section:last-child { border-bottom: none; }
-.email-section-label {
-  font-size: 0.52rem; letter-spacing: 0.12em; text-transform: uppercase;
-  color: var(--gmail-red); margin-bottom: 7px; font-weight: 600;
-}
-.email-section-text { font-size: 0.76rem; color: var(--gmail-text); line-height: 1.75; }
-
-.email-points { list-style: none; display: flex; flex-direction: column; gap: 5px; }
-.email-points li {
-  font-size: 0.74rem; color: var(--gmail-text);
-  padding-left: 16px; position: relative; line-height: 1.55;
-}
-.email-points li::before {
-  content: '•'; position: absolute; left: 0;
-  font-size: 0.9rem; color: var(--gmail-blue); top: 0px;
-}
-
-.reply-box {
-  background: #f8f9fa; border: 1px solid var(--gmail-border);
-  border-left: 3px solid var(--gmail-blue);
-  border-radius: 4px; padding: 12px 14px;
-  font-size: 0.74rem; color: var(--gmail-text);
-  line-height: 1.75; white-space: pre-wrap;
-  font-family: 'Google Sans', Arial, sans-serif;
-}
-.send-reply-btn {
-  margin-top: 10px; width: 100%;
-  background: var(--gmail-blue);
-  color: #fff; border: none; border-radius: 20px; padding: 9px;
-  font-family: 'Google Sans', Arial, sans-serif;
-  font-size: 0.76rem; font-weight: 500;
-  cursor: pointer; transition: all 0.2s; letter-spacing: 0.01em;
-  display: flex; align-items: center; justify-content: center; gap: 6px;
-}
-.send-reply-btn:hover { background: #1557b0; box-shadow: 0 2px 8px rgba(26,115,232,0.4); }
-
-/* Inbox stats card — Gmail colors */
-.inbox-stats {
-  border-radius: 12px; border: 1px solid var(--gmail-border);
-  overflow: hidden; width: 100%; margin-top: 6px;
-  animation: msg-in 0.3s cubic-bezier(0.16,1,0.3,1);
-  background: var(--gmail-white);
-  box-shadow: 0 2px 8px rgba(0,0,0,0.12);
-}
-.inbox-stats-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1px; background: var(--gmail-border); }
-.inbox-stat-cell { background: var(--gmail-white); padding: 16px 10px; text-align: center; }
-.inbox-stat-val  { font-size: 1.6rem; font-weight: 400; color: var(--gmail-text); font-family: 'Google Sans', sans-serif; }
-.inbox-stat-lbl  { font-size: 0.52rem; text-transform: uppercase; letter-spacing: 0.1em; color: var(--gmail-muted); margin-top: 3px; }
-.inbox-stats-hdr {
-  display: flex; align-items: center; gap: 8px;
-  padding: 12px 16px; border-bottom: 1px solid var(--gmail-border);
-  background: var(--gmail-bg);
-}
-.inbox-stats-hdr-title { font-size: 0.74rem; font-weight: 600; color: var(--gmail-text); }
-.inbox-actions   { display: flex; gap: 8px; padding: 12px 16px; background: var(--gmail-bg); flex-wrap: wrap; }
-.inbox-action-btn {
-  flex: 1; min-width: 90px; padding: 7px 12px; border-radius: 20px;
-  font-family: 'Google Sans', Arial, sans-serif; font-size: 0.68rem; font-weight: 500;
-  cursor: pointer; transition: all 0.18s;
-  border: 1px solid var(--gmail-border);
-  background: var(--gmail-white); color: var(--gmail-blue);
-}
-.inbox-action-btn:hover { background: var(--gmail-blue); color: white; border-color: var(--gmail-blue); }
-.inbox-action-btn.danger { color: var(--gmail-red); }
-.inbox-action-btn.danger:hover { background: var(--gmail-red); color: white; border-color: var(--gmail-red); }
-
-/* Open Gmail button */
-.gmail-open-btn {
-  display: flex; align-items: center; gap: 5px;
-  padding: 4px 11px; border-radius: 20px; cursor: pointer;
-  background: var(--gmail-white); border: 1px solid var(--gmail-border);
-  color: var(--gmail-blue); font-family: 'Google Sans', Arial, sans-serif;
-  font-size: 0.64rem; font-weight: 500; transition: all 0.18s;
-}
-.gmail-open-btn:hover { background: var(--gmail-hover); box-shadow: 0 1px 3px rgba(0,0,0,0.15); }
-
-/* Gmail panel — slides in from right */
-.gmail-panel {
-  position: fixed; right: 0; top: 56px;
-  width: 480px; height: calc(100vh - 56px);
-  background: var(--gmail-white); border-left: 1px solid var(--gmail-border);
-  z-index: 60; display: flex; flex-direction: column;
-  transform: translateX(100%); transition: transform 0.35s cubic-bezier(0.16,1,0.3,1);
-  box-shadow: -4px 0 24px rgba(0,0,0,0.2);
-}
-.gmail-panel.open { transform: translateX(0); }
-.gmail-panel-hdr {
-  display: flex; align-items: center; justify-content: space-between;
-  padding: 12px 16px; border-bottom: 2px solid #a50e0e;
-  background: #c5221f; flex-shrink: 0;
-}
-.gmail-panel-title {
-  display: flex; align-items: center; gap: 8px;
-  font-size: 0.8rem; font-weight: 600; color: #fff;
-  font-family: 'Google Sans', sans-serif;
-}
-.gmail-panel-close {
-  width: 28px; height: 28px; border-radius: 50%;
-  background: transparent; border: none;
-  color: rgba(255,255,255,0.8); cursor: pointer; font-size: 1rem;
-  display: flex; align-items: center; justify-content: center; transition: background 0.15s;
-}
-.gmail-panel-close:hover { background: rgba(255,255,255,0.2); }
-.gmail-panel-body { flex: 1; overflow-y: auto; background: var(--gmail-white); }
-.gmail-notice {
-  padding: 24px; text-align: center;
-}
-.gmail-notice-icon { font-size: 2.5rem; margin-bottom: 12px; }
-.gmail-notice-title { font-size: 0.88rem; font-weight: 600; color: var(--gmail-text); margin-bottom: 8px; }
-.gmail-notice-text  { font-size: 0.74rem; color: var(--gmail-muted); line-height: 1.7; margin-bottom: 20px; }
-.gmail-open-full {
-  display: inline-flex; align-items: center; gap: 8px;
-  padding: 10px 24px; border-radius: 20px;
-  background: var(--gmail-blue); color: white; border: none;
-  font-family: 'Google Sans', sans-serif; font-size: 0.8rem;
-  font-weight: 500; cursor: pointer; text-decoration: none;
-  transition: all 0.2s;
-}
-.gmail-open-full:hover { background: #1557b0; box-shadow: 0 2px 8px rgba(26,115,232,0.4); }
-
-/* Recent emails in panel */
-.gmail-panel-emails { padding: 0; }
-.gmail-panel-email-item {
-  display: flex; align-items: center; gap: 10px;
-  padding: 10px 16px; border-bottom: 1px solid var(--gmail-border);
-  cursor: pointer; transition: background 0.15s; text-decoration: none;
-}
-.gmail-panel-email-item:hover { background: var(--gmail-hover); }
-.gmail-panel-email-from { font-size: 0.72rem; font-weight: 600; color: var(--gmail-text); }
-.gmail-panel-email-subj { font-size: 0.68rem; color: var(--gmail-muted); margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 320px; }
-
-@media (max-width: 768px) {
-  .gmail-panel { width: 100%; }
-}
+@keyframes pulse{0%,100%{opacity:1;}50%{opacity:0.5;}}
 </style>
 </head>
-<body>
+<body class="overflow-hidden" style="background:#05070A;color:rgba(148,163,184,1);min-height:100vh;" data-mode="ready">
 
-<!-- HEADER -->
-<div class="sidebar-overlay" id="sidebarOverlay"></div>
-<header class="hdr">
-  <button class="menu-toggle" id="menuToggle" title="History">☰</button>
-  <div class="logo">
-    <div class="orb"><div class="orb-inner"><div class="orb-dot"></div></div></div>
-    <div class="brand">
-      <div class="brand-name">ARIA</div>
-      <div class="brand-sub">Voice AI Agent</div>
+<div id="sidebarOverlay"></div>
+
+<div class="flex h-screen w-full overflow-hidden">
+
+<!-- â•â•â• LEFT SIDEBAR â•â•â• -->
+<aside class="left flex-shrink-0 flex flex-col" style="width:256px;background:#05070A;border-right:1px solid rgba(255,255,255,0.04);">
+  <div style="padding:28px 28px 20px;display:flex;align-items:center;gap:12px;">
+    <div style="width:32px;height:32px;border-radius:50%;background:conic-gradient(from 0deg,#007BFF,#00E5FF,#007BFF);padding:1.5px;flex-shrink:0;">
+      <div style="width:100%;height:100%;border-radius:50%;background:#05070A;display:flex;align-items:center;justify-content:center;">
+        <div style="width:10px;height:10px;border-radius:50%;background:radial-gradient(circle,#00E5FF,#007BFF);box-shadow:0 0 8px rgba(0,229,255,0.8);animation:pulse 2s ease-in-out infinite;"></div>
+      </div>
+    </div>
+    <div>
+      <div style="font-weight:800;color:rgba(255,255,255,0.9);font-size:1rem;letter-spacing:-0.02em;">ARIA</div>
+      <div style="font-size:8px;color:#007BFF;text-transform:uppercase;letter-spacing:0.25em;font-weight:600;">Neural Interface</div>
     </div>
   </div>
-
-  <div class="hdr-center">
-    <div class="status-pill">
-      <div class="pulse"></div>
-      <span id="statusChip">Online</span>
-    </div>
-    <div class="model-badge">⚡ Llama 3.3 · 70B</div>
-  </div>
-
-  <div class="hdr-right">
-    <button class="hdr-btn" id="gearBtn" title="Settings">⚙</button>
-  </div>
-</header>
-
-<!-- LAYOUT -->
-<div class="layout">
-
-  <!-- LEFT: History -->
-  <nav class="left">
-    <button class="new-btn" id="newChatBtn">
-      <span class="new-btn-icon">✦</span> New Conversation
+  <div style="padding:0 16px 12px;">
+    <button id="newChatBtn" style="width:100%;display:flex;align-items:center;gap:8px;padding:9px 14px;border-radius:12px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.06);font-size:11px;font-weight:600;color:rgba(255,255,255,0.45);cursor:pointer;font-family:inherit;transition:all 0.15s;" onmouseover="this.style.background='rgba(255,255,255,0.06)';this.style.color='rgba(255,255,255,0.75)';" onmouseout="this.style.background='rgba(255,255,255,0.03)';this.style.color='rgba(255,255,255,0.45)';">
+      <span class="material-symbols-outlined" style="font-size:16px;color:#007BFF;">add</span> New Conversation
     </button>
-    <div class="search-wrap">
-      <span class="search-ico">⌕</span>
-      <input type="text" id="histSearch" placeholder="Search...">
-    </div>
-    <div class="hist-label">Recent</div>
-    <div class="hist-scroll" id="histList">
-      <div class="hist-empty">No conversations yet.<br>Start talking to ARIA.</div>
-    </div>
-  </nav>
-
-  <!-- CENTER: Main Stage -->
-  <main class="center">
-    <div class="stage">
-      <div class="halo3"><div class="halo2"><div class="halo1">
-        <div class="mic" id="micBtn">
-          <div class="mic-icon">🎙</div>
-        </div>
-      </div></div></div>
-      <div class="mic-label" id="micLbl">Click to speak</div>
-
-      <!-- STOP button — visible when speaking -->
-      <button id="stopBtn" onclick="stopSpeaking()" style="
-        display:none; align-items:center; justify-content:center; gap:6px;
-        background:#c5221f; border:1px solid #a50e0e;
-        color:#fff; border-radius:20px; padding:8px 20px;
-        font-family:'DM Sans',sans-serif; font-size:0.68rem; font-weight:600;
-        cursor:pointer; transition:all 0.2s; letter-spacing:0.05em;
-        box-shadow: 0 2px 12px rgba(197,34,31,0.4);">
-        ⏹ Stop Speaking
+    <input id="histSearch" type="text" placeholder="Search history..." style="width:100%;margin-top:8px;padding:7px 12px;border-radius:10px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.05);font-size:11px;color:rgba(255,255,255,0.55);outline:none;font-family:inherit;" placeholder-color="rgba(255,255,255,0.2)"/>
+  </div>
+  <div style="padding:0 28px 10px;">
+    <div style="font-size:8px;text-transform:uppercase;letter-spacing:0.3em;font-weight:700;color:#374151;">Neural History</div>
+  </div>
+  <div id="histList" style="flex:1;overflow-y:auto;padding:0 12px 12px;"></div>
+  <div style="padding:18px 22px;border-top:1px solid rgba(255,255,255,0.04);">
+    <div style="display:flex;align-items:center;gap:10px;">
+      <div style="width:28px;height:28px;border-radius:50%;background:linear-gradient(135deg,#007BFF,#00E5FF);display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:#000;flex-shrink:0;">N</div>
+      <div style="flex:1;min-width:0;">
+        <div style="font-size:11px;font-weight:700;color:rgba(255,255,255,0.75);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">Nihhar K Sonee</div>
+        <div style="font-size:9px;color:#007BFF;" id="statusChip">Online</div>
+      </div>
+      <button id="gearBtn" style="width:28px;height:28px;border-radius:8px;display:flex;align-items:center;justify-content:center;background:none;border:none;color:rgba(255,255,255,0.25);cursor:pointer;transition:all 0.15s;" onmouseover="this.style.background='rgba(255,255,255,0.06)';this.style.color='rgba(255,255,255,0.6)';" onmouseout="this.style.background='none';this.style.color='rgba(255,255,255,0.25)';">
+        <span class="material-symbols-outlined" style="font-size:17px;">settings</span>
       </button>
+    </div>
+  </div>
+</aside>
 
-      <div class="viz" id="viz">
-        <div class="vb"></div><div class="vb"></div><div class="vb"></div><div class="vb"></div><div class="vb"></div>
-        <div class="vb"></div><div class="vb"></div><div class="vb"></div><div class="vb"></div><div class="vb"></div>
-        <div class="vb"></div><div class="vb"></div><div class="vb"></div><div class="vb"></div><div class="vb"></div>
+<!-- â•â•â• CENTER â•â•â• -->
+<main style="flex:1;position:relative;display:flex;flex-direction:column;overflow:hidden;background:#05070A;">
+
+  <!-- Top bar -->
+  <div style="display:flex;align-items:center;gap:10px;padding:10px 20px;border-bottom:1px solid rgba(255,255,255,0.04);flex-shrink:0;">
+    <button id="menuToggle" style="display:none;width:32px;height:32px;border-radius:8px;align-items:center;justify-content:center;background:none;border:none;color:rgba(255,255,255,0.3);cursor:pointer;"><span class="material-symbols-outlined" style="font-size:18px;">menu</span></button>
+    <a href="#" onclick="document.getElementById('heroWrap').classList.remove('collapsed');return false;" style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.2em;background:linear-gradient(135deg,#007BFF,#00E5FF);-webkit-background-clip:text;-webkit-text-fill-color:transparent;text-decoration:none;">Intelligence</a>
+    <a href="#" onclick="openModal('apps');return false;" style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.2em;color:rgba(100,116,139,0.8);text-decoration:none;">Integrations</a>
+    <a href="#" onclick="openModal('about');return false;" style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.2em;color:rgba(100,116,139,0.8);text-decoration:none;">Protocol</a>
+    <div style="flex:1;"></div>
+    <span id="convLabel" style="font-size:10px;color:rgba(255,255,255,0.2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:200px;">New Conversation</span>
+    <button id="stopBtn" style="display:none;" onclick="stopSpeaking()">
+      <span class="material-symbols-outlined" style="font-size:13px;">stop</span> Stop
+    </button>
+    <button id="rightToggle" style="display:none;width:32px;height:32px;border-radius:8px;align-items:center;justify-content:center;background:none;border:none;color:rgba(255,255,255,0.3);cursor:pointer;"><span class="material-symbols-outlined" style="font-size:18px;">apps</span></button>
+  </div>
+
+  <!-- Hero -->
+  <div id="heroWrap" style="display:flex;flex-direction:column;align-items:center;padding:32px 24px 24px;flex-shrink:0;">
+    <div class="orb-main orb-glow" style="width:160px;height:160px;border-radius:50%;background:rgba(0,0,0,0.6);border:1px solid rgba(0,229,255,0.08);display:flex;align-items:center;justify-content:center;position:relative;margin-bottom:24px;">
+      <div style="position:absolute;inset:0;border-radius:50%;background:linear-gradient(to top right,rgba(0,123,255,0.05),transparent,rgba(0,229,255,0.05));animation:pulse 3s ease-in-out infinite;"></div>
+      <div style="width:120px;height:120px;border-radius:50%;background:#080a0d;display:flex;align-items:center;justify-content:center;position:relative;box-shadow:inset 0 0 30px rgba(0,0,0,0.8);">
+        <div style="position:absolute;inset:0;border-radius:50%;background:linear-gradient(to bottom,transparent,rgba(0,229,255,0.05));"></div>
+        <span class="material-symbols-outlined" style="font-size:48px;color:#00E5FF;font-variation-settings:'FILL' 1;filter:drop-shadow(0 0 12px rgba(0,229,255,0.5));position:relative;z-index:1;">psychology</span>
       </div>
     </div>
-
-    <div class="chat">
-      <div class="chat-label" id="convLabel">New Conversation</div>
-      <div class="msgs" id="msgs"></div>
-      <div class="think hidden" id="think">
-        <div class="tdots"><span></span><span></span><span></span></div>
-        ARIA is thinking
+    <h1 style="font-size:2.5rem;font-weight:800;color:rgba(255,255,255,0.9);letter-spacing:-0.03em;margin-bottom:6px;">ARIA</h1>
+    <p style="font-size:11px;color:#374151;font-weight:500;margin-bottom:28px;">Neural Command Interface &mdash; speak or type below</p>
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:48px;border-top:1px solid rgba(255,255,255,0.04);padding-top:24px;width:100%;max-width:380px;">
+      <div style="text-align:center;">
+        <p style="font-size:8px;text-transform:uppercase;letter-spacing:0.2em;color:#374151;font-weight:700;margin-bottom:6px;">Messages</p>
+        <p style="font-size:1.8rem;font-weight:300;color:rgba(255,255,255,0.8);"><span id="sMsgs">0</span></p>
       </div>
-      <div class="inp-row">
-        <div class="inp-shell">
-          <textarea id="inp" placeholder="Ask anything..." rows="1"></textarea>
+      <div style="text-align:center;">
+        <p style="font-size:8px;text-transform:uppercase;letter-spacing:0.2em;color:#374151;font-weight:700;margin-bottom:6px;">Session</p>
+        <p style="font-size:1.8rem;font-weight:300;color:rgba(255,255,255,0.8);"><span id="sTime">0s</span></p>
+      </div>
+      <div style="text-align:center;">
+        <p style="font-size:8px;text-transform:uppercase;letter-spacing:0.2em;color:#374151;font-weight:700;margin-bottom:6px;">Status</p>
+        <p style="font-size:0.8rem;font-weight:600;color:#00E5FF;margin-top:6px;" id="sTok">Ready</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Messages -->
+  <div id="msgs"></div>
+
+  <!-- Think -->
+  <div id="think" class="hidden">
+    <div class="think-dots"><span></span><span></span><span></span></div>
+    ARIA is thinking...
+  </div>
+
+  <!-- Input bar -->
+  <div style="padding:12px 20px 20px;flex-shrink:0;">
+    <div class="glass-2 micro-border" style="border-radius:9999px;padding:10px 16px;display:flex;align-items:center;gap:10px;box-shadow:0 20px 60px -10px rgba(0,0,0,0.9);border:1px solid rgba(255,255,255,0.05);">
+      <button id="micBtn" style="width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);cursor:pointer;transition:all 0.2s;">
+        <span class="material-symbols-outlined ms-icon" style="font-size:20px;color:#007BFF;font-variation-settings:'FILL' 1;">mic</span>
+      </button>
+      <div id="viz"></div>
+      <div id="micLbl" class="mic-label">Click to speak</div>
+      <textarea id="inp" rows="1" placeholder="Command neural core..." style="flex:1;background:transparent;border:none;resize:none;outline:none;color:rgba(255,255,255,0.8);font-family:Manrope,sans-serif;font-size:14px;font-weight:500;line-height:1.5;max-height:110px;overflow-y:auto;placeholder-color:rgba(255,255,255,0.15);"></textarea>
+      <button id="sendBtn" style="flex-shrink:0;background:linear-gradient(to right,#007BFF,#00E5FF);color:#000;padding:9px 22px;border-radius:9999px;font-size:10px;font-weight:800;letter-spacing:0.15em;border:none;cursor:pointer;font-family:inherit;transition:all 0.2s;" onmouseover="this.style.filter='brightness(1.1)'" onmouseout="this.style.filter='none'">
+        EXECUTE
+      </button>
+    </div>
+  </div>
+</main>
+
+<!-- â•â•â• RIGHT SIDEBAR â•â•â• -->
+<aside class="right flex-shrink-0 flex flex-col" style="width:272px;background:#05070A;border-left:1px solid rgba(255,255,255,0.04);overflow-y:auto;">
+  <div style="padding:24px 22px;display:flex;flex-direction:column;gap:24px;">
+
+    <!-- Connected apps (dynamic) -->
+    <section>
+      <h3 style="font-size:8px;text-transform:uppercase;letter-spacing:0.3em;font-weight:700;color:#374151;margin-bottom:12px;">Connected Apps</h3>
+      <div id="sidebarApps"></div>
+      <button onclick="openModal('apps')" style="width:100%;margin-top:8px;padding:7px;border-radius:10px;background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.05);font-size:10px;font-weight:600;color:rgba(255,255,255,0.3);cursor:pointer;font-family:inherit;transition:all 0.15s;" onmouseover="this.style.background='rgba(255,255,255,0.05)';this.style.color='rgba(255,255,255,0.6)';" onmouseout="this.style.background='rgba(255,255,255,0.02)';this.style.color='rgba(255,255,255,0.3)';">Manage Integrations</button>
+    </section>
+
+    <!-- Voice engine -->
+    <section>
+      <h3 style="font-size:8px;text-transform:uppercase;letter-spacing:0.3em;font-weight:700;color:#374151;margin-bottom:12px;">Voice Engine</h3>
+      <select id="voiceSel" style="width:100%;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.07);border-radius:12px;padding:8px 12px;font-size:11px;color:rgba(255,255,255,0.6);outline:none;font-family:inherit;cursor:pointer;margin-bottom:10px;">
+        <option value="21m00Tcm4TlvDq8ikWAM">Rachel &mdash; warm natural female</option>
+        <option value="AZnzlk1XvdvUeBnXmlld">Domi &mdash; confident female</option>
+        <option value="EXAVITQu4vr4xnSDxMaL" selected>Bella &mdash; soft female</option>
+        <option value="ErXwobaYiN019PkySvjV">Antoni &mdash; well-rounded male</option>
+        <option value="pNInz6obpgDQGcFmaJgB">Adam &mdash; deep male</option>
+        <option value="VR6AewLTigWG4xSOukaG">Arnold &mdash; crisp male</option>
+      </select>
+      <input id="spd" type="range" min="0.6" max="1.8" step="0.1" value="1" style="width:100%;accent-color:#007BFF;margin-bottom:6px;"/>
+      <div style="display:flex;justify-content:space-between;font-size:8px;color:#374151;margin-bottom:10px;"><span>Slow</span><span>Normal</span><span>Fast</span></div>
+      <button id="saveVoiceSidebar" style="width:100%;padding:8px;border-radius:10px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.07);font-size:10px;font-weight:700;color:rgba(255,255,255,0.35);cursor:pointer;font-family:inherit;text-transform:uppercase;letter-spacing:0.12em;transition:all 0.15s;">Save Voice</button>
+      <div id="sidebarVoiceSaved" class="msaved">&#10003; Voice saved</div>
+      <div style="margin-top:14px;display:flex;flex-direction:column;gap:10px;">
+        <div style="display:flex;align-items:center;justify-content:space-between;">
+          <span style="font-size:11px;color:rgba(100,116,139,0.9);">Auto-listen</span>
+          <label style="position:relative;display:inline-flex;align-items:center;cursor:pointer;">
+            <input type="checkbox" id="autoOn" checked class="sr-only toggle-checkbox"/>
+            <div class="toggle-label" style="width:32px;height:18px;background:rgba(255,255,255,0.05);border-radius:9999px;position:relative;border:0.5px solid rgba(255,255,255,0.08);">
+              <div class="toggle-dot" style="position:absolute;left:3px;top:3px;background:white;width:11px;height:11px;border-radius:50%;transition:transform 0.2s;"></div>
+            </div>
+          </label>
         </div>
-        <button class="send-btn" id="sendBtn">Send</button>
+        <div style="display:flex;align-items:center;justify-content:space-between;">
+          <span style="font-size:11px;color:rgba(100,116,139,0.9);">Voice responses</span>
+          <label style="position:relative;display:inline-flex;align-items:center;cursor:pointer;">
+            <input type="checkbox" id="voiceOn" checked class="sr-only toggle-checkbox"/>
+            <div class="toggle-label" style="width:32px;height:18px;background:rgba(255,255,255,0.05);border-radius:9999px;position:relative;border:0.5px solid rgba(255,255,255,0.08);">
+              <div class="toggle-dot" style="position:absolute;left:3px;top:3px;background:white;width:11px;height:11px;border-radius:50%;transition:transform 0.2s;"></div>
+            </div>
+          </label>
+        </div>
       </div>
+    </section>
+
+    <!-- System status -->
+    <section style="margin-top:auto;">
+      <div class="glass-1 micro-border" style="padding:16px;border-radius:16px;border:1px solid rgba(0,229,255,0.08);background:rgba(0,229,255,0.03);">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
+          <span style="width:6px;height:6px;border-radius:50%;background:#007BFF;box-shadow:0 0 8px rgba(0,123,255,1);animation:pulse 2s ease-in-out infinite;display:inline-block;"></span>
+          <span style="font-size:8px;font-weight:700;color:#007BFF;text-transform:uppercase;letter-spacing:0.2em;">System Status</span>
+        </div>
+        <p id="workerStatus" style="font-size:10px;color:#374151;line-height:1.6;font-weight:500;">Checking...</p>
+      </div>
+    </section>
+
+  </div>
+</aside>
+
+</div><!-- end layout -->
+
+<!-- â•â•â• MODAL â•â•â• -->
+<div id="modal">
+  <div class="modal-box">
+    <div class="modal-hdr">
+      <span class="modal-title">ARIA Settings</span>
+      <button id="closeBtn" class="modal-close">&#x2715;</button>
     </div>
-  </main>
-
-  <!-- RIGHT: Controls -->
-  <aside class="right">
-
-    <div class="card">
-      <div class="card-hd">Session</div>
-      <div class="stats">
-        <div class="stat"><div class="sv" id="sMsgs">0</div><div class="sl">Messages</div></div>
-        <div class="stat"><div class="sv" id="sTime">0s</div><div class="sl">Time</div></div>
-        <div class="stat"><div class="sv" id="sTok">—</div><div class="sl">Tokens</div></div>
-      </div>
+    <div class="modal-tabs">
+      <div class="mtab on" data-tab="apps">Integrations</div>
+      <div class="mtab" data-tab="voice">Voice</div>
+      <div class="mtab" data-tab="about">About</div>
     </div>
-
-    <div class="card">
-      <div class="card-hd">Persona</div>
-      <div class="pgrid">
-        <button class="pc active" data-p="general"><div class="pi">🤖</div><div class="pn">General</div><div class="pd">All-purpose</div></button>
-        <button class="pc" data-p="sales"><div class="pi">💼</div><div class="pn">Sales</div><div class="pd">Lead & convert</div></button>
-        <button class="pc" data-p="support"><div class="pi">🛠</div><div class="pn">Support</div><div class="pd">Tech help</div></button>
-        <button class="pc" data-p="research"><div class="pi">🔬</div><div class="pn">Research</div><div class="pd">Deep analysis</div></button>
-        <button class="pc" data-p="jarvis" style="grid-column:span 2"><div class="pi">⚡</div><div class="pn">Jarvis Mode</div><div class="pd">Full Iron Man assistant</div></button>
-      </div>
-    </div>
-
-    <div class="card">
-      <div class="card-hd">Voice</div>
-      <div class="row">
-        <div><div class="rl">Speak Replies</div><div class="rs">ElevenLabs AI</div></div>
-        <label class="tog"><input type="checkbox" id="voiceOn" checked><div class="trk"></div></label>
-      </div>
-      <div class="row">
-        <div><div class="rl">Character</div><div class="rs">Live — changes instantly</div></div>
-        <select class="sel" id="voiceSel">
-          <option value="21m00Tcm4TlvDq8ikWAM">Rachel ♀</option>
-          <option value="AZnzlk1XvdvUeBnXmlld">Domi ♀</option>
-          <option value="EXAVITQu4vr4xnSDxMaL" selected>Bella ♀</option>
-          <option value="ErXwobaYiN019PkySvjV">Antoni ♂</option>
-          <option value="pNInz6obpgDQGcFmaJgB">Adam ♂</option>
-          <option value="VR6AewLTigWG4xSOukaG">Arnold ♂</option>
-        </select>
-      </div>
-      <div class="row">
-        <div><div class="rl">Speed</div><div class="rs">Playback rate</div></div>
-        <input type="range" class="rng" id="spd" min="0.6" max="1.8" step="0.1" value="1">
-      </div>
-      <div class="row">
-        <div><div class="rl">Auto-Listen</div><div class="rs">Mic after reply</div></div>
-        <label class="tog"><input type="checkbox" id="autoOn"><div class="trk"></div></label>
-      </div>
-      <button class="save-voice-btn" id="saveVoiceSidebar">Save Voice as Default</button>
-      <div class="save-voice-saved" id="sidebarVoiceSaved">✓ Voice saved</div>
-    </div>
-
-    <div class="card">
-      <div class="card-hd">Connected Apps</div>
-      <div id="sidebarApps">
-        <div style="font-size:0.6rem;color:var(--text3);text-align:center;padding:6px 0">No apps connected.</div>
-      </div>
-      <button class="connect-btn" onclick="openModal('apps')">Connect Apps</button>
-    </div>
-
-  </aside>
-</div>
-
-<!-- MODAL -->
-<div class="modal-bg" id="modal">
-  <div class="modal">
-    <div class="mhdr">
-      <div class="mtitle">Settings</div>
-      <button class="mclose" id="closeBtn">✕</button>
-    </div>
-    <div class="mtabs">
-      <button class="mtab on" data-tab="apps">Apps</button>
-      <button class="mtab" data-tab="voice">Voice</button>
-      <button class="mtab" data-tab="about">About</button>
-    </div>
-
-    <!-- APPS -->
     <div class="tpanel on" id="tab-apps">
-      <div class="mnote">🔒 Connections use OAuth2 — you log in with your own account. ARIA never sees your password.</div>
+      <div class="mnote">&#128274; Connections use OAuth2 &mdash; ARIA never sees your password.</div>
       <div class="msec">Google</div>
-      <div class="acard" id="card-gmail"><div class="acl"><div class="acico">📧</div><div><div class="acname">Gmail</div><div class="acdesc" id="desc-gmail">Send, read, sort emails</div></div></div><button class="abtn connect" id="btn-gmail" onclick="connectApp('gmail')">Connect</button></div>
-      <div class="acard" id="card-calendar"><div class="acl"><div class="acico">📅</div><div><div class="acname">Calendar</div><div class="acdesc" id="desc-calendar">Book meetings</div></div></div><button class="abtn connect" id="btn-calendar" onclick="connectApp('calendar')">Connect</button></div>
+      <div class="acard" id="card-gmail"><div class="acl"><div class="acico">&#128231;</div><div><div class="acname">Gmail</div><div class="acdesc" id="desc-gmail">Send, read, sort emails</div></div></div><button class="abtn connect" id="btn-gmail" onclick="connectApp('gmail')">Connect</button></div>
+      <div class="acard" id="card-calendar"><div class="acl"><div class="acico">&#128197;</div><div><div class="acname">Calendar</div><div class="acdesc" id="desc-calendar">Book meetings</div></div></div><button class="abtn connect" id="btn-calendar" onclick="connectApp('calendar')">Connect</button></div>
       <div class="msec">Microsoft</div>
-      <div class="acard" id="card-outlook"><div class="acl"><div class="acico">💼</div><div><div class="acname">Outlook</div><div class="acdesc" id="desc-outlook">Send and read emails</div></div></div><button class="abtn connect" id="btn-outlook" onclick="connectApp('outlook')">Connect</button></div>
+      <div class="acard" id="card-outlook"><div class="acl"><div class="acico">&#128188;</div><div><div class="acname">Outlook</div><div class="acdesc" id="desc-outlook">Send and read emails</div></div></div><button class="abtn connect" id="btn-outlook" onclick="connectApp('outlook')">Connect</button></div>
       <div class="msec">Messaging</div>
-      <div class="acard" id="card-slack"><div class="acl"><div class="acico">💬</div><div><div class="acname">Slack</div><div class="acdesc" id="desc-slack">Send to channels</div></div></div><button class="abtn connect" id="btn-slack" onclick="connectApp('slack')">Connect</button></div>
-      <div class="acard" id="card-discord"><div class="acl"><div class="acico">🎮</div><div><div class="acname">Discord</div><div class="acdesc" id="desc-discord">Post to channels</div></div></div><button class="abtn connect" id="btn-discord" onclick="connectApp('discord')">Connect</button></div>
+      <div class="acard" id="card-slack"><div class="acl"><div class="acico">&#128172;</div><div><div class="acname">Slack</div><div class="acdesc" id="desc-slack">Send to channels</div></div></div><button class="abtn connect" id="btn-slack" onclick="connectApp('slack')">Connect</button></div>
+      <div class="acard" id="card-discord"><div class="acl"><div class="acico">&#127918;</div><div><div class="acname">Discord</div><div class="acdesc" id="desc-discord">Post to channels</div></div></div><button class="abtn connect" id="btn-discord" onclick="connectApp('discord')">Connect</button></div>
       <div class="msec">Productivity</div>
-      <div class="acard" id="card-notion"><div class="acl"><div class="acico">📝</div><div><div class="acname">Notion</div><div class="acdesc" id="desc-notion">Create notes</div></div></div><button class="abtn connect" id="btn-notion" onclick="connectApp('notion')">Connect</button></div>
-      <div class="acard" id="card-airtable"><div class="acl"><div class="acico">🗃</div><div><div class="acname">Airtable</div><div class="acdesc" id="desc-airtable">Log data</div></div></div><button class="abtn connect" id="btn-airtable" onclick="connectApp('airtable')">Connect</button></div>
+      <div class="acard" id="card-notion"><div class="acl"><div class="acico">&#128221;</div><div><div class="acname">Notion</div><div class="acdesc" id="desc-notion">Create notes</div></div></div><button class="abtn connect" id="btn-notion" onclick="connectApp('notion')">Connect</button></div>
+      <div class="acard" id="card-airtable"><div class="acl"><div class="acico">&#128450;</div><div><div class="acname">Airtable</div><div class="acdesc" id="desc-airtable">Log data</div></div></div><button class="abtn connect" id="btn-airtable" onclick="connectApp('airtable')">Connect</button></div>
     </div>
-
-    <!-- VOICE -->
     <div class="tpanel" id="tab-voice">
-      <div class="mnote">ElevenLabs API key is encrypted in Cloudflare — no setup needed.</div>
-      <div class="mfld">
-        <div class="mlbl">Voice Character</div>
-        <select class="minp" id="modalVoice" style="cursor:pointer">
-          <option value="21m00Tcm4TlvDq8ikWAM">Rachel — warm natural female</option>
-          <option value="AZnzlk1XvdvUeBnXmlld">Domi — confident female</option>
-          <option value="EXAVITQu4vr4xnSDxMaL" selected>Bella — soft female</option>
-          <option value="ErXwobaYiN019PkySvjV">Antoni — well-rounded male</option>
-          <option value="pNInz6obpgDQGcFmaJgB">Adam — deep male</option>
-          <option value="VR6AewLTigWG4xSOukaG">Arnold — crisp male</option>
+      <div class="mnote">ElevenLabs API key is encrypted in Cloudflare &mdash; no setup needed.</div>
+      <div class="mfld"><div class="mlbl">Voice Character</div>
+        <select class="minp" id="modalVoice" style="cursor:pointer;">
+          <option value="21m00Tcm4TlvDq8ikWAM">Rachel &mdash; warm natural female</option>
+          <option value="AZnzlk1XvdvUeBnXmlld">Domi &mdash; confident female</option>
+          <option value="EXAVITQu4vr4xnSDxMaL" selected>Bella &mdash; soft female</option>
+          <option value="ErXwobaYiN019PkySvjV">Antoni &mdash; well-rounded male</option>
+          <option value="pNInz6obpgDQGcFmaJgB">Adam &mdash; deep male</option>
+          <option value="VR6AewLTigWG4xSOukaG">Arnold &mdash; crisp male</option>
         </select>
       </div>
-      <div class="mfld">
-        <div class="mlbl">Speech Speed</div>
-        <input type="range" style="accent-color:var(--gold);width:100%" id="modalSpd" min="0.6" max="1.8" step="0.1" value="1">
-        <div class="mhint">0.6 = slow · 1.0 = normal · 1.8 = fast</div>
+      <div class="mfld"><div class="mlbl">Speech Speed</div>
+        <input type="range" style="accent-color:#007BFF;width:100%" id="modalSpd" min="0.6" max="1.8" step="0.1" value="1">
+        <div class="mhint">0.6 = slow &middot; 1.0 = normal &middot; 1.8 = fast</div>
       </div>
       <button class="msave-btn" id="saveVoice">Save Voice Settings</button>
-      <div class="msaved" id="voiceSaved">✓ Voice settings saved</div>
+      <div class="msaved" id="voiceSaved">&#10003; Voice settings saved</div>
     </div>
-
-    <!-- ABOUT -->
     <div class="tpanel" id="tab-about">
-      <div class="mnote">
-        <strong>ARIA v9.1</strong> — Built by Nihhar K Sonee (NKS-Coder)<br>
-        Groq Llama 3.3 70B · ElevenLabs · Cloudflare Workers · Supabase<br><br>
-        All API keys are encrypted server-side in Cloudflare. Nothing sensitive is stored in your browser.
-      </div>
-      <div class="mfld">
-        <div class="mlbl">Worker Status</div>
-        <div id="workerStatus" class="minp" style="color:var(--text3);font-size:0.6rem">Checking...</div>
-      </div>
+      <div class="mnote"><strong>ARIA v10</strong> &mdash; Built by Nihhar K Sonee (NKS-Coder)<br>Groq Llama 3.3 70B &middot; ElevenLabs &middot; Cloudflare Workers &middot; Supabase<br><br>All API keys are encrypted server-side in Cloudflare.</div>
+      <div class="mfld"><div class="mlbl">Worker Status</div><div id="workerStatus-about" class="minp" style="color:rgba(255,255,255,0.3);font-size:0.6rem;">Checking...</div></div>
     </div>
   </div>
+</div>
+
+<!-- â•â•â• GMAIL PANEL â•â•â• -->
+<div class="gmail-panel" id="gmailPanel">
+  <div class="gmail-panel-hdr">
+    <div class="gmail-panel-title">&#128231; Gmail</div>
+    <button class="gmail-panel-close" onclick="closeGmailPanel()">&#x2715;</button>
+  </div>
+  <div class="gmail-panel-body">
+    <iframe id="gmailFrame" src="" title="Gmail" style="display:none;"></iframe>
+  </div>
+</div>
+
+<!-- Personas (hidden, functional) -->
+<div style="display:none;" aria-hidden="true">
+  <div class="pc active" data-p="general"><span class="pn">General</span></div>
+  <div class="pc" data-p="email"><span class="pn">Email</span></div>
+  <div class="pc" data-p="calendar"><span class="pn">Calendar</span></div>
+  <div class="pc" data-p="assistant"><span class="pn">Assistant</span></div>
 </div>
 
 <script>
@@ -2687,7 +1682,6 @@ D.inp.addEventListener('input', () => {
   D.inp.style.height = Math.min(D.inp.scrollHeight, window.innerWidth < 600 ? 80 : 110) + 'px';
 });
 </script>
-
 <!-- ARIA Wake Word — clean v6 (no window.S bug, no SR conflict) -->
 <script>
 (function ariaWakeWord() {
@@ -2829,17 +1823,36 @@ D.inp.addEventListener('input', () => {
 })();
 </script>
 
-<!-- GMAIL PANEL -->
-<div class="gmail-panel" id="gmailPanel">
-  <div class="gmail-panel-hdr">
-    <div class="gmail-panel-title">📧 Gmail</div>
-    <button class="gmail-panel-close" onclick="closeGmailPanel()">✕</button>
-  </div>
-  <div class="gmail-panel-body">
-    <iframe id="gmailFrame" src="" title="Gmail"></iframe>
-  </div>
-</div>
+<!-- Hero collapse observer -->
+<script>
+(function(){
+  var msgs = document.getElementById('msgs');
+  var hero = document.getElementById('heroWrap');
+  if(!msgs||!hero) return;
+  var obs = new MutationObserver(function(){
+    if(msgs.children.length > 0) hero.classList.add('collapsed');
+    else hero.classList.remove('collapsed');
+  });
+  obs.observe(msgs, {childList:true});
+})();
+</script>
 
+<!-- data-mode updater for orb animations -->
+<script>
+var _origSetMode = null;
+window.addEventListener('load', function(){
+  // Patch setMode to also set body data-mode after it loads
+  setTimeout(function(){
+    if(typeof setMode === 'function'){
+      var _orig = setMode;
+      window.setMode = function(m){
+        document.body.setAttribute('data-mode', m);
+        return _orig(m);
+      };
+    }
+  }, 300);
+});
+</script>
 
 </body>
 </html>
