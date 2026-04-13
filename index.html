@@ -2627,20 +2627,79 @@ D.inp.addEventListener('input', () => {
   </div>
 </div>
 
+
 <script>
-/* ═══════════════════════════════════════════════════════════════════
-   ARIA ENHANCED — Gmail Direct API  +  "Hey ARIA" Wake Word
-   All upgrades are additive patches — original code untouched.
-   ═══════════════════════════════════════════════════════════════════ */
 
-// ── 1. Gmail Direct API ──────────────────────────────────────────────
+/* ═══════════════════════════════════════════════════════════════════════
+   ARIA ENHANCED v2 — Full Bug Fix + Gmail Cards + Voice Fix
+   Fixes: token loss, Microsoft voice fallback, plain text, intent gaps
+   ═══════════════════════════════════════════════════════════════════════ */
+
+// ── 0. Protected Token Storage (survives Supabase/checkAppStatus overwrites) ──
+const _TOK_KEY = 'aria_gm_tok_v2';
+
+function _saveTok(t) {
+  if (!t) return;
+  try { localStorage.setItem(_TOK_KEY, t); } catch(e){}
+  try { sessionStorage.setItem(_TOK_KEY, t); } catch(e){}
+}
+
+function _gmTok() {
+  try {
+    return sessionStorage.getItem(_TOK_KEY)
+        || localStorage.getItem(_TOK_KEY)
+        || C?.apps?.gmail?.access_token
+        || null;
+  } catch(e) { return null; }
+}
+
+// Patch C.saveApp so token is NEVER dropped when Supabase/checkAppStatus fires
+(function _patchSaveApp() {
+  if (!window.C || typeof C.saveApp !== 'function') {
+    setTimeout(_patchSaveApp, 400); return;
+  }
+  const _orig = C.saveApp.bind(C);
+  C.saveApp = function(name, data) {
+    if (name === 'gmail') {
+      if (data && data.access_token) {
+        _saveTok(data.access_token);
+      } else {
+        const existing = _gmTok();
+        if (existing && data) data.access_token = existing;
+      }
+    }
+    return _orig(name, data);
+  };
+  console.log('[ARIA v2] C.saveApp patched — token safe.');
+})();
+
+// Listen for OAuth postMessage and capture token immediately
+window.addEventListener('message', function(ev) {
+  if (ev.data && ev.data.type === 'ARIA_OAUTH_SUCCESS') {
+    const tok = ev.data.access_token || ev.data.token;
+    if (tok) { _saveTok(tok); console.log('[ARIA v2] OAuth token captured & saved.'); }
+  }
+}, false);
+
+// On load: restore token if C.apps.gmail exists but lost token
+(function _restoreToken() {
+  const restore = () => {
+    const tok = _gmTok();
+    if (tok && C?.apps?.gmail) {
+      C.apps.gmail.access_token = tok;
+      console.log('[ARIA v2] Token restored into C.apps.gmail.');
+    }
+  };
+  if (document.readyState === 'complete') restore();
+  else window.addEventListener('load', restore);
+})();
+
+// ── 1. Gmail Direct API ─────────────────────────────────────────────────────
 const GM_BASE = 'https://gmail.googleapis.com/gmail/v1/users/me';
-
-function _gmTok() { return C.apps?.gmail?.access_token || null; }
 
 async function gAPI(path, opts = {}) {
   const tok = _gmTok();
-  if (!tok) throw new Error('Gmail not connected');
+  if (!tok) throw new Error('Gmail not connected — please reconnect.');
   const r = await fetch(GM_BASE + path, {
     ...opts,
     headers: {
@@ -2650,341 +2709,413 @@ async function gAPI(path, opts = {}) {
     },
   });
   if (r.status === 401) {
-    addMsg('assistant', '⚠️ Gmail session expired — open Settings → Apps → reconnect Gmail.', true);
-    throw new Error('401');
+    localStorage.removeItem(_TOK_KEY);
+    sessionStorage.removeItem(_TOK_KEY);
+    if (C?.apps?.gmail) C.apps.gmail.access_token = null;
+    throw new Error('Gmail session expired — please reconnect.');
   }
+  if (!r.ok) throw new Error('Gmail API error ' + r.status);
   return r.json();
 }
 
-async function gListEmails(q = 'in:inbox', max = 8) {
-  const res = await gAPI(`/messages?maxResults=${max}&q=${encodeURIComponent(q)}`);
-  if (!res.messages?.length) return [];
-  return Promise.all(res.messages.map(async m => {
-    const d = await gAPI(`/messages/${m.id}?format=metadata` +
-      `&metadataHeaders=From&metadataHeaders=Subject&metadataHeaders=Date`);
-    const hdr = d.payload?.headers || [];
-    const h = n => hdr.find(x => x.name === n)?.value || '';
-    return {
-      id: m.id, threadId: d.threadId,
-      from: h('From'), subject: h('Subject'), date: h('Date'),
-      snippet: d.snippet, labelIds: d.labelIds || [],
-    };
-  }));
+async function gListEmails(q = 'in:inbox', max = 5) {
+  const d = await gAPI('/messages?maxResults=' + max + '&q=' + encodeURIComponent(q));
+  if (!d.messages || !d.messages.length) return [];
+  return Promise.all(d.messages.map(m =>
+    gAPI('/messages/' + m.id + '?format=metadata&metadataHeaders=From&metadataHeaders=Subject&metadataHeaders=Date')
+  ));
 }
 
 async function gGetBody(id) {
-  const d = await gAPI(`/messages/${id}?format=full`);
-  let body = '';
-  (function ex(p) {
-    if (p.body?.data) body += atob(p.body.data.replace(/-/g, '+').replace(/_/g, '/'));
-    (p.parts || []).forEach(ex);
-  })(d.payload);
-  return body.replace(/<[^>]+>/g, ' ').replace(/&nbsp;/g, ' ')
-             .replace(/\s+/g, ' ').trim().slice(0, 3000);
+  const d = await gAPI('/messages/' + id + '?format=full');
+  function decode(b64) {
+    try { return atob(b64.replace(/-/g,'+').replace(/_/g,'/')); } catch(e) { return ''; }
+  }
+  function walk(p) {
+    if (!p) return '';
+    if (p.mimeType === 'text/plain' && p.body?.data) return decode(p.body.data);
+    if (p.parts) { for (const pp of p.parts) { const t = walk(pp); if (t) return t; } }
+    return '';
+  }
+  const raw = walk(d.payload);
+  return raw.replace(/<[^>]+>/g, ' ').replace(/\s{2,}/g, ' ').trim().slice(0, 800);
 }
 
 async function gSend(to, subject, body, threadId) {
-  const mime = [
-    `To: ${to}`,
-    `Subject: ${subject.startsWith('Re:') ? subject : 'Re: ' + subject}`,
-    'Content-Type: text/plain; charset=utf-8',
-    '', body,
-  ].join('\r\n');
-  const raw = btoa(unescape(encodeURIComponent(mime)))
-    .replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
-  return gAPI('/messages/send', {
-    method: 'POST',
-    body: JSON.stringify({ raw, ...(threadId ? { threadId } : {}) }),
-  });
+  const mime = ['Content-Type: text/plain; charset=utf-8','MIME-Version: 1.0',
+    'To: ' + to, 'Subject: ' + subject, '', body].join('\r\n');
+  const enc = btoa(unescape(encodeURIComponent(mime))).replace(/\+/g,'-').replace(/\//g,'_');
+  return gAPI('/messages/send', { method: 'POST', body: JSON.stringify({ raw: enc, ...(threadId ? { threadId } : {}) }) });
 }
 
-async function gModifyLabels(id, add, remove) {
-  return gAPI(`/messages/${id}/modify`, {
+async function gModifyLabels(id, add = [], remove = []) {
+  return gAPI('/messages/' + id + '/modify', {
     method: 'POST',
     body: JSON.stringify({ addLabelIds: add, removeLabelIds: remove }),
   });
 }
 
 async function gInboxStats() {
-  const [lbl, unread, important] = await Promise.all([
-    gAPI('/labels/INBOX'),
-    gAPI('/messages?maxResults=1&q=is:unread+in:inbox'),
-    gAPI('/messages?maxResults=1&q=is:important+in:inbox'),
-  ]);
-  return {
-    total: lbl.messagesTotal || 0,
-    unread: unread.resultSizeEstimate || 0,
-    important: important.resultSizeEstimate || 0,
-  };
+  const d = await gAPI('/labels/INBOX');
+  return { total: d.messagesTotal, unread: d.messagesUnread };
 }
 
-// ── 2. Voice Intent Router ───────────────────────────────────────────
-const GMAIL_CMDS = [
-  { re: /\b(how many|check|stats?|overview|count)\b.{0,20}\b(email|mail|inbox)\b/i, fn: () => ariaInboxStats() },
-  { re: /\b(read|show|list|get|fetch)\b.{0,20}\bunread\b|\bunread\b.{0,10}\b(email|mail)/i, fn: () => ariaReadEmails('is:unread in:inbox', 'unread') },
-  { re: /\b(read|show|list|get)\b.{0,20}\b(important|starred)\b/i, fn: () => ariaReadEmails('is:important in:inbox', 'important') },
-  { re: /\b(organize|sort|clean)\b.{0,20}\b(email|mail|inbox)\b/i, fn: () => ariaReadEmails('in:inbox', 'inbox') },
-  { re: /\b(read|show|list|get|check|open|fetch)\b.{0,20}\b(email|mail|inbox)\b/i, fn: () => ariaReadEmails('in:inbox', 'latest') },
-  { re: /\bmark\b.{0,20}\b(important|star)\b|star.{0,10}\b(this|email|mail)\b/i, fn: () => ariaMarkImportant(true) },
-  { re: /\barchive\b.{0,20}\b(this|email|mail)?\b|\bdelete\b.{0,10}\b(this|email)\b/i, fn: () => ariaArchive() },
-  { re: /\bsend\b.{0,15}\breply\b|\breply\b.{0,10}\bsend\b/i, fn: () => ariaSendLastReply() },
+// ── 2. Gmail Card UI ────────────────────────────────────────────────────────
+function _hdr(msg, name) {
+  return (msg.payload?.headers || []).find(h => h.name.toLowerCase() === name.toLowerCase())?.value || '';
+}
+
+function _shortDate(raw) {
+  if (!raw) return '';
+  const d = new Date(raw);
+  if (isNaN(d)) return raw.split(' ').slice(0,3).join(' ');
+  const now = new Date();
+  const diff = now - d;
+  if (diff < 86400000) return d.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'});
+  return d.toLocaleDateString([], {month:'short', day:'numeric'});
+}
+
+function renderEmailCards(emails, title) {
+  // Inject CSS once
+  if (!document.getElementById('aria-card-css')) {
+    const st = document.createElement('style');
+    st.id = 'aria-card-css';
+    st.textContent = `
+      .aria-email-wrap{padding:4px 0;font-family:inherit;}
+      .aria-email-title{font-weight:700;font-size:13px;color:var(--accent,#a78bfa);margin-bottom:8px;letter-spacing:.3px;}
+      .aria-email-card{background:var(--bg2,#1e1e2e);border:1px solid var(--border,rgba(255,255,255,.08));border-radius:10px;padding:10px 13px;margin-bottom:6px;cursor:pointer;transition:border-color .2s;}
+      .aria-email-card:hover{border-color:var(--accent,#a78bfa);}
+      .aria-email-card-row{display:flex;justify-content:space-between;align-items:baseline;gap:8px;}
+      .aria-email-from{font-weight:600;font-size:12px;color:var(--text1,#e2e8f0);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:65%;}
+      .aria-email-date{font-size:11px;color:var(--text3,#94a3b8);white-space:nowrap;}
+      .aria-email-subject{font-size:12px;color:var(--text2,#cbd5e1);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+      .aria-email-actions{display:flex;gap:5px;margin-top:7px;}
+      .aria-email-btn{font-size:10px;padding:2px 8px;border-radius:5px;border:1px solid var(--border,rgba(255,255,255,.15));background:transparent;color:var(--text2,#cbd5e1);cursor:pointer;transition:background .15s;}
+      .aria-email-btn:hover{background:var(--accent,#a78bfa);color:#fff;border-color:var(--accent,#a78bfa);}
+      .aria-email-unread{border-left:3px solid var(--accent,#a78bfa);}
+    `;
+    document.head.appendChild(st);
+  }
+
+  const wrap = document.createElement('div');
+  wrap.className = 'aria-email-wrap';
+  if (title) {
+    const h = document.createElement('div');
+    h.className = 'aria-email-title';
+    h.textContent = title;
+    wrap.appendChild(h);
+  }
+
+  emails.forEach((msg, i) => {
+    const from = _hdr(msg, 'From');
+    const subject = _hdr(msg, 'Subject') || '(no subject)';
+    const date = _hdr(msg, 'Date');
+    const isUnread = msg.labelIds && msg.labelIds.includes('UNREAD');
+    const fromName = from.replace(/<.*>/, '').trim() || from;
+
+    const card = document.createElement('div');
+    card.className = 'aria-email-card' + (isUnread ? ' aria-email-unread' : '');
+
+    card.innerHTML =
+      '<div class="aria-email-card-row">' +
+        '<div class="aria-email-from">' + fromName.replace(/</g,'&lt;') + '</div>' +
+        '<div class="aria-email-date">' + _shortDate(date) + '</div>' +
+      '</div>' +
+      '<div class="aria-email-subject">' + subject.replace(/</g,'&lt;') + '</div>' +
+      '<div class="aria-email-actions">' +
+        '<button class="aria-email-btn" data-idx="' + i + '" data-action="read">Read</button>' +
+        '<button class="aria-email-btn" data-idx="' + i + '" data-action="star">Star</button>' +
+        '<button class="aria-email-btn" data-idx="' + i + '" data-action="archive">Archive</button>' +
+      '</div>';
+
+    card.querySelectorAll('.aria-email-btn').forEach(btn => {
+      btn.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        const action = btn.dataset.action;
+        const m = emails[parseInt(btn.dataset.idx)];
+        try {
+          if (action === 'read') {
+            ariaSpeak('Reading email from ' + fromName + '. Subject: ' + subject + '.');
+            const body = await gGetBody(m.id);
+            appendBotMessage(body || 'No text content found.', false);
+          } else if (action === 'star') {
+            await gModifyLabels(m.id, ['STARRED'], []);
+            btn.textContent = 'Starred!'; btn.disabled = true;
+            ariaSpeak('Starred email from ' + fromName + '.');
+          } else if (action === 'archive') {
+            await gModifyLabels(m.id, [], ['INBOX']);
+            card.style.opacity = '0.4'; btn.textContent = 'Archived'; btn.disabled = true;
+            ariaSpeak('Archived email from ' + fromName + '.');
+          }
+        } catch(err) { appendBotMessage('Error: ' + err.message, false); }
+      });
+    });
+
+    wrap.appendChild(card);
+  });
+
+  return wrap;
+}
+
+function appendBotMessage(content, isText = true) {
+  const msgs = document.getElementById('messages') || document.querySelector('.messages');
+  if (!msgs) return;
+  const row = document.createElement('div');
+  row.className = 'msg bot';
+  const bubble = document.createElement('div');
+  bubble.className = 'bubble';
+  if (isText) {
+    bubble.textContent = content;
+  } else if (typeof content === 'string') {
+    bubble.textContent = content;
+  } else {
+    bubble.appendChild(content);
+  }
+  row.appendChild(bubble);
+  msgs.appendChild(row);
+  msgs.scrollTop = msgs.scrollHeight;
+}
+
+// ── 3. ariaSpeak — always use ElevenLabs; only fall back if it truly fails ──
+function ariaSpeak(text) {
+  // Reset fail counter so a fresh attempt is always made
+  if (typeof window.elFails !== 'undefined') window.elFails = 0;
+  if (typeof speakText === 'function') {
+    speakText(text);
+  } else if (typeof speak === 'function') {
+    speak(text);
+  }
+}
+
+// ── 4. Gmail Actions ────────────────────────────────────────────────────────
+async function ariaInboxStats() {
+  appendBotMessage('Checking your inbox…');
+  try {
+    const stats = await gInboxStats();
+    const msg = 'You have ' + stats.total + ' emails in your inbox, ' + stats.unread + ' unread.';
+    appendBotMessage(msg);
+    ariaSpeak(msg);
+  } catch(e) { appendBotMessage('Could not fetch inbox stats: ' + e.message); }
+}
+
+async function ariaReadEmails(query, mode) {
+  appendBotMessage('Fetching your emails…');
+  try {
+    const emails = await gListEmails(query || 'in:inbox', 6);
+    if (!emails.length) {
+      const msg = 'No emails found.';
+      appendBotMessage(msg); ariaSpeak(msg); return;
+    }
+    const title = (query && query !== 'in:inbox') ? ('Emails — ' + query) : 'Your Inbox';
+    appendBotMessage(renderEmailCards(emails, title), false);
+    const count = emails.length;
+    const spoken = 'Here are your ' + count + ' most recent emails.';
+    ariaSpeak(spoken);
+  } catch(e) { appendBotMessage('Gmail error: ' + e.message); }
+}
+
+async function ariaSearchEmails(rawText) {
+  const match = rawText.match(/(?:from|search|find|about|related to)\s+(.+)/i);
+  const q = match ? match[1].trim() : rawText;
+  appendBotMessage('Searching for: ' + q + '…');
+  try {
+    const emails = await gListEmails(q, 5);
+    if (!emails.length) { const m = 'No emails found for: ' + q; appendBotMessage(m); ariaSpeak(m); return; }
+    appendBotMessage(renderEmailCards(emails, 'Search: ' + q), false);
+    ariaSpeak('Found ' + emails.length + ' emails matching ' + q + '.');
+  } catch(e) { appendBotMessage('Search error: ' + e.message); }
+}
+
+async function ariaSummarize() {
+  appendBotMessage('Fetching your latest emails for summary…');
+  try {
+    const emails = await gListEmails('in:inbox', 5);
+    if (!emails.length) { appendBotMessage('Inbox is empty.'); return; }
+    const lines = emails.map((m, i) => {
+      const from = _hdr(m, 'From').replace(/<.*>/, '').trim();
+      const subj = _hdr(m, 'Subject') || '(no subject)';
+      return (i+1) + '. From ' + from + ': ' + subj;
+    }).join('. ');
+    const msg = 'Here is your inbox summary. ' + lines;
+    appendBotMessage(msg);
+    ariaSpeak(msg);
+  } catch(e) { appendBotMessage('Summary error: ' + e.message); }
+}
+
+// ── 5. Intent Detection (broad + conversational) ────────────────────────────
+const ARIA_GMAIL_INTENTS = [
+  // Stats / count
+  { re: /\b(how many|count|stats?|overview|any new)\b.{0,25}\b(email|mail|message)\b/i,                fn: () => ariaInboxStats() },
+  // Unread specifically
+  { re: /\b(unread|new)\b.{0,20}\b(email|mail|message)\b/i,                                             fn: () => ariaReadEmails('is:unread', 'unread') },
+  // Read inbox / show emails (broad)
+  { re: /\b(read|show|list|get|fetch|open|check|see|view|bring up|pull up)\b.{0,30}\b(email|mail|inbox|message)\b/i, fn: () => ariaReadEmails('in:inbox') },
+  // Conversational: "go ahead", "tell me", "what emails", "give me"
+  { re: /\bgo ahead\b.{0,40}\b(email|mail|inbox|message)\b/i,                                           fn: () => ariaReadEmails('in:inbox') },
+  { re: /\b(tell|give|show|what).{0,25}\b(email|mail|inbox|message)\b/i,                                fn: () => ariaReadEmails('in:inbox') },
+  { re: /\b(what|any|my|i have|do i have).{0,20}\b(email|mail|message)\b/i,                             fn: () => ariaReadEmails('in:inbox') },
+  // Summary
+  { re: /\b(summar|brief|recap|digest)\b/i,                                                              fn: () => ariaSummarize() },
+  // Search
+  { re: /\b(search|find|look for|emails? from|emails? about)\b.{0,40}/i,                                fn: (t) => ariaSearchEmails(t) },
+  // Important / starred
+  { re: /\b(important|starred|flagged)\b.{0,20}\b(email|mail)\b/i,                                      fn: () => ariaReadEmails('is:important') },
 ];
 
-function detectGmailIntent(txt) {
-  for (const c of GMAIL_CMDS) if (c.re.test(txt)) return c.fn;
+function detectGmailIntent(text) {
+  if (!_gmTok()) return null; // not connected
+  for (const { re, fn } of ARIA_GMAIL_INTENTS) {
+    if (re.test(text)) return () => fn(text);
+  }
   return null;
 }
 
-// ── 3. Shared UI Helpers ─────────────────────────────────────────────
-function ariaBusy(on) {
-  D.think.classList.toggle('hidden', !on);
-  D.send.disabled = on;
-  setMode(on ? 'thinking' : 'ready');
-}
-
-function ariaPushCard(data) {
-  const row  = document.createElement('div');
-  row.className = 'msg assistant';
-  row.style.alignItems = 'flex-start';
-  const av   = document.createElement('div');
-  av.className = 'av'; av.textContent = 'A';
-  const wrap = document.createElement('div');
-  wrap.style.cssText = 'flex:1;min-width:0;width:100%;overflow:visible;';
-  const time = document.createElement('div');
-  time.className = 'msg-time';
-  time.textContent = new Date().toLocaleTimeString('en-US', { hour12: true, hour: 'numeric', minute: '2-digit' });
-  if (data.type === 'inbox_stats')  renderInboxStats(data, wrap);
-  else if (data.type === 'email_list') renderEmailList(data, wrap);
-  wrap.appendChild(time);
-  row.appendChild(av); row.appendChild(wrap);
-  D.msgs.appendChild(row);
-  D.msgs.scrollTop = D.msgs.scrollHeight;
-}
-
-function _ariaToast(msg) {
-  let t = document.getElementById('_ariaToast');
-  if (!t) {
-    t = document.createElement('div');
-    t.id = '_ariaToast';
-    t.style.cssText = [
-      'position:fixed;bottom:90px;left:50%;transform:translateX(-50%)',
-      'background:rgba(0,212,255,0.1);border:1px solid rgba(0,212,255,0.38)',
-      'color:#00d4ff;padding:10px 28px;border-radius:24px',
-      'font-size:0.78rem;font-weight:500;letter-spacing:0.06em',
-      'z-index:9999;backdrop-filter:blur(16px)',
-      'pointer-events:none;transition:opacity 0.4s;white-space:nowrap',
-    ].join(';');
-    document.body.appendChild(t);
-  }
-  t.textContent = msg;
-  t.style.opacity = '1';
-  clearTimeout(t._tid);
-  t._tid = setTimeout(() => { t.style.opacity = '0'; }, 2800);
-}
-
-// ── 4. Gmail Command Handlers ────────────────────────────────────────
-async function ariaInboxStats() {
-  addMsg('user', 'Check my inbox stats');
-  S.msgs.push({ role: 'user', content: 'Check inbox' });
-  ariaBusy(true);
-  try {
-    const s = await gInboxStats();
-    ariaBusy(false);
-    ariaPushCard({ type: 'inbox_stats', total: s.total, unread: s.unread, important_count: s.important });
-    const msg = `Your inbox has ${s.total.toLocaleString()} emails — ${s.unread} unread and ${s.important} important.`;
-    speak(msg);
-    S.msgs.push({ role: 'assistant', content: msg });
-    saveCurrentConv();
-  } catch(e) { ariaBusy(false); addMsg('assistant', '⚠️ ' + e.message, true); }
-}
-
-async function ariaReadEmails(q, label) {
-  addMsg('user', `Read my ${label} emails`);
-  S.msgs.push({ role: 'user', content: `Read ${label} emails` });
-  ariaBusy(true);
-  try {
-    const emails = await gListEmails(q, 8);
-    ariaBusy(false);
-    if (!emails.length) {
-      const m = `🎉 Your ${label} inbox is empty — all clear!`;
-      addMsg('assistant', m); speak(m); return;
-    }
-    ariaPushCard({ type: 'email_list', count: emails.length, emails,
-      summary: `Here are your ${emails.length} ${label} emails.` });
-    const msg = `You have ${emails.length} ${label} emails. Tap any email to read it and I'll generate a smart reply for you.`;
-    speak(msg);
-    S.msgs.push({ role: 'assistant', content: msg });
-    saveCurrentConv();
-  } catch(e) { ariaBusy(false); addMsg('assistant', '⚠️ ' + e.message, true); }
-}
-
-async function ariaMarkImportant(star) {
-  const e = window._lastEmail;
-  if (!e) {
-    const m = 'Please tap an email first, then say mark as important.';
-    addMsg('assistant', m); speak(m); return;
-  }
-  try {
-    await gModifyLabels(e.id, star ? ['STARRED', 'IMPORTANT'] : [], star ? [] : ['STARRED', 'IMPORTANT']);
-    const m = star ? '⭐ Marked as important!' : '📌 Removed from important.';
-    addMsg('assistant', m); speak(m);
-  } catch(er) { addMsg('assistant', '⚠️ ' + er.message, true); }
-}
-
-async function ariaArchive() {
-  const e = window._lastEmail;
-  if (!e) {
-    const m = 'Please tap an email first, then say archive.';
-    addMsg('assistant', m); speak(m); return;
-  }
-  try {
-    await gModifyLabels(e.id, [], ['INBOX']);
-    const m = '📦 Email archived!';
-    addMsg('assistant', m); speak(m);
-  } catch(er) { addMsg('assistant', '⚠️ ' + er.message, true); }
-}
-
-async function ariaSendLastReply() {
-  const e = window._lastEmail, rep = window._lastReply;
-  if (!e || !rep) {
-    const m = 'Please open an email and generate a smart reply first.';
-    addMsg('assistant', m); speak(m); return;
-  }
-  ariaBusy(true);
-  try {
-    await gSend(e.from, e.subject, rep, e.threadId);
-    ariaBusy(false);
-    const m = '✅ Reply sent via Gmail!'; addMsg('assistant', m); speak(m);
-  } catch(er) { ariaBusy(false); addMsg('assistant', '⚠️ ' + er.message, true); }
-}
-
-// ── 5. Patch sendMsg — intercept Gmail intents ───────────────────────
+// ── 6. Patch sendMsg to intercept Gmail intents ──────────────────────────────
 (function patchSendMsg() {
-  // Clone send button to wipe all existing listeners cleanly
-  const oldBtn = document.getElementById('sendBtn');
-  if (!oldBtn) return;
-  const newBtn = oldBtn.cloneNode(true);
-  oldBtn.parentNode.replaceChild(newBtn, oldBtn);
-  D.send = newBtn; // update shared reference
+  const originalSendMsg = window.sendMsg;
 
-  const _origSend = sendMsg; // capture original
+  window.sendMsg = async function() {
+    // Always reset ElevenLabs fail counter so voice is fresh
+    if (typeof window.elFails !== 'undefined') window.elFails = 0;
 
-  const _newSend = async function() {
-    const txt = D.inp.value.trim();
-    if (!txt || D.send.disabled) return;
-    // Gmail intent — handle locally, skip Groq
-    if (C.apps?.gmail?.connected) {
-      const fn = detectGmailIntent(txt);
-      if (fn) { D.inp.value = ''; autoResize(); await fn(); return; }
-    }
-    return _origSend();
-  };
+    const inp = document.getElementById('userInput') || document.getElementById('inp') || document.querySelector('input[type=text], textarea');
+    const text = inp ? inp.value.trim() : '';
 
-  window.sendMsg = _newSend;               // override global (mic / keyboard use this)
-  newBtn.addEventListener('click', _newSend);
-})();
-
-// ── 6. Patch showEmailDetail — fetch full body + track last email ─────
-(function patchShowDetail() {
-  const orig = window.showEmailDetail;
-  window.showEmailDetail = async function(email) {
-    window._lastEmail = email;
-    if (_gmTok() && email.id) {
-      try { email.body = await gGetBody(email.id); } catch(e) { /* use snippet */ }
-    }
-    return orig(email);
-  };
-})();
-
-// ── 7. Patch sendEmailReply — use Gmail API directly ─────────────────
-window.sendEmailReply = async function(to, subject, body) {
-  const dTo  = decodeURIComponent(to);
-  const dSub = decodeURIComponent(subject);
-  const dBdy = decodeURIComponent(body);
-  window._lastReply = dBdy;
-
-  if (!C.apps?.gmail?.connected) {
-    // Fallback: send via original Worker AI compose
-    const cmd = `Send email to ${dTo} with subject "${dSub}" saying: ${dBdy}`;
-    D.inp.value = cmd; autoResize(); sendMsg(); return;
-  }
-  ariaBusy(true);
-  try {
-    await gSend(dTo, dSub, dBdy, window._lastEmail?.threadId || null);
-    ariaBusy(false);
-    const m = '✅ Reply sent via Gmail!'; addMsg('assistant', m); speak(m);
-  } catch(e) { ariaBusy(false); addMsg('assistant', '⚠️ ' + e.message, true); }
-};
-
-// ── 8. "Hey ARIA" Wake Word ──────────────────────────────────────────
-let _wr = null, _wOn = false, _wRun = false;
-
-function _wStart() {
-  if (!SR || _wRun || S.listening) return;
-  _wr = new SR();
-  _wr.continuous = true;
-  _wr.interimResults = false;
-  _wr.lang = 'en-US';
-
-  _wr.onresult = e => {
-    const t = Array.from(e.results).map(r => r[0].transcript).join(' ');
-    if (/hey\s*aria|hey,?\s*area|ok\s*aria/i.test(t)) {
-      _wr.stop(); _wRun = false;
-      _ariaToast('👋 Hey! I\'m listening...');
-      setTimeout(() => {
-        if (!S.listening) startListen();
-        if (_wOn) setTimeout(_wStart, 5000); // resume wake after interaction
-      }, 350);
-    }
-  };
-  _wr.onend  = () => { _wRun = false; if (_wOn && !S.listening) setTimeout(_wStart, 800); };
-  _wr.onerror = () => { _wRun = false; if (_wOn) setTimeout(_wStart, 2500); };
-
-  try { _wr.start(); _wRun = true; } catch(e) {}
-}
-
-function _wToggle() {
-  const btn = document.getElementById('wakeWordBtn');
-  _wOn = !_wOn;
-  if (_wOn) {
-    navigator.mediaDevices.getUserMedia({ audio: true }).then(() => {
-      _wStart();
-      if (btn) {
-        btn.style.cssText += 'background:rgba(0,212,255,0.15)!important;border-color:rgba(0,212,255,0.5)!important;color:var(--gold)!important;';
-        btn.innerHTML = '🎙 <span style="color:var(--cyan)">ON</span>';
+    if (text) {
+      const fn = detectGmailIntent(text);
+      if (fn) {
+        if (inp) { inp.value = ''; if (typeof autoResize === 'function') autoResize(); }
+        await fn();
+        return;
       }
-      _ariaToast('Say "Hey ARIA" anytime to activate!');
-    }).catch(() => {
-      _wOn = false;
-      addMsg('assistant', 'Microphone permission needed for Hey ARIA wake word.', true);
-    });
-  } else {
-    _wRun = false;
-    try { _wr?.stop(); } catch(e) {}
-    if (btn) {
-      btn.style.cssText = btn.style.cssText.replace(/background[^;]+;|border-color[^;]+;|color[^;]+;/g, '');
-      btn.innerHTML = '🎙 <span style="color:var(--text3)">OFF</span>';
     }
-  }
-}
+    if (typeof originalSendMsg === 'function') return originalSendMsg.apply(this, arguments);
+  };
 
-// ── 9. Inject Wake Word toggle into header ───────────────────────────
-(function injectWakeBtn() {
-  const hdr = document.querySelector('.hdr-right');
-  if (!hdr) return;
-  const btn = document.createElement('button');
-  btn.id = 'wakeWordBtn';
-  btn.className = 'hdr-btn';
-  btn.style.cssText = 'width:auto;padding:0 12px;border-radius:20px;font-size:0.58rem;letter-spacing:0.04em;white-space:nowrap;display:flex;align-items:center;gap:4px;transition:all 0.2s;';
-  btn.title = 'Toggle "Hey ARIA" always-on voice activation';
-  btn.innerHTML = '🎙 <span style="color:var(--text3)">OFF</span>';
-  btn.addEventListener('click', _wToggle);
-  hdr.insertBefore(btn, hdr.firstChild);
+  // Re-bind send button click
+  const sendBtn = document.getElementById('sendBtn');
+  if (sendBtn) {
+    const newBtn = sendBtn.cloneNode(true);
+    sendBtn.parentNode.replaceChild(newBtn, sendBtn);
+    newBtn.addEventListener('click', () => window.sendMsg());
+    console.log('[ARIA v2] sendBtn re-bound.');
+  }
+
+  // Re-bind Enter key on input
+  const inp = document.getElementById('userInput') || document.getElementById('inp') || document.querySelector('input[type=text], textarea');
+  if (inp) {
+    inp.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); window.sendMsg(); }
+    });
+  }
+
+  console.log('[ARIA v2] sendMsg patched — Gmail intents active.');
 })();
 
-console.log('✅ ARIA Enhanced: Gmail Direct API + Hey ARIA Wake Word loaded.');
+// ── 7. Voice Input → Gmail intent ────────────────────────────────────────────
+(function patchVoiceResult() {
+  const _origDispatch = window.dispatchEvent.bind(window);
+  // Hook the 'voiceResult' or 'aria-voice' custom event if used
+  window.addEventListener('voiceResult', function(e) {
+    if (!e.detail || !e.detail.text) return;
+    const fn = detectGmailIntent(e.detail.text);
+    if (fn) { e.stopImmediatePropagation(); fn(); }
+  }, true);
+})();
+
+// ── 8. Sidebar "Gmail Connected" status badge fix ────────────────────────────
+(function fixSidebarBadge() {
+  function updateBadge() {
+    const tok = _gmTok();
+    const email = C?.apps?.gmail?.email || '';
+    // Find any element showing Gmail status
+    const els = document.querySelectorAll('[data-app="gmail"], .app-item[data-name="gmail"], .connected-app');
+    els.forEach(el => {
+      if (tok) {
+        el.setAttribute('data-connected', 'true');
+        const badge = el.querySelector('.app-status, .status-dot, .app-badge');
+        if (badge) badge.textContent = 'Connected';
+      }
+    });
+    // Also update any "Connected Apps" section text
+    const appItems = document.querySelectorAll('.app-item');
+    appItems.forEach(item => {
+      if (item.textContent.toLowerCase().includes('gmail') && tok) {
+        const dot = item.querySelector('.status-indicator, .dot, .badge');
+        if (dot) dot.style.backgroundColor = '#22c55e';
+      }
+    });
+  }
+  // Run on load and when token changes
+  if (document.readyState === 'complete') updateBadge();
+  else window.addEventListener('load', updateBadge);
+  // Observe sidebar for changes
+  const sidebar = document.querySelector('.sidebar, #sidebar, nav');
+  if (sidebar) {
+    new MutationObserver(updateBadge).observe(sidebar, { childList: true, subtree: true });
+  }
+})();
+
+// ── 9. "Hey ARIA" Wake Word ───────────────────────────────────────────────────
+(function initWakeWord() {
+  if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) return;
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  let wakeRec = null, wakeActive = false, wakeCooldown = false;
+  const WAKE = /\b(hey\s+aria|hi\s+aria|hello\s+aria|okay\s+aria)\b/i;
+
+  function startWake() {
+    if (wakeActive) return;
+    try {
+      wakeRec = new SR();
+      wakeRec.continuous = true;
+      wakeRec.interimResults = false;
+      wakeRec.lang = 'en-US';
+      wakeRec.onresult = (ev) => {
+        const t = ev.results[ev.results.length - 1][0].transcript;
+        if (WAKE.test(t) && !wakeCooldown) {
+          wakeCooldown = true;
+          setTimeout(() => { wakeCooldown = false; }, 3000);
+          const cmd = t.replace(WAKE, '').trim();
+          ariaSpeak('Yes?');
+          if (cmd) {
+            const inp = document.getElementById('userInput') || document.querySelector('input[type=text]');
+            if (inp) { inp.value = cmd; window.sendMsg(); }
+          } else {
+            // Activate main mic
+            const micBtn = document.getElementById('micBtn') || document.querySelector('.mic-btn, [data-mic]');
+            if (micBtn) micBtn.click();
+          }
+        }
+      };
+      wakeRec.onerror = () => { wakeActive = false; setTimeout(startWake, 2000); };
+      wakeRec.onend = () => { wakeActive = false; setTimeout(startWake, 1000); };
+      wakeRec.start();
+      wakeActive = true;
+    } catch(e) { console.warn('[ARIA v2] Wake word error:', e); }
+  }
+
+  // Add wake word toggle button to header
+  const hdr = document.querySelector('.top-bar, header, .header, nav.top');
+  if (hdr) {
+    const btn = document.createElement('button');
+    btn.id = 'ariaWakeBtn';
+    btn.title = 'Toggle "Hey ARIA" wake word';
+    btn.style.cssText = 'background:transparent;border:1px solid var(--border,rgba(255,255,255,.15));border-radius:8px;padding:4px 10px;color:var(--text2,#cbd5e1);cursor:pointer;font-size:11px;margin-right:6px;';
+    btn.textContent = '🎙 Wake OFF';
+    let on = false;
+    btn.addEventListener('click', () => {
+      on = !on;
+      if (on) { startWake(); btn.textContent = '🎙 Hey ARIA ON'; btn.style.borderColor = '#22c55e'; }
+      else { try { wakeRec && wakeRec.stop(); } catch(e){} wakeActive = false; btn.textContent = '🎙 Wake OFF'; btn.style.borderColor = ''; }
+    });
+    hdr.insertBefore(btn, hdr.firstChild);
+  }
+
+  console.log('[ARIA v2] Wake word module ready.');
+})();
+
+console.log('✅ ARIA Enhanced v2 loaded — token safe, EL voice fixed, Gmail cards active.');
 </script>
 
 </body>
 </html>
-
