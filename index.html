@@ -10,10 +10,10 @@
 <title>ARIA</title>
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,200;0,9..40,300;0,9..40,400;0,9..40,500;1,9..40,300&family=DM+Serif+Display:ital@0;1&display=swap" rel="stylesheet">
 <style>
-/* �����������������������������������������������
-   ARIA - Apple x Stark Industries
+/* ═══════════════════════════════════════════════
+   ARIA — Apple × Stark Industries
    Ultra-dark glass, surgical precision, zero noise
-����������������������������������������������� */
+═══════════════════════════════════════════════ */
 :root {
   --void:    #04050a;
   --deep:    #070810;
@@ -48,7 +48,7 @@ body {
   flex-direction:column;
 }
 
-/* Ambient light - barely visible, like atmosphere */
+/* Ambient light — barely visible, like atmosphere */
 body::before {
   content:'';
   position:fixed; inset:0; z-index:0; pointer-events:none;
@@ -68,7 +68,7 @@ body::after {
   background-size:48px 48px;
 }
 
-/* �� HEADER ����������������������������������� */
+/* ── HEADER ─────────────────────────────────── */
 .hdr {
   position:relative; z-index:50; flex-shrink:0;
   height:52px; padding:0 24px;
@@ -82,7 +82,7 @@ body::after {
   display:flex; align-items:center; gap:12px;
 }
 
-/* The ARIA orb - minimal, precise */
+/* The ARIA orb — minimal, precise */
 .orb {
   width:28px; height:28px; border-radius:50%;
   position:relative; flex-shrink:0;
@@ -152,15 +152,15 @@ body::after {
 }
 .hdr-btn:hover { background:var(--glass2); color:var(--gold); border-color:rgba(0,212,255,0.28); }
 
-/* �� THREE COLUMN LAYOUT ����������������������� */
+/* ── THREE COLUMN LAYOUT ─────────────────────── */
 .layout {
   position:relative; z-index:10;
   flex:1; display:flex; overflow:hidden;
 }
 
-/* ����������������������������������������������
-   LEFT - Conversation History
-���������������������������������������������� */
+/* ══════════════════════════════════════════════
+   LEFT — Conversation History
+══════════════════════════════════════════════ */
 .left {
   width:var(--left); flex-shrink:0;
   background:rgba(5,6,12,0.9);
@@ -243,9 +243,9 @@ body::after {
   font-size:0.65rem; color:var(--text3); line-height:2;
 }
 
-/* ����������������������������������������������
-   CENTER - The Stage
-���������������������������������������������� */
+/* ══════════════════════════════════════════════
+   CENTER — The Stage
+══════════════════════════════════════════════ */
 .center {
   flex:1; display:flex; flex-direction:column;
   align-items:center; overflow:hidden;
@@ -259,7 +259,7 @@ body::after {
   gap:16px; padding:28px 20px 14px;
 }
 
-/* The orb system - rings are light halos not spinners */
+/* The orb system — rings are light halos not spinners */
 .halo3 {
   width:188px; height:188px; border-radius:50%;
   display:flex; align-items:center; justify-content:center;
@@ -295,7 +295,7 @@ body::after {
   border:1px solid rgba(0,212,255,0.22);
 }
 
-/* The mic button - the hero element */
+/* The mic button — the hero element */
 .mic {
   width:88px; height:88px; border-radius:50%;
   position:relative;
@@ -358,7 +358,7 @@ body::after {
 .mic-label.listening { color:var(--rose); }
 .mic-label.speaking  { color:var(--cyan); }
 
-/* Visualizer - ultra-minimal */
+/* Visualizer — ultra-minimal */
 .viz {
   display:flex; align-items:center; gap:2.5px; height:28px;
 }
@@ -449,7 +449,7 @@ body::after {
 @keyframes td { 0%,80%,100%{transform:scale(.5);opacity:.3;} 40%{transform:scale(1);opacity:1;} }
 .hidden { display:none !important; }
 
-/* Input - Apple-level refinement */
+/* Input — Apple-level refinement */
 .inp-row { display:flex; gap:8px; align-items:flex-end; flex-shrink:0; }
 .inp-shell {
   flex:1;
@@ -487,9 +487,9 @@ textarea::placeholder { color:var(--text3); }
 }
 .send-btn:disabled { background:rgba(255,255,255,0.05); color:var(--text3); cursor:not-allowed; transform:none; }
 
-/* ����������������������������������������������
-   RIGHT - Controls
-���������������������������������������������� */
+/* ══════════════════════════════════════════════
+   RIGHT — Controls
+══════════════════════════════════════════════ */
 .right {
   width:var(--right); flex-shrink:0;
   overflow-y:auto; padding:14px 12px;
@@ -621,7 +621,7 @@ textarea::placeholder { color:var(--text3); }
 }
 .connect-btn:hover { background:linear-gradient(135deg,rgba(0,212,255,0.2),rgba(200,169,110,0.1)); }
 
-/* �� MODAL ����������������������������������� */
+/* ── MODAL ─────────────────────────────────── */
 .modal-bg {
   position:fixed; inset:0; z-index:200;
   background:rgba(0,0,0,0.8);
@@ -718,17 +718,17 @@ textarea::placeholder { color:var(--text3); }
   font-size:0.6rem; color:#7ee8e0; line-height:1.75;
 }
 
-/* �����������������������������������������������
-   RESPONSIVE & DYNAMIC - Mobile First
+/* ═══════════════════════════════════════════════
+   RESPONSIVE & DYNAMIC — Mobile First
    Breakpoints: 1200px, 900px, 600px, 400px
-����������������������������������������������� */
+═══════════════════════════════════════════════ */
 
 /* Smooth transitions for all interactive elements */
 .hi, .pc, .card, .acard, .mic, .send-btn, .new-btn, .hdr-btn, .icon-btn {
   transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-/* Mobile hamburger button - hidden on desktop */
+/* Mobile hamburger button — hidden on desktop */
 .menu-toggle {
   display: none;
   width: 32px; height: 32px; border-radius: 8px;
@@ -750,7 +750,7 @@ textarea::placeholder { color:var(--text3); }
 }
 .sidebar-overlay.open { opacity: 1; }
 
-/* Right panel toggle button - mobile only */
+/* Right panel toggle button — mobile only */
 .right-toggle {
   display: none;
   width: 32px; height: 32px; border-radius: 8px;
@@ -761,9 +761,9 @@ textarea::placeholder { color:var(--text3); }
 }
 .right-toggle:hover { color: var(--gold); border-color: rgba(0,212,255,0.3); }
 
-/* �� LARGE DESKTOP (1400px+) - default, already handled �� */
+/* ── LARGE DESKTOP (1400px+) — default, already handled ── */
 
-/* �� MEDIUM DESKTOP (900px - 1200px) �� */
+/* ── MEDIUM DESKTOP (900px - 1200px) ── */
 @media (max-width: 1200px) {
   :root {
     --left:  220px;
@@ -773,7 +773,7 @@ textarea::placeholder { color:var(--text3); }
   .hdr-right .chip { display: none; } /* hide model badge */
 }
 
-/* �� TABLET LANDSCAPE (768px - 900px) �� */
+/* ── TABLET LANDSCAPE (768px - 900px) ── */
 @media (max-width: 900px) {
   :root {
     --left:  200px;
@@ -808,7 +808,7 @@ textarea::placeholder { color:var(--text3); }
   .mic-icon { font-size: 1.7rem; }
 }
 
-/* �� TABLET PORTRAIT (600px - 768px) �� */
+/* ── TABLET PORTRAIT (600px - 768px) ── */
 @media (max-width: 768px) {
   :root { --left: 0px; }
 
@@ -856,7 +856,7 @@ textarea::placeholder { color:var(--text3); }
   .send-btn { padding: 8px 14px; font-size: 0.72rem; }
 }
 
-/* �� MOBILE (max 600px) �� */
+/* ── MOBILE (max 600px) ── */
 @media (max-width: 600px) {
   .mic-stage { padding: 14px 12px 8px; gap: 10px; }
   .halo3 { width: 148px; height: 148px; }
@@ -887,7 +887,7 @@ textarea::placeholder { color:var(--text3); }
   .status-pill { padding: 4px 10px; font-size: 0.56rem; }
 }
 
-/* �� SMALL MOBILE (max 400px) �� */
+/* ── SMALL MOBILE (max 400px) ── */
 @media (max-width: 400px) {
   .halo3 { width: 136px; height: 136px; }
   .halo2 { width: 108px; height: 108px; }
@@ -902,7 +902,7 @@ textarea::placeholder { color:var(--text3); }
   .send-btn { padding: 7px 10px; font-size: 0.68rem; }
 }
 
-/* �� DYNAMIC HOVER EFFECTS �� */
+/* ── DYNAMIC HOVER EFFECTS ── */
 
 /* Cards lift on hover */
 .card:hover {
@@ -951,7 +951,7 @@ textarea::placeholder { color:var(--text3); }
   scroll-behavior: smooth;
 }
 
-/* Touch devices - remove hover effects that feel wrong */
+/* Touch devices — remove hover effects that feel wrong */
 @media (hover: none) {
   .card:hover { transform: none; box-shadow: none; }
   .hi:hover .hi-title { color: var(--text); }
@@ -970,7 +970,7 @@ textarea::placeholder { color:var(--text3); }
   body { overflow-y: auto; }
 }
 
-/* �� EMAIL CARDS - Gmail accurate colors ������������������� */
+/* ── EMAIL CARDS — Gmail accurate colors ─────────────────── */
 /* Gmail color palette */
 :root {
   --gmail-red:    #EA4335;
@@ -1045,7 +1045,7 @@ textarea::placeholder { color:var(--text3); }
 .email-star    { font-size: 0.8rem; cursor: pointer; opacity: 0.3; }
 .email-star:hover { opacity: 1; }
 
-/* Email detail card - Gmail light theme */
+/* Email detail card — Gmail light theme */
 .email-detail {
   border-radius: 12px; overflow: hidden; width: 100%;
   margin-top: 6px; animation: msg-in 0.3s cubic-bezier(0.16,1,0.3,1);
@@ -1078,7 +1078,7 @@ textarea::placeholder { color:var(--text3); }
   padding-left: 16px; position: relative; line-height: 1.55;
 }
 .email-points li::before {
-  content: ''; position: absolute; left: 0;
+  content: '•'; position: absolute; left: 0;
   font-size: 0.9rem; color: var(--gmail-blue); top: 0px;
 }
 
@@ -1101,7 +1101,7 @@ textarea::placeholder { color:var(--text3); }
 }
 .send-reply-btn:hover { background: #1557b0; box-shadow: 0 2px 8px rgba(26,115,232,0.4); }
 
-/* Inbox stats card - Gmail colors */
+/* Inbox stats card — Gmail colors */
 .inbox-stats {
   border-radius: 12px; border: 1px solid var(--gmail-border);
   overflow: hidden; width: 100%; margin-top: 6px;
@@ -1141,7 +1141,7 @@ textarea::placeholder { color:var(--text3); }
 }
 .gmail-open-btn:hover { background: var(--gmail-hover); box-shadow: 0 1px 3px rgba(0,0,0,0.15); }
 
-/* Gmail panel - slides in from right */
+/* Gmail panel — slides in from right */
 .gmail-panel {
   position: fixed; right: 0; top: 56px;
   width: 480px; height: calc(100vh - 56px);
@@ -1206,7 +1206,7 @@ textarea::placeholder { color:var(--text3); }
 <!-- HEADER -->
 <div class="sidebar-overlay" id="sidebarOverlay"></div>
 <header class="hdr">
-  <button class="menu-toggle" id="menuToggle" title="History">?</button>
+  <button class="menu-toggle" id="menuToggle" title="History">☰</button>
   <div class="logo">
     <div class="orb"><div class="orb-inner"><div class="orb-dot"></div></div></div>
     <div class="brand">
@@ -1220,11 +1220,11 @@ textarea::placeholder { color:var(--text3); }
       <div class="pulse"></div>
       <span id="statusChip">Online</span>
     </div>
-    <div class="model-badge">? Llama 3.3 � 70B</div>
+    <div class="model-badge">⚡ Llama 3.3 · 70B</div>
   </div>
 
   <div class="hdr-right">
-    <button class="hdr-btn" id="gearBtn" title="Settings">?</button>
+    <button class="hdr-btn" id="gearBtn" title="Settings">⚙</button>
   </div>
 </header>
 
@@ -1234,10 +1234,10 @@ textarea::placeholder { color:var(--text3); }
   <!-- LEFT: History -->
   <nav class="left">
     <button class="new-btn" id="newChatBtn">
-      <span class="new-btn-icon">?</span> New Conversation
+      <span class="new-btn-icon">✦</span> New Conversation
     </button>
     <div class="search-wrap">
-      <span class="search-ico">?</span>
+      <span class="search-ico">⌕</span>
       <input type="text" id="histSearch" placeholder="Search...">
     </div>
     <div class="hist-label">Recent</div>
@@ -1251,12 +1251,12 @@ textarea::placeholder { color:var(--text3); }
     <div class="stage">
       <div class="halo3"><div class="halo2"><div class="halo1">
         <div class="mic" id="micBtn">
-          <div class="mic-icon">??</div>
+          <div class="mic-icon">🎙</div>
         </div>
       </div></div></div>
       <div class="mic-label" id="micLbl">Click to speak</div>
 
-      <!-- STOP button - visible when speaking -->
+      <!-- STOP button — visible when speaking -->
       <button id="stopBtn" onclick="stopSpeaking()" style="
         display:none; align-items:center; justify-content:center; gap:6px;
         background:#c5221f; border:1px solid #a50e0e;
@@ -1264,7 +1264,7 @@ textarea::placeholder { color:var(--text3); }
         font-family:'DM Sans',sans-serif; font-size:0.68rem; font-weight:600;
         cursor:pointer; transition:all 0.2s; letter-spacing:0.05em;
         box-shadow: 0 2px 12px rgba(197,34,31,0.4);">
-        ? Stop Speaking
+        ⏹ Stop Speaking
       </button>
 
       <div class="viz" id="viz">
@@ -1298,18 +1298,18 @@ textarea::placeholder { color:var(--text3); }
       <div class="stats">
         <div class="stat"><div class="sv" id="sMsgs">0</div><div class="sl">Messages</div></div>
         <div class="stat"><div class="sv" id="sTime">0s</div><div class="sl">Time</div></div>
-        <div class="stat"><div class="sv" id="sTok">-</div><div class="sl">Tokens</div></div>
+        <div class="stat"><div class="sv" id="sTok">—</div><div class="sl">Tokens</div></div>
       </div>
     </div>
 
     <div class="card">
       <div class="card-hd">Persona</div>
       <div class="pgrid">
-        <button class="pc active" data-p="general"><div class="pi">??</div><div class="pn">General</div><div class="pd">All-purpose</div></button>
-        <button class="pc" data-p="sales"><div class="pi">??</div><div class="pn">Sales</div><div class="pd">Lead & convert</div></button>
-        <button class="pc" data-p="support"><div class="pi">??</div><div class="pn">Support</div><div class="pd">Tech help</div></button>
-        <button class="pc" data-p="research"><div class="pi">??</div><div class="pn">Research</div><div class="pd">Deep analysis</div></button>
-        <button class="pc" data-p="jarvis" style="grid-column:span 2"><div class="pi">?</div><div class="pn">Jarvis Mode</div><div class="pd">Full Iron Man assistant</div></button>
+        <button class="pc active" data-p="general"><div class="pi">🤖</div><div class="pn">General</div><div class="pd">All-purpose</div></button>
+        <button class="pc" data-p="sales"><div class="pi">💼</div><div class="pn">Sales</div><div class="pd">Lead & convert</div></button>
+        <button class="pc" data-p="support"><div class="pi">🛠</div><div class="pn">Support</div><div class="pd">Tech help</div></button>
+        <button class="pc" data-p="research"><div class="pi">🔬</div><div class="pn">Research</div><div class="pd">Deep analysis</div></button>
+        <button class="pc" data-p="jarvis" style="grid-column:span 2"><div class="pi">⚡</div><div class="pn">Jarvis Mode</div><div class="pd">Full Iron Man assistant</div></button>
       </div>
     </div>
 
@@ -1320,14 +1320,14 @@ textarea::placeholder { color:var(--text3); }
         <label class="tog"><input type="checkbox" id="voiceOn" checked><div class="trk"></div></label>
       </div>
       <div class="row">
-        <div><div class="rl">Character</div><div class="rs">Live - changes instantly</div></div>
+        <div><div class="rl">Character</div><div class="rs">Live — changes instantly</div></div>
         <select class="sel" id="voiceSel">
-          <option value="21m00Tcm4TlvDq8ikWAM">Rachel </option>
-          <option value="AZnzlk1XvdvUeBnXmlld">Domi </option>
-          <option value="EXAVITQu4vr4xnSDxMaL" selected>Bella </option>
-          <option value="ErXwobaYiN019PkySvjV">Antoni </option>
-          <option value="pNInz6obpgDQGcFmaJgB">Adam </option>
-          <option value="VR6AewLTigWG4xSOukaG">Arnold </option>
+          <option value="21m00Tcm4TlvDq8ikWAM">Rachel ♀</option>
+          <option value="AZnzlk1XvdvUeBnXmlld">Domi ♀</option>
+          <option value="EXAVITQu4vr4xnSDxMaL" selected>Bella ♀</option>
+          <option value="ErXwobaYiN019PkySvjV">Antoni ♂</option>
+          <option value="pNInz6obpgDQGcFmaJgB">Adam ♂</option>
+          <option value="VR6AewLTigWG4xSOukaG">Arnold ♂</option>
         </select>
       </div>
       <div class="row">
@@ -1339,7 +1339,7 @@ textarea::placeholder { color:var(--text3); }
         <label class="tog"><input type="checkbox" id="autoOn"><div class="trk"></div></label>
       </div>
       <button class="save-voice-btn" id="saveVoiceSidebar">Save Voice as Default</button>
-      <div class="save-voice-saved" id="sidebarVoiceSaved">� Voice saved</div>
+      <div class="save-voice-saved" id="sidebarVoiceSaved">✓ Voice saved</div>
     </div>
 
     <div class="card">
@@ -1358,7 +1358,7 @@ textarea::placeholder { color:var(--text3); }
   <div class="modal">
     <div class="mhdr">
       <div class="mtitle">Settings</div>
-      <button class="mclose" id="closeBtn">?</button>
+      <button class="mclose" id="closeBtn">✕</button>
     </div>
     <div class="mtabs">
       <button class="mtab on" data-tab="apps">Apps</button>
@@ -1368,48 +1368,48 @@ textarea::placeholder { color:var(--text3); }
 
     <!-- APPS -->
     <div class="tpanel on" id="tab-apps">
-      <div class="mnote">?? Connections use OAuth2 - you log in with your own account. ARIA never sees your password.</div>
+      <div class="mnote">🔒 Connections use OAuth2 — you log in with your own account. ARIA never sees your password.</div>
       <div class="msec">Google</div>
-      <div class="acard" id="card-gmail"><div class="acl"><div class="acico">??</div><div><div class="acname">Gmail</div><div class="acdesc" id="desc-gmail">Send, read, sort emails</div></div></div><button class="abtn connect" id="btn-gmail" onclick="connectApp('gmail')">Connect</button></div>
-      <div class="acard" id="card-calendar"><div class="acl"><div class="acico">??</div><div><div class="acname">Calendar</div><div class="acdesc" id="desc-calendar">Book meetings</div></div></div><button class="abtn connect" id="btn-calendar" onclick="connectApp('calendar')">Connect</button></div>
+      <div class="acard" id="card-gmail"><div class="acl"><div class="acico">📧</div><div><div class="acname">Gmail</div><div class="acdesc" id="desc-gmail">Send, read, sort emails</div></div></div><button class="abtn connect" id="btn-gmail" onclick="connectApp('gmail')">Connect</button></div>
+      <div class="acard" id="card-calendar"><div class="acl"><div class="acico">📅</div><div><div class="acname">Calendar</div><div class="acdesc" id="desc-calendar">Book meetings</div></div></div><button class="abtn connect" id="btn-calendar" onclick="connectApp('calendar')">Connect</button></div>
       <div class="msec">Microsoft</div>
-      <div class="acard" id="card-outlook"><div class="acl"><div class="acico">??</div><div><div class="acname">Outlook</div><div class="acdesc" id="desc-outlook">Send and read emails</div></div></div><button class="abtn connect" id="btn-outlook" onclick="connectApp('outlook')">Connect</button></div>
+      <div class="acard" id="card-outlook"><div class="acl"><div class="acico">💼</div><div><div class="acname">Outlook</div><div class="acdesc" id="desc-outlook">Send and read emails</div></div></div><button class="abtn connect" id="btn-outlook" onclick="connectApp('outlook')">Connect</button></div>
       <div class="msec">Messaging</div>
-      <div class="acard" id="card-slack"><div class="acl"><div class="acico">??</div><div><div class="acname">Slack</div><div class="acdesc" id="desc-slack">Send to channels</div></div></div><button class="abtn connect" id="btn-slack" onclick="connectApp('slack')">Connect</button></div>
-      <div class="acard" id="card-discord"><div class="acl"><div class="acico">??</div><div><div class="acname">Discord</div><div class="acdesc" id="desc-discord">Post to channels</div></div></div><button class="abtn connect" id="btn-discord" onclick="connectApp('discord')">Connect</button></div>
+      <div class="acard" id="card-slack"><div class="acl"><div class="acico">💬</div><div><div class="acname">Slack</div><div class="acdesc" id="desc-slack">Send to channels</div></div></div><button class="abtn connect" id="btn-slack" onclick="connectApp('slack')">Connect</button></div>
+      <div class="acard" id="card-discord"><div class="acl"><div class="acico">🎮</div><div><div class="acname">Discord</div><div class="acdesc" id="desc-discord">Post to channels</div></div></div><button class="abtn connect" id="btn-discord" onclick="connectApp('discord')">Connect</button></div>
       <div class="msec">Productivity</div>
-      <div class="acard" id="card-notion"><div class="acl"><div class="acico">??</div><div><div class="acname">Notion</div><div class="acdesc" id="desc-notion">Create notes</div></div></div><button class="abtn connect" id="btn-notion" onclick="connectApp('notion')">Connect</button></div>
-      <div class="acard" id="card-airtable"><div class="acl"><div class="acico">??</div><div><div class="acname">Airtable</div><div class="acdesc" id="desc-airtable">Log data</div></div></div><button class="abtn connect" id="btn-airtable" onclick="connectApp('airtable')">Connect</button></div>
+      <div class="acard" id="card-notion"><div class="acl"><div class="acico">📝</div><div><div class="acname">Notion</div><div class="acdesc" id="desc-notion">Create notes</div></div></div><button class="abtn connect" id="btn-notion" onclick="connectApp('notion')">Connect</button></div>
+      <div class="acard" id="card-airtable"><div class="acl"><div class="acico">🗃</div><div><div class="acname">Airtable</div><div class="acdesc" id="desc-airtable">Log data</div></div></div><button class="abtn connect" id="btn-airtable" onclick="connectApp('airtable')">Connect</button></div>
     </div>
 
     <!-- VOICE -->
     <div class="tpanel" id="tab-voice">
-      <div class="mnote">ElevenLabs API key is encrypted in Cloudflare - no setup needed.</div>
+      <div class="mnote">ElevenLabs API key is encrypted in Cloudflare — no setup needed.</div>
       <div class="mfld">
         <div class="mlbl">Voice Character</div>
         <select class="minp" id="modalVoice" style="cursor:pointer">
-          <option value="21m00Tcm4TlvDq8ikWAM">Rachel - warm natural female</option>
-          <option value="AZnzlk1XvdvUeBnXmlld">Domi - confident female</option>
-          <option value="EXAVITQu4vr4xnSDxMaL" selected>Bella - soft female</option>
-          <option value="ErXwobaYiN019PkySvjV">Antoni - well-rounded male</option>
-          <option value="pNInz6obpgDQGcFmaJgB">Adam - deep male</option>
-          <option value="VR6AewLTigWG4xSOukaG">Arnold - crisp male</option>
+          <option value="21m00Tcm4TlvDq8ikWAM">Rachel — warm natural female</option>
+          <option value="AZnzlk1XvdvUeBnXmlld">Domi — confident female</option>
+          <option value="EXAVITQu4vr4xnSDxMaL" selected>Bella — soft female</option>
+          <option value="ErXwobaYiN019PkySvjV">Antoni — well-rounded male</option>
+          <option value="pNInz6obpgDQGcFmaJgB">Adam — deep male</option>
+          <option value="VR6AewLTigWG4xSOukaG">Arnold — crisp male</option>
         </select>
       </div>
       <div class="mfld">
         <div class="mlbl">Speech Speed</div>
         <input type="range" style="accent-color:var(--gold);width:100%" id="modalSpd" min="0.6" max="1.8" step="0.1" value="1">
-        <div class="mhint">0.6 = slow � 1.0 = normal � 1.8 = fast</div>
+        <div class="mhint">0.6 = slow · 1.0 = normal · 1.8 = fast</div>
       </div>
       <button class="msave-btn" id="saveVoice">Save Voice Settings</button>
-      <div class="msaved" id="voiceSaved">� Voice settings saved</div>
+      <div class="msaved" id="voiceSaved">✓ Voice settings saved</div>
     </div>
 
     <!-- ABOUT -->
     <div class="tpanel" id="tab-about">
       <div class="mnote">
-        <strong>ARIA v9.1</strong> - Built by Nihhar K Sonee (NKS-Coder)<br>
-        Groq Llama 3.3 70B � ElevenLabs � Cloudflare Workers � Supabase<br><br>
+        <strong>ARIA v9.1</strong> — Built by Nihhar K Sonee (NKS-Coder)<br>
+        Groq Llama 3.3 70B · ElevenLabs · Cloudflare Workers · Supabase<br><br>
         All API keys are encrypted server-side in Cloudflare. Nothing sensitive is stored in your browser.
       </div>
       <div class="mfld">
@@ -1424,13 +1424,13 @@ textarea::placeholder { color:var(--text3); }
 const W='https://ariaproxy.nihharksonee.workers.dev';
 const BELLA='EXAVITQu4vr4xnSDxMaL';
 const APPS={
-  gmail:    {name:'Gmail',          icon:'??',auth:'google',   prompt:null},
-  calendar: {name:'Calendar',       icon:'??',auth:'google',   prompt:null},
-  outlook:  {name:'Outlook',        icon:'??',auth:'microsoft',prompt:null},
-  slack:    {name:'Slack',          icon:'??',auth:'token',    prompt:'Paste your Slack Bot Token (xoxb-...):\n\nGet from api.slack.com/apps'},
-  discord:  {name:'Discord',        icon:'??',auth:'webhook',  prompt:'Paste your Discord Webhook URL:\n\nGet from channel Settings  Integrations'},
-  notion:   {name:'Notion',         icon:'??',auth:'token',    prompt:'Paste your Notion Token:\n\nGet from notion.so/my-integrations'},
-  airtable: {name:'Airtable',       icon:'??',auth:'token',    prompt:'Paste your Airtable Token:\n\nGet from airtable.com/create/tokens'},
+  gmail:    {name:'Gmail',          icon:'📧',auth:'google',   prompt:null},
+  calendar: {name:'Calendar',       icon:'📅',auth:'google',   prompt:null},
+  outlook:  {name:'Outlook',        icon:'💼',auth:'microsoft',prompt:null},
+  slack:    {name:'Slack',          icon:'💬',auth:'token',    prompt:'Paste your Slack Bot Token (xoxb-...):\n\nGet from api.slack.com/apps'},
+  discord:  {name:'Discord',        icon:'🎮',auth:'webhook',  prompt:'Paste your Discord Webhook URL:\n\nGet from channel Settings → Integrations'},
+  notion:   {name:'Notion',         icon:'📝',auth:'token',    prompt:'Paste your Notion Token:\n\nGet from notion.so/my-integrations'},
+  airtable: {name:'Airtable',       icon:'🗃',auth:'token',    prompt:'Paste your Airtable Token:\n\nGet from airtable.com/create/tokens'},
 };
 
 // STATE
@@ -1504,7 +1504,7 @@ window.addEventListener('load', async ()=>{
   checkWorker();
 
   // Step 3: Load EVERYTHING from Supabase using current session
-  // This runs on every page load - restores apps + conversations automatically
+  // This runs on every page load — restores apps + conversations automatically
   await loadFromSupabase();
 
   // Step 4: Welcome
@@ -1512,7 +1512,7 @@ window.addEventListener('load', async ()=>{
   speak("Hello. I'm ARIA. How can I help you today?");
 });
 
-// Load all state from Supabase - the single source of truth
+// Load all state from Supabase — the single source of truth
 async function loadFromSupabase() {
   const session = getSession();
   console.log('Loading from Supabase for session:', session);
@@ -1528,7 +1528,7 @@ async function loadFromSupabase() {
       localStorage.setItem('aria_apps', s);
       sessionStorage.setItem('aria_apps', s);
       syncApps();
-      console.log('? Restored apps:', Object.keys(appsData.apps));
+      console.log('✅ Restored apps:', Object.keys(appsData.apps));
     }
   } catch(e) {
     console.warn('Could not load apps from Supabase:', e.message);
@@ -1543,7 +1543,7 @@ async function loadFromSupabase() {
     if(msgs.length > 0 && C.convs.length === 0) {
       // Group into conversation threads (pairs of user+assistant)
       // Use existing localStorage convs if available, otherwise build from Supabase
-      console.log('? Found', msgs.length, 'messages in Supabase');
+      console.log('✅ Found', msgs.length, 'messages in Supabase');
     }
   } catch(e) {
     console.warn('Could not load conversations from Supabase:', e.message);
@@ -1556,10 +1556,10 @@ function enc(s){ return encodeURIComponent(s||''); }
 async function checkWorker(){
   try{
     const r=await fetch(`${W}/health`);const d=await r.json();
-    $('workerStatus').textContent=`� ${d.status||'Connected'} � ElevenLabs: ${d.elevenlabs?'�':'?'}`;
+    $('workerStatus').textContent=`✓ ${d.status||'Connected'} · ElevenLabs: ${d.elevenlabs?'✓':'✗'}`;
     $('workerStatus').style.color='#5de6d8';
   }catch(e){
-    $('workerStatus').textContent='? Cannot reach Worker - check Cloudflare deployment';
+    $('workerStatus').textContent='✗ Cannot reach Worker — check Cloudflare deployment';
     $('workerStatus').style.color='var(--rose)';
   }
 }
@@ -1587,7 +1587,7 @@ $('saveVoiceSidebar').addEventListener('click',()=>{
   C.setVoice(D.vSel.value);C.setSpeed(D.spd.value);
   $('modalVoice').value=D.vSel.value;
   const btn=$('saveVoiceSidebar');
-  btn.textContent='� Saved';btn.style.color='var(--cyan)';btn.style.borderColor='rgba(93,230,216,0.3)';
+  btn.textContent='✓ Saved';btn.style.color='var(--cyan)';btn.style.borderColor='rgba(93,230,216,0.3)';
   $('sidebarVoiceSaved').style.display='block';
   setTimeout(()=>{btn.textContent='Save Voice as Default';btn.style.color='';btn.style.borderColor='';$('sidebarVoiceSaved').style.display='none';},2500);
 });
@@ -1610,10 +1610,10 @@ let sec=0;
 setInterval(()=>{sec++;D.nTime.textContent=sec<60?`${sec}s`:`${Math.floor(sec/60)}m${sec%60}s`;},1000);
 
 // VOICE ENGINE
-// �� VOICE ENGINE ���������������������������������������������
+// ── VOICE ENGINE ─────────────────────────────────────────────
 const synth = window.speechSynthesis;
 let bVoices  = [];
-let elFails  = 0;           // count consecutive EL failures - reset on success
+let elFails  = 0;           // count consecutive EL failures — reset on success
 const EL_MAX_FAILS = 2;     // after 2 fails, try browser voice temporarily
 
 function loadBV() {
@@ -1621,7 +1621,7 @@ function loadBV() {
 
   // Preferred female voices by exact name priority (Windows + Mac + Android)
   const PREFER_FEMALE = [
-    'Microsoft Zira',        // Windows - best female
+    'Microsoft Zira',        // Windows — best female
     'Microsoft Aria',        // Windows 11
     'Microsoft Jenny',       // Windows 11
     'Microsoft Hazel',       // Windows UK female
@@ -1646,7 +1646,7 @@ function loadBV() {
     // Put chosen first, then rest excluding David/Mark male voices
     bVoices = [chosen, ...all.filter(v => v !== chosen && !/(david|mark|richard|george|james|daniel)/i.test(v.name))];
   } else {
-    // No preferred found - sort by gender signals, exclude robotic males
+    // No preferred found — sort by gender signals, exclude robotic males
     bVoices = all
       .filter(v => !/(david|mark|richard|george|james)/i.test(v.name))
       .sort((a,b) => {
@@ -1694,7 +1694,7 @@ async function speakEL(txt) {
 
   // Skip EL temporarily if too many consecutive failures
   if (elFails >= EL_MAX_FAILS) {
-    console.warn(`ElevenLabs skipped after ${elFails} failures - using browser voice`);
+    console.warn(`ElevenLabs skipped after ${elFails} failures — using browser voice`);
     fallbackSpeak(txt);
     // Reset after 30 seconds so we try EL again next message
     setTimeout(() => { elFails = 0; }, 30000);
@@ -1732,7 +1732,7 @@ async function speakEL(txt) {
       return;
     }
 
-    // Success - reset fail counter
+    // Success — reset fail counter
     elFails = 0;
 
     const blob  = await res.blob();
@@ -1748,7 +1748,7 @@ async function speakEL(txt) {
       if ($('autoOn').checked) startListen();
     };
     await audio.play();
-    console.log('? ElevenLabs playing');
+    console.log('✅ ElevenLabs playing');
 
   } catch(e) {
     if (e.name === 'AbortError') {
@@ -1763,10 +1763,10 @@ async function speakEL(txt) {
 
 function speak(txt) {
   if (!$('voiceOn').checked) return;
-  // For email responses - only speak the first 2 sentences, not the full list
+  // For email responses — only speak the first 2 sentences, not the full list
   let spokenTxt = txt;
   if (txt.trim().startsWith('{')) {
-    // Structured response - extract just the summary to speak
+    // Structured response — extract just the summary to speak
     try {
       const data = JSON.parse(txt.trim());
       if (data.type === 'email_list') {
@@ -1804,7 +1804,7 @@ function buildRec(){
   };
   rec.onerror=e=>{
     S.listening=false;setMode('ready');
-    if(e.error==='not-allowed')addMsg('assistant','Microphone blocked. Click the lock icon in your address bar  Microphone  Allow  refresh.',true);
+    if(e.error==='not-allowed')addMsg('assistant','Microphone blocked. Click the lock icon in your address bar → Microphone → Allow → refresh.',true);
     else if(e.error!=='no-speech'&&e.error!=='aborted')addMsg('assistant',`Mic error: ${e.error}`,true);
   };
   rec.onend=()=>{if(S.listening){S.listening=false;setMode('ready');}};
@@ -1832,7 +1832,7 @@ async function startListen(){
     try{
       await navigator.mediaDevices.getUserMedia({audio:true});
     }catch(err){
-      addMsg('assistant','?? Microphone blocked. Click the ?? lock icon in your address bar  Site settings  Microphone  Allow  refresh the page.',true);
+      addMsg('assistant','🎤 Microphone blocked. Click the 🔒 lock icon in your address bar → Site settings → Microphone → Allow → refresh the page.',true);
       return;
     }
   }
@@ -1917,11 +1917,11 @@ async function sendMsg(){
   S.msgs.push({role:'user',content:txt});addMsg('user',txt);
   if(S.msgs.length===1){
     // Set raw title immediately
-    const rawTitle = txt.slice(0,36)+(txt.length>36?'.':'');
+    const rawTitle = txt.slice(0,36)+(txt.length>36?'…':'');
     S.convTitle = rawTitle;
     D.convLabel.textContent = rawTitle;
     renderHist();
-    // Generate smart AI title in background - only once, no loop
+    // Generate smart AI title in background — only once, no loop
     const titleMsg = txt;
     const rawTitleSnapshot = rawTitle;
     setTimeout(() => {
@@ -1930,7 +1930,7 @@ async function sendMsg(){
         if(smartTitle && S.convTitle === rawTitleSnapshot){
           S.convTitle = smartTitle;
           D.convLabel.textContent = smartTitle;
-          // Don't save here - saveCurrentConv runs after AI reply
+          // Don't save here — saveCurrentConv runs after AI reply
           renderHist();
         }
       }).catch(()=>{});
@@ -1953,7 +1953,7 @@ D.inp.addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventD
 function autoResize(){D.inp.style.height='auto';D.inp.style.height=Math.min(D.inp.scrollHeight,110)+'px';}
 D.inp.addEventListener('input',autoResize);
 
-// �� SMART AI TITLE GENERATION ��������������������������������
+// ── SMART AI TITLE GENERATION ────────────────────────────────
 async function generateTitle(firstMessage) {
   // Guard: don't generate title for very short messages
   if (!firstMessage || firstMessage.length < 3) return null;
@@ -2024,7 +2024,7 @@ function renderHist(filter=''){
   convs.forEach(conv=>{
     const d=document.createElement('div');
     d.className='hi'+(conv.id===S.convId?' active':'');
-    d.innerHTML=`<div class="hi-ico">?</div><div class="hi-body"><div class="hi-title">${conv.title}</div><div class="hi-time">${ftime(conv.time)}</div></div><button class="hi-del" onclick="deleteConv('${conv.id}',event)">?</button>`;
+    d.innerHTML=`<div class="hi-ico">◈</div><div class="hi-body"><div class="hi-title">${conv.title}</div><div class="hi-time">${ftime(conv.time)}</div></div><button class="hi-del" onclick="deleteConv('${conv.id}',event)">✕</button>`;
     d.addEventListener('click',()=>loadConv(conv));
     D.histList.appendChild(d);
   });
@@ -2050,7 +2050,7 @@ window.addEventListener('message', (event) => {
     const { app, email, session, access_token, refresh_token } = event.data;
     console.log('OAuth success received:', app, email, 'session:', session);
 
-    // Sync session ID - this is critical
+    // Sync session ID — this is critical
     if (session) {
       setSession(session); // always sync to OAuth session
     }
@@ -2145,7 +2145,7 @@ function syncApps(){
   Object.keys(APPS).forEach(name=>{
     const b=$(`btn-${name}`),c=$(`card-${name}`),d=$(`desc-${name}`);if(!b||!c)return;
     const ok=apps[name]?.connected;c.classList.toggle('on',ok);
-    if(ok){if(d)d.textContent=apps[name]?.email?`� ${apps[name].email}`:'� Connected';b.textContent='Disconnect';b.className='abtn disco';b.onclick=()=>disconnectApp(name);}
+    if(ok){if(d)d.textContent=apps[name]?.email?`✓ ${apps[name].email}`:'✓ Connected';b.textContent='Disconnect';b.className='abtn disco';b.onclick=()=>disconnectApp(name);}
     else{if(d)d.textContent={gmail:'Send, read, sort emails',calendar:'Book meetings',outlook:'Send and read emails',slack:'Send to channels',discord:'Post to channels',notion:'Create notes',airtable:'Log data'}[name]||'';b.textContent='Connect';b.className='abtn connect';b.onclick=()=>connectApp(name);}
   });
   const connected=Object.keys(apps).filter(k=>apps[k]?.connected);
@@ -2154,16 +2154,16 @@ function syncApps(){
   connected.forEach(name=>{
     const app=APPS[name];if(!app)return;
     const d=document.createElement('div');d.className='ai';
-    d.innerHTML=`<div class="ai-l"><div class="ai-ico">${app.icon}</div><div><div class="ai-name">${app.name}</div><div class="ai-sub" style="color:var(--cyan)">� Active</div></div></div><div style="width:5px;height:5px;border-radius:50%;background:var(--cyan);box-shadow:0 0 5px var(--cyan)"></div>`;
+    d.innerHTML=`<div class="ai-l"><div class="ai-ico">${app.icon}</div><div><div class="ai-name">${app.name}</div><div class="ai-sub" style="color:var(--cyan)">✓ Active</div></div></div><div style="width:5px;height:5px;border-radius:50%;background:var(--cyan);box-shadow:0 0 5px var(--cyan)"></div>`;
     D.sApps.appendChild(d);
   });
 }
 
-// �� EMAIL CARD RENDERER ��������������������������������������
+// ── EMAIL CARD RENDERER ──────────────────────────────────────
 
 // Show email detail directly in chat without triggering AI loop
 async function showEmailDetail(email) {
-  // Render email detail DIRECTLY - no Worker call, no loop
+  // Render email detail DIRECTLY — no Worker call, no loop
   // We already have the email data, just display it beautifully
 
   const fromName  = (email.from || '').replace(/<[^>]+>/,'').replace(/"/g,'').trim();
@@ -2245,7 +2245,7 @@ async function showEmailDetail(email) {
       <div style="padding:12px 16px;border-bottom:1px solid #f1f3f4;">
         <div style="font-size:0.55rem;letter-spacing:0.1em;text-transform:uppercase;color:#EA4335;font-weight:600;margin-bottom:6px;">Key Points</div>
         <ul style="list-style:none;display:flex;flex-direction:column;gap:5px;">
-          ${detail.key_points.map(p=>`<li style="font-size:0.74rem;color:#202124;padding-left:14px;position:relative;"><span style="position:absolute;left:0;color:#1a73e8;font-size:1rem;top:-3px;"></span>${p}</li>`).join('')}
+          ${detail.key_points.map(p=>`<li style="font-size:0.74rem;color:#202124;padding-left:14px;position:relative;"><span style="position:absolute;left:0;color:#1a73e8;font-size:1rem;top:-3px;">•</span>${p}</li>`).join('')}
         </ul>
       </div>` : ''}
       ${detail.suggested_reply ? `
@@ -2254,7 +2254,7 @@ async function showEmailDetail(email) {
         <div style="background:#f8f9fa;border:1px solid #e8eaed;border-left:3px solid #1a73e8;border-radius:4px;padding:10px 12px;font-size:0.74rem;color:#202124;line-height:1.75;white-space:pre-wrap;">${detail.suggested_reply}</div>
         <button onclick="sendEmailReply('${encodeURIComponent(email.from||'')}','${encodeURIComponent(email.subject||'')}','${encodeURIComponent(detail.suggested_reply||'')}')"
           style="margin-top:8px;width:100%;background:#1a73e8;color:#fff;border:none;border-radius:20px;padding:9px;font-family:Google Sans,Arial,sans-serif;font-size:0.76rem;font-weight:500;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:5px;">
-          ? Send This Reply
+          ↩ Send This Reply
         </button>
       </div>` : ''}
     `;
@@ -2299,7 +2299,7 @@ function renderEmailResponse(raw, container) {
       return true;
     }
   } catch(e) {
-    // Not JSON - render as plain text
+    // Not JSON — render as plain text
   }
   return false;
 }
@@ -2327,10 +2327,10 @@ function renderInboxStats(data, container) {
       </div>
     </div>
     <div style="display:flex;gap:8px;padding:12px 16px;background:#f6f8fc;flex-wrap:wrap;">
-      <button onclick="sendMsg_quick('mark all emails as read')" style="flex:1;min-width:90px;padding:7px 12px;border-radius:20px;border:1px solid #dadce0;background:#fff;color:#1a73e8;font-family:Google Sans,Arial,sans-serif;font-size:0.68rem;font-weight:500;cursor:pointer;">� Mark All Read</button>
-      <button onclick="sendMsg_quick('read my important emails')" style="flex:1;min-width:90px;padding:7px 12px;border-radius:20px;border:1px solid #dadce0;background:#fff;color:#F4B400;font-family:Google Sans,Arial,sans-serif;font-size:0.68rem;font-weight:500;cursor:pointer;">? Important</button>
-      <button onclick="sendMsg_quick('read my unread emails')" style="flex:1;min-width:90px;padding:7px 12px;border-radius:20px;border:1px solid #dadce0;background:#fff;color:#34A853;font-family:Google Sans,Arial,sans-serif;font-size:0.68rem;font-weight:500;cursor:pointer;">?? Unread</button>
-      <button onclick="openGmailPanel(null)" style="flex:1;min-width:90px;padding:7px 12px;border-radius:20px;border:1px solid #dadce0;background:#EA4335;color:#fff;font-family:Google Sans,Arial,sans-serif;font-size:0.68rem;font-weight:500;cursor:pointer;">? Open Gmail</button>
+      <button onclick="sendMsg_quick('mark all emails as read')" style="flex:1;min-width:90px;padding:7px 12px;border-radius:20px;border:1px solid #dadce0;background:#fff;color:#1a73e8;font-family:Google Sans,Arial,sans-serif;font-size:0.68rem;font-weight:500;cursor:pointer;">✓ Mark All Read</button>
+      <button onclick="sendMsg_quick('read my important emails')" style="flex:1;min-width:90px;padding:7px 12px;border-radius:20px;border:1px solid #dadce0;background:#fff;color:#F4B400;font-family:Google Sans,Arial,sans-serif;font-size:0.68rem;font-weight:500;cursor:pointer;">⭐ Important</button>
+      <button onclick="sendMsg_quick('read my unread emails')" style="flex:1;min-width:90px;padding:7px 12px;border-radius:20px;border:1px solid #dadce0;background:#fff;color:#34A853;font-family:Google Sans,Arial,sans-serif;font-size:0.68rem;font-weight:500;cursor:pointer;">📩 Unread</button>
+      <button onclick="openGmailPanel(null)" style="flex:1;min-width:90px;padding:7px 12px;border-radius:20px;border:1px solid #dadce0;background:#EA4335;color:#fff;font-family:Google Sans,Arial,sans-serif;font-size:0.68rem;font-weight:500;cursor:pointer;">↗ Open Gmail</button>
     </div>
   `;
   container.appendChild(el);
@@ -2366,7 +2366,7 @@ function renderEmailList(data, container) {
         <span style="font-size:0.62rem;color:rgba(255,255,255,0.85);background:rgba(0,0,0,0.2);border-radius:10px;padding:1px 8px;">${data.count} emails</span>
       </div>
       <button onclick="openGmailPanel(window._lastEmails)" style="display:flex;align-items:center;gap:4px;padding:5px 12px;border-radius:20px;border:1px solid rgba(255,255,255,0.35);background:rgba(255,255,255,0.12);color:#fff;font-size:0.63rem;font-weight:500;cursor:pointer;font-family:Arial,sans-serif;">
-        Open ?
+        Open ↗
       </button>
     </div>
     ${data.summary ? `<div style="padding:9px 14px;font-size:0.73rem;color:#5f6368;border-bottom:1px solid #f1f3f4;background:#fafafa;line-height:1.6;">${data.summary}</div>` : ''}
@@ -2393,17 +2393,17 @@ function renderEmailList(data, container) {
       </div>
       <div style="font-size:0.6rem;color:#5f6368;flex-shrink:0;text-align:right;">
         <div>${dateStr}</div>
-        <div style="font-size:0.85rem;margin-top:3px;opacity:0.3;cursor:pointer;" title="Star">?</div>
+        <div style="font-size:0.85rem;margin-top:3px;opacity:0.3;cursor:pointer;" title="Star">☆</div>
       </div>
     `;
     row.onclick = () => showEmailDetail(email);
     panel.appendChild(row);
   });
 
-  // Last row - open in Gmail
+  // Last row — open in Gmail
   const footer = document.createElement('div');
   footer.style.cssText = 'padding:9px 14px;background:#f6f8fc;text-align:center;';
-  footer.innerHTML = `<a href="https://mail.google.com" target="_blank" style="font-size:0.68rem;color:#1a73e8;font-weight:500;text-decoration:none;">View all in Gmail </a>`;
+  footer.innerHTML = `<a href="https://mail.google.com" target="_blank" style="font-size:0.68rem;color:#1a73e8;font-weight:500;text-decoration:none;">View all in Gmail →</a>`;
   panel.appendChild(footer);
 
   container.appendChild(panel);
@@ -2450,7 +2450,7 @@ function renderEmailDetail(data, container) {
       <ul style="list-style:none;display:flex;flex-direction:column;gap:6px;">
         ${detail.key_points.map(p => `
           <li style="font-size:0.76rem;color:#202124;padding-left:16px;position:relative;line-height:1.55;">
-            <span style="position:absolute;left:0;color:#1a73e8;font-size:1rem;top:-2px;"></span>${p}
+            <span style="position:absolute;left:0;color:#1a73e8;font-size:1rem;top:-2px;">•</span>${p}
           </li>`).join('')}
       </ul>
     </div>` : ''}
@@ -2463,7 +2463,7 @@ function renderEmailDetail(data, container) {
       <button onclick="sendEmailReply('${safeFrom}','${safeSubject}','${safeReply}')"
         style="margin-top:10px;width:100%;background:#1a73e8;color:#fff;border:none;border-radius:20px;padding:10px;font-family:Google Sans,Arial,sans-serif;font-size:0.78rem;font-weight:500;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;transition:background 0.2s;"
         onmouseover="this.style.background='#1557b0'" onmouseout="this.style.background='#1a73e8'">
-        ? Send This Reply
+        ↩ Send This Reply
       </button>
     </div>` : ''}
   `;
@@ -2489,7 +2489,7 @@ function sendEmailReply(to, subject, body) {
   sendMsg_quick(cmd);
 }
 
-// �� GMAIL PANEL �����������������������������������������������
+// ── GMAIL PANEL ───────────────────────────────────────────────
 function openGmailPanel(emails) {
   const panel = $('gmailPanel');
   const body  = panel.querySelector('.gmail-panel-body');
@@ -2497,14 +2497,14 @@ function openGmailPanel(emails) {
   // Build panel content
   body.innerHTML = `
     <div class="gmail-notice">
-      <div class="gmail-notice-icon">??</div>
+      <div class="gmail-notice-icon">📬</div>
       <div class="gmail-notice-title">Open Gmail</div>
       <div class="gmail-notice-text">
         Gmail cannot be embedded due to browser security.<br>
         Click below to open your inbox in a new tab.
       </div>
       <a href="https://mail.google.com" target="_blank" class="gmail-open-full">
-        ?? Open Gmail Inbox
+        📧 Open Gmail Inbox
       </a>
     </div>
     ${emails && emails.length ? `
@@ -2536,7 +2536,7 @@ function closeGmailPanel() {
   $('gmailPanel').classList.remove('open');
 }
 
-// �������������������������������������������������������������
+// ─────────────────────────────────────────────────────────────
 
 function getSession(){
   // Try localStorage first
@@ -2571,7 +2571,7 @@ function setSession(sid){
   return sid;
 }
 
-// �� MOBILE RESPONSIVE CONTROLS ��������������������������������
+// ── MOBILE RESPONSIVE CONTROLS ────────────────────────────────
 const leftPanel    = document.querySelector('.left');
 const rightPanel   = document.querySelector('.right');
 const overlay      = $('sidebarOverlay');
@@ -2619,24 +2619,31 @@ D.inp.addEventListener('input', () => {
 <!-- GMAIL PANEL -->
 <div class="gmail-panel" id="gmailPanel">
   <div class="gmail-panel-hdr">
-    <div class="gmail-panel-title">?? Gmail</div>
-    <button class="gmail-panel-close" onclick="closeGmailPanel()">?</button>
+    <div class="gmail-panel-title">📧 Gmail</div>
+    <button class="gmail-panel-close" onclick="closeGmailPanel()">✕</button>
   </div>
   <div class="gmail-panel-body">
     <iframe id="gmailFrame" src="" title="Gmail"></iframe>
   </div>
 </div>
 
-
 <script>
 
-/* ═══════════════════════════════════════════════════════════════════════
-   ARIA ENHANCED v2 — Full Bug Fix + Gmail Cards + Voice Fix
-   Fixes: token loss, Microsoft voice fallback, plain text, intent gaps
-   ═══════════════════════════════════════════════════════════════════════ */
+/* ================================================================
+   ARIA v3 — Targeted Bug Fixes
+   1. ElevenLabs always-on (no fail counter lockout)
+   2. Connected Apps sidebar always shows Gmail after load
+   3. Protected Gmail token (survives Supabase overwrites)
+   4. Gmail Direct API + email cards
+   5. Broad voice intent detection
+   6. sendMsg patched to intercept Gmail commands
+   7. "Hey ARIA" wake word
+   ================================================================ */
 
-// ── 0. Protected Token Storage (survives Supabase/checkAppStatus overwrites) ──
-const _TOK_KEY = 'aria_gm_tok_v2';
+// ----------------------------------------------------------------
+// 1. PROTECTED TOKEN STORE — survives C.saveApp / Supabase rewrites
+// ----------------------------------------------------------------
+var _TOK_KEY = 'aria_gm_tok_v2';
 
 function _saveTok(t) {
   if (!t) return;
@@ -2645,476 +2652,478 @@ function _saveTok(t) {
 }
 
 function _gmTok() {
-  try {
-    return sessionStorage.getItem(_TOK_KEY)
-        || localStorage.getItem(_TOK_KEY)
-        || C?.apps?.gmail?.access_token
-        || null;
-  } catch(e) { return null; }
+  var t = null;
+  try { t = sessionStorage.getItem(_TOK_KEY) || localStorage.getItem(_TOK_KEY); } catch(e){}
+  if (!t) { try { t = (C && C.apps && C.apps.gmail) ? C.apps.gmail.access_token : null; } catch(e){} }
+  return t || null;
 }
 
-// Patch C.saveApp so token is NEVER dropped when Supabase/checkAppStatus fires
+// Patch C.saveApp — inject token back whenever anything saves Gmail
 (function _patchSaveApp() {
   if (!window.C || typeof C.saveApp !== 'function') {
-    setTimeout(_patchSaveApp, 400); return;
+    setTimeout(_patchSaveApp, 300); return;
   }
-  const _orig = C.saveApp.bind(C);
+  var _orig = C.saveApp.bind(C);
   C.saveApp = function(name, data) {
-    if (name === 'gmail') {
-      if (data && data.access_token) {
+    if (name === 'gmail' && data) {
+      if (data.access_token) {
         _saveTok(data.access_token);
       } else {
-        const existing = _gmTok();
-        if (existing && data) data.access_token = existing;
+        var t = _gmTok();
+        if (t) data.access_token = t;
       }
     }
     return _orig(name, data);
   };
-  console.log('[ARIA v2] C.saveApp patched — token safe.');
 })();
 
-// Listen for OAuth postMessage and capture token immediately
+// Capture token immediately from OAuth postMessage
 window.addEventListener('message', function(ev) {
-  if (ev.data && ev.data.type === 'ARIA_OAUTH_SUCCESS') {
-    const tok = ev.data.access_token || ev.data.token;
-    if (tok) { _saveTok(tok); console.log('[ARIA v2] OAuth token captured & saved.'); }
+  if (!ev.data) return;
+  var d = ev.data;
+  if (d.type === 'ARIA_OAUTH_SUCCESS') {
+    var tok = d.access_token || d.token;
+    if (tok) _saveTok(tok);
   }
 }, false);
 
-// On load: restore token if C.apps.gmail exists but lost token
-(function _restoreToken() {
-  const restore = () => {
-    const tok = _gmTok();
-    if (tok && C?.apps?.gmail) {
-      C.apps.gmail.access_token = tok;
-      console.log('[ARIA v2] Token restored into C.apps.gmail.');
+// ----------------------------------------------------------------
+// 2. FIX loadFromSupabase — always call syncApps() at the end
+//    so "Connected Apps" sidebar shows Gmail from localStorage
+// ----------------------------------------------------------------
+(function _patchLoadFromSupabase() {
+  if (typeof loadFromSupabase === 'undefined') {
+    setTimeout(_patchLoadFromSupabase, 400); return;
+  }
+  var _origLFS = window.loadFromSupabase;
+  window.loadFromSupabase = async function() {
+    await _origLFS.apply(this, arguments);
+    // Restore token into C.apps.gmail if lost
+    var tok = _gmTok();
+    if (tok) {
+      try {
+        var apps = C.apps;
+        if (apps.gmail) {
+          apps.gmail.access_token = tok;
+          var s = JSON.stringify(apps);
+          localStorage.setItem('aria_apps', s);
+          sessionStorage.setItem('aria_apps', s);
+        }
+      } catch(e){}
     }
+    // Always re-render sidebar from localStorage state
+    if (typeof syncApps === 'function') syncApps();
   };
-  if (document.readyState === 'complete') restore();
-  else window.addEventListener('load', restore);
 })();
 
-// ── 1. Gmail Direct API ─────────────────────────────────────────────────────
-const GM_BASE = 'https://gmail.googleapis.com/gmail/v1/users/me';
+// ----------------------------------------------------------------
+// 3. FIX ElevenLabs — override speakEL to remove fail-counter lockout
+//    The original `let elFails` closure can never be reset externally,
+//    so we replace the entire function on window.
+// ----------------------------------------------------------------
+window.speakEL = async function _ariaEL(txt) {
+  if (!txt) return;
+  if (location.protocol === 'file:') { if (typeof fallbackSpeak === 'function') fallbackSpeak(txt); return; }
 
-async function gAPI(path, opts = {}) {
-  const tok = _gmTok();
+  try {
+    if (typeof setMode === 'function') setMode('generating');
+    if (window.S) S.lastText = txt;
+
+    var controller = new AbortController();
+    var timer = setTimeout(function() { controller.abort(); }, 15000);
+
+    var vSel = document.getElementById('vSel') || document.getElementById('voiceSel') || { value: '' };
+    var res = await fetch(W + '/tts', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text: txt, voice_id: vSel.value || '' }),
+      signal: controller.signal,
+    });
+    clearTimeout(timer);
+
+    var ct = res.headers.get('Content-Type') || '';
+    if (!res.ok || !ct.includes('audio')) {
+      console.warn('[ARIA] EL returned ' + res.status + ' / ' + ct + ' — using browser voice');
+      if (typeof fallbackSpeak === 'function') fallbackSpeak(txt);
+      return;
+    }
+
+    var blob  = await res.blob();
+    var url   = URL.createObjectURL(blob);
+    var audio = new Audio(url);
+    if (window.S) S.audio = audio;
+    var spd = document.getElementById('spd') || document.getElementById('speedSlider');
+    audio.playbackRate = spd ? parseFloat(spd.value) : 1;
+    audio.onplay  = function() { if (typeof setMode === 'function') setMode('speaking'); };
+    audio.onended = audio.onerror = function() {
+      if (typeof setMode === 'function') setMode('ready');
+      URL.revokeObjectURL(url);
+      if (window.S) S.audio = null;
+      var autoOn = document.getElementById('autoOn');
+      if (autoOn && autoOn.checked && typeof startListen === 'function') startListen();
+    };
+    await audio.play();
+    console.log('[ARIA] ElevenLabs OK');
+  } catch(e) {
+    if (e.name !== 'AbortError') console.warn('[ARIA] EL error:', e.message);
+    if (typeof fallbackSpeak === 'function') fallbackSpeak(txt);
+  }
+};
+
+// ----------------------------------------------------------------
+// 4. GMAIL DIRECT API
+// ----------------------------------------------------------------
+var GM_BASE = 'https://gmail.googleapis.com/gmail/v1/users/me';
+
+async function gAPI(path, opts) {
+  opts = opts || {};
+  var tok = _gmTok();
   if (!tok) throw new Error('Gmail not connected — please reconnect.');
-  const r = await fetch(GM_BASE + path, {
-    ...opts,
-    headers: {
-      Authorization: 'Bearer ' + tok,
-      'Content-Type': 'application/json',
-      ...(opts.headers || {}),
-    },
-  });
+  var r = await fetch(GM_BASE + path, Object.assign({}, opts, {
+    headers: Object.assign({ Authorization: 'Bearer ' + tok, 'Content-Type': 'application/json' }, opts.headers || {}),
+  }));
   if (r.status === 401) {
-    localStorage.removeItem(_TOK_KEY);
-    sessionStorage.removeItem(_TOK_KEY);
-    if (C?.apps?.gmail) C.apps.gmail.access_token = null;
+    localStorage.removeItem(_TOK_KEY); sessionStorage.removeItem(_TOK_KEY);
     throw new Error('Gmail session expired — please reconnect.');
   }
-  if (!r.ok) throw new Error('Gmail API error ' + r.status);
+  if (!r.ok) throw new Error('Gmail API ' + r.status);
   return r.json();
 }
 
-async function gListEmails(q = 'in:inbox', max = 5) {
-  const d = await gAPI('/messages?maxResults=' + max + '&q=' + encodeURIComponent(q));
+async function gListEmails(q, max) {
+  q = q || 'in:inbox'; max = max || 6;
+  var d = await gAPI('/messages?maxResults=' + max + '&q=' + encodeURIComponent(q));
   if (!d.messages || !d.messages.length) return [];
-  return Promise.all(d.messages.map(m =>
-    gAPI('/messages/' + m.id + '?format=metadata&metadataHeaders=From&metadataHeaders=Subject&metadataHeaders=Date')
-  ));
+  return Promise.all(d.messages.map(function(m) {
+    return gAPI('/messages/' + m.id + '?format=metadata&metadataHeaders=From&metadataHeaders=Subject&metadataHeaders=Date');
+  }));
 }
 
 async function gGetBody(id) {
-  const d = await gAPI('/messages/' + id + '?format=full');
+  var d = await gAPI('/messages/' + id + '?format=full');
   function decode(b64) {
     try { return atob(b64.replace(/-/g,'+').replace(/_/g,'/')); } catch(e) { return ''; }
   }
   function walk(p) {
     if (!p) return '';
-    if (p.mimeType === 'text/plain' && p.body?.data) return decode(p.body.data);
-    if (p.parts) { for (const pp of p.parts) { const t = walk(pp); if (t) return t; } }
+    if (p.mimeType === 'text/plain' && p.body && p.body.data) return decode(p.body.data);
+    if (p.parts) { for (var i=0; i<p.parts.length; i++) { var t = walk(p.parts[i]); if (t) return t; } }
     return '';
   }
-  const raw = walk(d.payload);
-  return raw.replace(/<[^>]+>/g, ' ').replace(/\s{2,}/g, ' ').trim().slice(0, 800);
+  return walk(d.payload).replace(/<[^>]+>/g,' ').replace(/\s{2,}/g,' ').trim().slice(0, 800);
 }
 
-async function gSend(to, subject, body, threadId) {
-  const mime = ['Content-Type: text/plain; charset=utf-8','MIME-Version: 1.0',
-    'To: ' + to, 'Subject: ' + subject, '', body].join('\r\n');
-  const enc = btoa(unescape(encodeURIComponent(mime))).replace(/\+/g,'-').replace(/\//g,'_');
-  return gAPI('/messages/send', { method: 'POST', body: JSON.stringify({ raw: enc, ...(threadId ? { threadId } : {}) }) });
-}
-
-async function gModifyLabels(id, add = [], remove = []) {
-  return gAPI('/messages/' + id + '/modify', {
-    method: 'POST',
-    body: JSON.stringify({ addLabelIds: add, removeLabelIds: remove }),
-  });
+async function gModifyLabels(id, add, remove) {
+  add = add || []; remove = remove || [];
+  return gAPI('/messages/' + id + '/modify', { method: 'POST', body: JSON.stringify({ addLabelIds: add, removeLabelIds: remove }) });
 }
 
 async function gInboxStats() {
-  const d = await gAPI('/labels/INBOX');
+  var d = await gAPI('/labels/INBOX');
   return { total: d.messagesTotal, unread: d.messagesUnread };
 }
 
-// ── 2. Gmail Card UI ────────────────────────────────────────────────────────
 function _hdr(msg, name) {
-  return (msg.payload?.headers || []).find(h => h.name.toLowerCase() === name.toLowerCase())?.value || '';
+  var h = (msg.payload && msg.payload.headers) ? msg.payload.headers : [];
+  for (var i=0; i<h.length; i++) { if (h[i].name.toLowerCase() === name.toLowerCase()) return h[i].value; }
+  return '';
 }
+
+// ----------------------------------------------------------------
+// 5. EMAIL CARD UI
+// ----------------------------------------------------------------
+(function injectCardCSS() {
+  if (document.getElementById('ariaCardCSS')) return;
+  var st = document.createElement('style');
+  st.id = 'ariaCardCSS';
+  st.textContent = [
+    '.aria-card-wrap{padding:4px 0;font-family:inherit}',
+    '.aria-card-title{font-weight:700;font-size:12px;color:var(--gold,#00d4ff);margin-bottom:8px;letter-spacing:.3px;text-transform:uppercase}',
+    '.aria-card{background:var(--glass,rgba(255,255,255,.03));border:1px solid var(--stroke,rgba(255,255,255,.07));border-radius:12px;padding:10px 13px;margin-bottom:6px;cursor:pointer;transition:border-color .2s,background .2s}',
+    '.aria-card:hover{border-color:var(--gold,#00d4ff);background:var(--glass2,rgba(255,255,255,.055))}',
+    '.aria-card-row{display:flex;justify-content:space-between;align-items:baseline;gap:8px}',
+    '.aria-card-from{font-weight:600;font-size:12px;color:var(--text,#f0f2fc);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:68%}',
+    '.aria-card-date{font-size:11px;color:var(--text3,#6b7eaa);white-space:nowrap}',
+    '.aria-card-subj{font-size:12px;color:var(--text2,#c9d1e8);margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}',
+    '.aria-card-btns{display:flex;gap:5px;margin-top:7px}',
+    '.aria-card-btn{font-size:10px;padding:2px 9px;border-radius:6px;border:1px solid var(--stroke2,rgba(255,255,255,.12));background:transparent;color:var(--text2,#c9d1e8);cursor:pointer;transition:background .15s,color .15s}',
+    '.aria-card-btn:hover{background:var(--gold,#00d4ff);color:#04050a;border-color:var(--gold,#00d4ff)}',
+    '.aria-card-unread{border-left:2px solid var(--cyan,#5de6d8)}',
+  ].join('');
+  document.head.appendChild(st);
+})();
 
 function _shortDate(raw) {
   if (!raw) return '';
-  const d = new Date(raw);
+  var d = new Date(raw);
   if (isNaN(d)) return raw.split(' ').slice(0,3).join(' ');
-  const now = new Date();
-  const diff = now - d;
-  if (diff < 86400000) return d.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'});
-  return d.toLocaleDateString([], {month:'short', day:'numeric'});
+  var now = new Date();
+  if (now - d < 86400000) return d.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});
+  return d.toLocaleDateString([],{month:'short',day:'numeric'});
 }
 
-function renderEmailCards(emails, title) {
-  // Inject CSS once
-  if (!document.getElementById('aria-card-css')) {
-    const st = document.createElement('style');
-    st.id = 'aria-card-css';
-    st.textContent = `
-      .aria-email-wrap{padding:4px 0;font-family:inherit;}
-      .aria-email-title{font-weight:700;font-size:13px;color:var(--accent,#a78bfa);margin-bottom:8px;letter-spacing:.3px;}
-      .aria-email-card{background:var(--bg2,#1e1e2e);border:1px solid var(--border,rgba(255,255,255,.08));border-radius:10px;padding:10px 13px;margin-bottom:6px;cursor:pointer;transition:border-color .2s;}
-      .aria-email-card:hover{border-color:var(--accent,#a78bfa);}
-      .aria-email-card-row{display:flex;justify-content:space-between;align-items:baseline;gap:8px;}
-      .aria-email-from{font-weight:600;font-size:12px;color:var(--text1,#e2e8f0);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:65%;}
-      .aria-email-date{font-size:11px;color:var(--text3,#94a3b8);white-space:nowrap;}
-      .aria-email-subject{font-size:12px;color:var(--text2,#cbd5e1);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-      .aria-email-actions{display:flex;gap:5px;margin-top:7px;}
-      .aria-email-btn{font-size:10px;padding:2px 8px;border-radius:5px;border:1px solid var(--border,rgba(255,255,255,.15));background:transparent;color:var(--text2,#cbd5e1);cursor:pointer;transition:background .15s;}
-      .aria-email-btn:hover{background:var(--accent,#a78bfa);color:#fff;border-color:var(--accent,#a78bfa);}
-      .aria-email-unread{border-left:3px solid var(--accent,#a78bfa);}
-    `;
-    document.head.appendChild(st);
-  }
+function buildEmailCard(msg, idx, allMsgs) {
+  var from    = _hdr(msg, 'From');
+  var subject = _hdr(msg, 'Subject') || '(no subject)';
+  var date    = _hdr(msg, 'Date');
+  var unread  = msg.labelIds && msg.labelIds.indexOf('UNREAD') >= 0;
+  var fromName = from.replace(/<[^>]*>/g,'').replace(/"/g,'').trim() || from;
 
-  const wrap = document.createElement('div');
-  wrap.className = 'aria-email-wrap';
-  if (title) {
-    const h = document.createElement('div');
-    h.className = 'aria-email-title';
-    h.textContent = title;
-    wrap.appendChild(h);
-  }
+  var card = document.createElement('div');
+  card.className = 'aria-card' + (unread ? ' aria-card-unread' : '');
 
-  emails.forEach((msg, i) => {
-    const from = _hdr(msg, 'From');
-    const subject = _hdr(msg, 'Subject') || '(no subject)';
-    const date = _hdr(msg, 'Date');
-    const isUnread = msg.labelIds && msg.labelIds.includes('UNREAD');
-    const fromName = from.replace(/<.*>/, '').trim() || from;
+  card.innerHTML =
+    '<div class="aria-card-row">' +
+      '<div class="aria-card-from">' + fromName.replace(/</g,'&lt;') + '</div>' +
+      '<div class="aria-card-date">' + _shortDate(date) + '</div>' +
+    '</div>' +
+    '<div class="aria-card-subj">' + subject.replace(/</g,'&lt;') + '</div>' +
+    '<div class="aria-card-btns">' +
+      '<button class="aria-card-btn" data-action="read">Read</button>' +
+      '<button class="aria-card-btn" data-action="star">Star</button>' +
+      '<button class="aria-card-btn" data-action="archive">Archive</button>' +
+    '</div>';
 
-    const card = document.createElement('div');
-    card.className = 'aria-email-card' + (isUnread ? ' aria-email-unread' : '');
-
-    card.innerHTML =
-      '<div class="aria-email-card-row">' +
-        '<div class="aria-email-from">' + fromName.replace(/</g,'&lt;') + '</div>' +
-        '<div class="aria-email-date">' + _shortDate(date) + '</div>' +
-      '</div>' +
-      '<div class="aria-email-subject">' + subject.replace(/</g,'&lt;') + '</div>' +
-      '<div class="aria-email-actions">' +
-        '<button class="aria-email-btn" data-idx="' + i + '" data-action="read">Read</button>' +
-        '<button class="aria-email-btn" data-idx="' + i + '" data-action="star">Star</button>' +
-        '<button class="aria-email-btn" data-idx="' + i + '" data-action="archive">Archive</button>' +
-      '</div>';
-
-    card.querySelectorAll('.aria-email-btn').forEach(btn => {
-      btn.addEventListener('click', async (e) => {
-        e.stopPropagation();
-        const action = btn.dataset.action;
-        const m = emails[parseInt(btn.dataset.idx)];
-        try {
-          if (action === 'read') {
-            ariaSpeak('Reading email from ' + fromName + '. Subject: ' + subject + '.');
-            const body = await gGetBody(m.id);
-            appendBotMessage(body || 'No text content found.', false);
-          } else if (action === 'star') {
-            await gModifyLabels(m.id, ['STARRED'], []);
-            btn.textContent = 'Starred!'; btn.disabled = true;
-            ariaSpeak('Starred email from ' + fromName + '.');
-          } else if (action === 'archive') {
-            await gModifyLabels(m.id, [], ['INBOX']);
-            card.style.opacity = '0.4'; btn.textContent = 'Archived'; btn.disabled = true;
-            ariaSpeak('Archived email from ' + fromName + '.');
+  card.querySelectorAll('.aria-card-btn').forEach(function(btn) {
+    btn.addEventListener('click', async function(e) {
+      e.stopPropagation();
+      var action = btn.dataset.action;
+      try {
+        if (action === 'read') {
+          if (typeof speak === 'function') speak('Reading email from ' + fromName + '. Subject: ' + subject + '.');
+          var body = await gGetBody(msg.id);
+          // Use original showEmailDetail if possible
+          if (typeof showEmailDetail === 'function') {
+            showEmailDetail({ from: from, subject: subject, body: body, date: date });
+          } else {
+            _appendBot(body || 'No text content found.');
           }
-        } catch(err) { appendBotMessage('Error: ' + err.message, false); }
-      });
+        } else if (action === 'star') {
+          await gModifyLabels(msg.id, ['STARRED'], []);
+          btn.textContent = 'Starred!'; btn.disabled = true;
+          if (typeof speak === 'function') speak('Starred.');
+        } else if (action === 'archive') {
+          await gModifyLabels(msg.id, [], ['INBOX']);
+          card.style.opacity = '.4'; btn.textContent = 'Archived'; btn.disabled = true;
+          if (typeof speak === 'function') speak('Archived.');
+        }
+      } catch(err) { _appendBot('Error: ' + err.message); }
     });
-
-    wrap.appendChild(card);
   });
-
-  return wrap;
+  return card;
 }
 
-function appendBotMessage(content, isText = true) {
-  const msgs = document.getElementById('messages') || document.querySelector('.messages');
+function _appendBot(content) {
+  var msgs = document.getElementById('msgs') || document.getElementById('messages') || document.querySelector('.msgs');
   if (!msgs) return;
-  const row = document.createElement('div');
-  row.className = 'msg bot';
-  const bubble = document.createElement('div');
-  bubble.className = 'bubble';
-  if (isText) {
-    bubble.textContent = content;
-  } else if (typeof content === 'string') {
-    bubble.textContent = content;
+  var row = document.createElement('div');
+  row.className = 'msg assistant';
+  row.style.alignItems = 'flex-start';
+  var av = document.createElement('div'); av.className = 'av'; av.textContent = 'A';
+  var wrap = document.createElement('div'); wrap.style.cssText = 'flex:1;min-width:0;';
+  var bub = document.createElement('div'); bub.className = 'bubble';
+  if (typeof content === 'string') {
+    bub.textContent = content;
   } else {
-    bubble.appendChild(content);
+    bub.style.cssText = 'background:transparent;padding:0;';
+    bub.appendChild(content);
   }
-  row.appendChild(bubble);
+  wrap.appendChild(bub);
+  row.appendChild(av);
+  row.appendChild(wrap);
   msgs.appendChild(row);
   msgs.scrollTop = msgs.scrollHeight;
 }
 
-// ── 3. ariaSpeak — always use ElevenLabs; only fall back if it truly fails ──
-function ariaSpeak(text) {
-  // Reset fail counter so a fresh attempt is always made
-  if (typeof window.elFails !== 'undefined') window.elFails = 0;
-  if (typeof speakText === 'function') {
-    speakText(text);
-  } else if (typeof speak === 'function') {
-    speak(text);
+function renderEmailCards(emails, title) {
+  var wrap = document.createElement('div');
+  wrap.className = 'aria-card-wrap';
+  if (title) {
+    var h = document.createElement('div');
+    h.className = 'aria-card-title';
+    h.textContent = title;
+    wrap.appendChild(h);
   }
+  emails.forEach(function(msg, i) { wrap.appendChild(buildEmailCard(msg, i, emails)); });
+  return wrap;
 }
 
-// ── 4. Gmail Actions ────────────────────────────────────────────────────────
+// ----------------------------------------------------------------
+// 6. GMAIL ACTIONS
+// ----------------------------------------------------------------
 async function ariaInboxStats() {
-  appendBotMessage('Checking your inbox…');
+  _appendBot('Checking inbox...');
   try {
-    const stats = await gInboxStats();
-    const msg = 'You have ' + stats.total + ' emails in your inbox, ' + stats.unread + ' unread.';
-    appendBotMessage(msg);
-    ariaSpeak(msg);
-  } catch(e) { appendBotMessage('Could not fetch inbox stats: ' + e.message); }
+    var st = await gInboxStats();
+    var m = 'You have ' + st.total + ' emails, ' + st.unread + ' unread.';
+    _appendBot(m); if (typeof speak === 'function') speak(m);
+  } catch(e) { _appendBot('Could not fetch inbox: ' + e.message); }
 }
 
-async function ariaReadEmails(query, mode) {
-  appendBotMessage('Fetching your emails…');
+async function ariaReadEmails(q) {
+  _appendBot('Fetching your emails...');
   try {
-    const emails = await gListEmails(query || 'in:inbox', 6);
+    var emails = await gListEmails(q || 'in:inbox', 6);
     if (!emails.length) {
-      const msg = 'No emails found.';
-      appendBotMessage(msg); ariaSpeak(msg); return;
+      var m = 'No emails found.'; _appendBot(m); if (typeof speak === 'function') speak(m); return;
     }
-    const title = (query && query !== 'in:inbox') ? ('Emails — ' + query) : 'Your Inbox';
-    appendBotMessage(renderEmailCards(emails, title), false);
-    const count = emails.length;
-    const spoken = 'Here are your ' + count + ' most recent emails.';
-    ariaSpeak(spoken);
-  } catch(e) { appendBotMessage('Gmail error: ' + e.message); }
+    _appendBot(renderEmailCards(emails, 'Your Inbox'), false);
+    if (typeof speak === 'function') speak('Here are your ' + emails.length + ' latest emails.');
+  } catch(e) { _appendBot('Gmail error: ' + e.message); }
 }
 
 async function ariaSearchEmails(rawText) {
-  const match = rawText.match(/(?:from|search|find|about|related to)\s+(.+)/i);
-  const q = match ? match[1].trim() : rawText;
-  appendBotMessage('Searching for: ' + q + '…');
+  var match = rawText.match(/(?:from|about|find|search|related to)\s+(.+)/i);
+  var q = match ? match[1].trim() : rawText;
+  _appendBot('Searching: ' + q + '...');
   try {
-    const emails = await gListEmails(q, 5);
-    if (!emails.length) { const m = 'No emails found for: ' + q; appendBotMessage(m); ariaSpeak(m); return; }
-    appendBotMessage(renderEmailCards(emails, 'Search: ' + q), false);
-    ariaSpeak('Found ' + emails.length + ' emails matching ' + q + '.');
-  } catch(e) { appendBotMessage('Search error: ' + e.message); }
+    var emails = await gListEmails(q, 5);
+    if (!emails.length) { var m = 'Nothing found for: ' + q; _appendBot(m); return; }
+    _appendBot(renderEmailCards(emails, 'Search: ' + q), false);
+    if (typeof speak === 'function') speak('Found ' + emails.length + ' emails matching ' + q + '.');
+  } catch(e) { _appendBot('Search error: ' + e.message); }
 }
 
-async function ariaSummarize() {
-  appendBotMessage('Fetching your latest emails for summary…');
-  try {
-    const emails = await gListEmails('in:inbox', 5);
-    if (!emails.length) { appendBotMessage('Inbox is empty.'); return; }
-    const lines = emails.map((m, i) => {
-      const from = _hdr(m, 'From').replace(/<.*>/, '').trim();
-      const subj = _hdr(m, 'Subject') || '(no subject)';
-      return (i+1) + '. From ' + from + ': ' + subj;
-    }).join('. ');
-    const msg = 'Here is your inbox summary. ' + lines;
-    appendBotMessage(msg);
-    ariaSpeak(msg);
-  } catch(e) { appendBotMessage('Summary error: ' + e.message); }
-}
-
-// ── 5. Intent Detection (broad + conversational) ────────────────────────────
-const ARIA_GMAIL_INTENTS = [
-  // Stats / count
-  { re: /\b(how many|count|stats?|overview|any new)\b.{0,25}\b(email|mail|message)\b/i,                fn: () => ariaInboxStats() },
-  // Unread specifically
-  { re: /\b(unread|new)\b.{0,20}\b(email|mail|message)\b/i,                                             fn: () => ariaReadEmails('is:unread', 'unread') },
-  // Read inbox / show emails (broad)
-  { re: /\b(read|show|list|get|fetch|open|check|see|view|bring up|pull up)\b.{0,30}\b(email|mail|inbox|message)\b/i, fn: () => ariaReadEmails('in:inbox') },
-  // Conversational: "go ahead", "tell me", "what emails", "give me"
-  { re: /\bgo ahead\b.{0,40}\b(email|mail|inbox|message)\b/i,                                           fn: () => ariaReadEmails('in:inbox') },
-  { re: /\b(tell|give|show|what).{0,25}\b(email|mail|inbox|message)\b/i,                                fn: () => ariaReadEmails('in:inbox') },
-  { re: /\b(what|any|my|i have|do i have).{0,20}\b(email|mail|message)\b/i,                             fn: () => ariaReadEmails('in:inbox') },
-  // Summary
-  { re: /\b(summar|brief|recap|digest)\b/i,                                                              fn: () => ariaSummarize() },
-  // Search
-  { re: /\b(search|find|look for|emails? from|emails? about)\b.{0,40}/i,                                fn: (t) => ariaSearchEmails(t) },
-  // Important / starred
-  { re: /\b(important|starred|flagged)\b.{0,20}\b(email|mail)\b/i,                                      fn: () => ariaReadEmails('is:important') },
+// ----------------------------------------------------------------
+// 7. INTENT DETECTION — broad + conversational
+// ----------------------------------------------------------------
+var ARIA_INTENTS = [
+  { re: /\b(how many|count|stats?|overview|any new)\b.{0,25}\b(email|mail|message)\b/i,                   fn: function() { return ariaInboxStats(); } },
+  { re: /\b(unread|new)\b.{0,20}\b(email|mail|message)\b/i,                                                fn: function() { return ariaReadEmails('is:unread'); } },
+  { re: /\b(important|starred|flagged)\b.{0,20}\b(email|mail)\b/i,                                         fn: function() { return ariaReadEmails('is:important'); } },
+  { re: /\b(search|find|look for|emails? from|mails? from|emails? about)\b.{0,50}/i,                       fn: function(t) { return ariaSearchEmails(t); } },
+  { re: /\b(read|show|list|get|fetch|open|check|see|view|bring up|pull up)\b.{0,30}\b(email|mail|inbox|message)\b/i, fn: function() { return ariaReadEmails('in:inbox'); } },
+  { re: /\bgo ahead\b.{0,50}\b(email|mail|inbox|message)\b/i,                                              fn: function() { return ariaReadEmails('in:inbox'); } },
+  { re: /\b(tell|give|show|what).{0,30}\b(email|mail|inbox|message)\b/i,                                   fn: function() { return ariaReadEmails('in:inbox'); } },
+  { re: /\b(what|any|my|do i have|i have|got any).{0,25}\b(email|mail|message)\b/i,                        fn: function() { return ariaReadEmails('in:inbox'); } },
+  { re: /\b(inbox|my mail|my emails)\b/i,                                                                    fn: function() { return ariaReadEmails('in:inbox'); } },
 ];
 
-function detectGmailIntent(text) {
-  if (!_gmTok()) return null; // not connected
-  for (const { re, fn } of ARIA_GMAIL_INTENTS) {
-    if (re.test(text)) return () => fn(text);
+function detectIntent(text) {
+  if (!_gmTok()) return null;
+  for (var i=0; i<ARIA_INTENTS.length; i++) {
+    if (ARIA_INTENTS[i].re.test(text)) {
+      var fn = ARIA_INTENTS[i].fn;
+      return (function(f) { return function() { return f(text); }; })(fn);
+    }
   }
   return null;
 }
 
-// ── 6. Patch sendMsg to intercept Gmail intents ──────────────────────────────
+// ----------------------------------------------------------------
+// 8. PATCH sendMsg — intercept Gmail intents before Cloudflare
+// ----------------------------------------------------------------
 (function patchSendMsg() {
-  const originalSendMsg = window.sendMsg;
-
+  if (typeof sendMsg === 'undefined') { setTimeout(patchSendMsg, 500); return; }
+  var _orig = window.sendMsg;
   window.sendMsg = async function() {
-    // Always reset ElevenLabs fail counter so voice is fresh
-    if (typeof window.elFails !== 'undefined') window.elFails = 0;
-
-    const inp = document.getElementById('userInput') || document.getElementById('inp') || document.querySelector('input[type=text], textarea');
-    const text = inp ? inp.value.trim() : '';
-
+    var inp = document.getElementById('inp') || document.getElementById('userInput') || document.querySelector('textarea,input[type=text]');
+    var text = inp ? inp.value.trim() : '';
     if (text) {
-      const fn = detectGmailIntent(text);
+      var fn = detectIntent(text);
       if (fn) {
         if (inp) { inp.value = ''; if (typeof autoResize === 'function') autoResize(); }
         await fn();
         return;
       }
     }
-    if (typeof originalSendMsg === 'function') return originalSendMsg.apply(this, arguments);
+    if (typeof _orig === 'function') return _orig.apply(this, arguments);
   };
-
-  // Re-bind send button click
-  const sendBtn = document.getElementById('sendBtn');
-  if (sendBtn) {
-    const newBtn = sendBtn.cloneNode(true);
-    sendBtn.parentNode.replaceChild(newBtn, sendBtn);
-    newBtn.addEventListener('click', () => window.sendMsg());
-    console.log('[ARIA v2] sendBtn re-bound.');
+  // Re-bind send button
+  var btn = document.getElementById('sendBtn');
+  if (btn) {
+    var nb = btn.cloneNode(true);
+    btn.parentNode.replaceChild(nb, btn);
+    nb.addEventListener('click', function() { window.sendMsg(); });
   }
-
-  // Re-bind Enter key on input
-  const inp = document.getElementById('userInput') || document.getElementById('inp') || document.querySelector('input[type=text], textarea');
-  if (inp) {
-    inp.addEventListener('keydown', (e) => {
+  // Re-bind Enter on input
+  var inp2 = document.getElementById('inp') || document.getElementById('userInput') || document.querySelector('textarea');
+  if (inp2) {
+    inp2.addEventListener('keydown', function(e) {
       if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); window.sendMsg(); }
     });
   }
-
-  console.log('[ARIA v2] sendMsg patched — Gmail intents active.');
 })();
 
-// ── 7. Voice Input → Gmail intent ────────────────────────────────────────────
-(function patchVoiceResult() {
-  const _origDispatch = window.dispatchEvent.bind(window);
-  // Hook the 'voiceResult' or 'aria-voice' custom event if used
-  window.addEventListener('voiceResult', function(e) {
-    if (!e.detail || !e.detail.text) return;
-    const fn = detectGmailIntent(e.detail.text);
-    if (fn) { e.stopImmediatePropagation(); fn(); }
-  }, true);
-})();
-
-// ── 8. Sidebar "Gmail Connected" status badge fix ────────────────────────────
-(function fixSidebarBadge() {
-  function updateBadge() {
-    const tok = _gmTok();
-    const email = C?.apps?.gmail?.email || '';
-    // Find any element showing Gmail status
-    const els = document.querySelectorAll('[data-app="gmail"], .app-item[data-name="gmail"], .connected-app');
-    els.forEach(el => {
-      if (tok) {
-        el.setAttribute('data-connected', 'true');
-        const badge = el.querySelector('.app-status, .status-dot, .app-badge');
-        if (badge) badge.textContent = 'Connected';
-      }
-    });
-    // Also update any "Connected Apps" section text
-    const appItems = document.querySelectorAll('.app-item');
-    appItems.forEach(item => {
-      if (item.textContent.toLowerCase().includes('gmail') && tok) {
-        const dot = item.querySelector('.status-indicator, .dot, .badge');
-        if (dot) dot.style.backgroundColor = '#22c55e';
-      }
-    });
-  }
-  // Run on load and when token changes
-  if (document.readyState === 'complete') updateBadge();
-  else window.addEventListener('load', updateBadge);
-  // Observe sidebar for changes
-  const sidebar = document.querySelector('.sidebar, #sidebar, nav');
-  if (sidebar) {
-    new MutationObserver(updateBadge).observe(sidebar, { childList: true, subtree: true });
-  }
-})();
-
-// ── 9. "Hey ARIA" Wake Word ───────────────────────────────────────────────────
+// ----------------------------------------------------------------
+// 9. "HEY ARIA" WAKE WORD
+// ----------------------------------------------------------------
 (function initWakeWord() {
-  if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) return;
-  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-  let wakeRec = null, wakeActive = false, wakeCooldown = false;
-  const WAKE = /\b(hey\s+aria|hi\s+aria|hello\s+aria|okay\s+aria)\b/i;
+  var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SR) return;
+  var wakeRec = null, wakeActive = false, wakeCooldown = false;
+  var WAKE = /\b(hey\s+aria|hi\s+aria|hello\s+aria|okay\s+aria)\b/i;
 
   function startWake() {
     if (wakeActive) return;
     try {
       wakeRec = new SR();
-      wakeRec.continuous = true;
-      wakeRec.interimResults = false;
-      wakeRec.lang = 'en-US';
-      wakeRec.onresult = (ev) => {
-        const t = ev.results[ev.results.length - 1][0].transcript;
+      wakeRec.continuous = true; wakeRec.interimResults = false; wakeRec.lang = 'en-US';
+      wakeRec.onresult = function(ev) {
+        var t = ev.results[ev.results.length - 1][0].transcript;
         if (WAKE.test(t) && !wakeCooldown) {
-          wakeCooldown = true;
-          setTimeout(() => { wakeCooldown = false; }, 3000);
-          const cmd = t.replace(WAKE, '').trim();
-          ariaSpeak('Yes?');
+          wakeCooldown = true; setTimeout(function() { wakeCooldown = false; }, 3000);
+          var cmd = t.replace(WAKE, '').trim();
+          if (typeof speak === 'function') speak('Yes?');
           if (cmd) {
-            const inp = document.getElementById('userInput') || document.querySelector('input[type=text]');
-            if (inp) { inp.value = cmd; window.sendMsg(); }
+            var inp = document.getElementById('inp') || document.getElementById('userInput') || document.querySelector('textarea');
+            if (inp) { inp.value = cmd; window.sendMsg && window.sendMsg(); }
           } else {
-            // Activate main mic
-            const micBtn = document.getElementById('micBtn') || document.querySelector('.mic-btn, [data-mic]');
+            var micBtn = document.getElementById('micBtn') || document.querySelector('.mic-btn,[data-mic]');
             if (micBtn) micBtn.click();
           }
         }
       };
-      wakeRec.onerror = () => { wakeActive = false; setTimeout(startWake, 2000); };
-      wakeRec.onend = () => { wakeActive = false; setTimeout(startWake, 1000); };
-      wakeRec.start();
-      wakeActive = true;
-    } catch(e) { console.warn('[ARIA v2] Wake word error:', e); }
+      wakeRec.onerror = function() { wakeActive = false; setTimeout(startWake, 2000); };
+      wakeRec.onend   = function() { wakeActive = false; setTimeout(startWake, 1000); };
+      wakeRec.start(); wakeActive = true;
+    } catch(e) { console.warn('[ARIA] Wake error:', e); }
   }
 
-  // Add wake word toggle button to header
-  const hdr = document.querySelector('.top-bar, header, .header, nav.top');
+  // Toggle button in top bar
+  var hdr = document.querySelector('.top-bar, header, .topbar, .header-bar') || document.querySelector('header');
+  if (!hdr) hdr = document.body.children[0];
   if (hdr) {
-    const btn = document.createElement('button');
-    btn.id = 'ariaWakeBtn';
-    btn.title = 'Toggle "Hey ARIA" wake word';
-    btn.style.cssText = 'background:transparent;border:1px solid var(--border,rgba(255,255,255,.15));border-radius:8px;padding:4px 10px;color:var(--text2,#cbd5e1);cursor:pointer;font-size:11px;margin-right:6px;';
-    btn.textContent = '🎙 Wake OFF';
-    let on = false;
-    btn.addEventListener('click', () => {
-      on = !on;
-      if (on) { startWake(); btn.textContent = '🎙 Hey ARIA ON'; btn.style.borderColor = '#22c55e'; }
-      else { try { wakeRec && wakeRec.stop(); } catch(e){} wakeActive = false; btn.textContent = '🎙 Wake OFF'; btn.style.borderColor = ''; }
+    var wakeBtn = document.createElement('button');
+    wakeBtn.id = 'ariaWakeBtn';
+    wakeBtn.textContent = 'Wake OFF';
+    wakeBtn.style.cssText = [
+      'background:transparent',
+      'border:1px solid rgba(255,255,255,.15)',
+      'border-radius:8px',
+      'padding:3px 10px',
+      'color:var(--text3,#6b7eaa)',
+      'cursor:pointer',
+      'font-size:11px',
+      'font-family:inherit',
+      'margin:4px',
+      'transition:color .2s,border-color .2s',
+    ].join(';');
+    var wakeOn = false;
+    wakeBtn.addEventListener('click', function() {
+      wakeOn = !wakeOn;
+      if (wakeOn) {
+        startWake();
+        wakeBtn.textContent = 'Hey ARIA: ON';
+        wakeBtn.style.color = '#5de6d8';
+        wakeBtn.style.borderColor = '#5de6d8';
+      } else {
+        try { wakeRec && wakeRec.stop(); } catch(e){}
+        wakeActive = false;
+        wakeBtn.textContent = 'Wake OFF';
+        wakeBtn.style.color = '';
+        wakeBtn.style.borderColor = '';
+      }
     });
-    hdr.insertBefore(btn, hdr.firstChild);
+    // Add to top-right area if possible
+    var topRight = document.querySelector('.top-right, .header-right, .topbar-right');
+    if (topRight) topRight.insertBefore(wakeBtn, topRight.firstChild);
+    else hdr.appendChild(wakeBtn);
   }
-
-  console.log('[ARIA v2] Wake word module ready.');
 })();
 
-console.log('✅ ARIA Enhanced v2 loaded — token safe, EL voice fixed, Gmail cards active.');
+console.log('[ARIA v3] Loaded — EL fixed, Gmail active, wake word ready.');
+
 </script>
 
 </body>
