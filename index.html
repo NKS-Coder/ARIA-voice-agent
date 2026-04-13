@@ -1449,7 +1449,10 @@ const C={
   setVoice(v){localStorage.setItem('aria_voice',v);sessionStorage.setItem('aria_voice',v);},
   setSpeed(v){localStorage.setItem('aria_speed',v);},
   saveApp(n,d){
-    const a=C.apps;a[n]=d;
+    const a=C.apps;
+    // ARIA v3: never drop access_token when caller omits it
+    if(d && !d.access_token && a[n] && a[n].access_token){ d.access_token=a[n].access_token; }
+    a[n]=d;
     const s=JSON.stringify(a);
     localStorage.setItem('aria_apps',s);
     sessionStorage.setItem('aria_apps',s);
@@ -1548,6 +1551,9 @@ async function loadFromSupabase() {
   } catch(e) {
     console.warn('Could not load conversations from Supabase:', e.message);
   }
+
+  // ARIA v3: always re-render Connected Apps sidebar from localStorage
+  if(typeof syncApps==='function') syncApps();
 }
 
 function enc(s){ return encodeURIComponent(s||''); }
@@ -1614,7 +1620,7 @@ setInterval(()=>{sec++;D.nTime.textContent=sec<60?`${sec}s`:`${Math.floor(sec/60
 const synth = window.speechSynthesis;
 let bVoices  = [];
 let elFails  = 0;           // count consecutive EL failures — reset on success
-const EL_MAX_FAILS = 2;     // after 2 fails, try browser voice temporarily
+const EL_MAX_FAILS = 999;   // ARIA v3: never permanently lock out ElevenLabs
 
 function loadBV() {
   const all = synth.getVoices().filter(v => v.lang.startsWith('en'));
@@ -1689,6 +1695,7 @@ function fallbackSpeak(txt) {
 }
 
 async function speakEL(txt) {
+  elFails = 0; // ARIA v3: always start fresh ΓÇö prior failures do not block EL
   // Skip EL if on file:// (local testing)
   if (location.protocol === 'file:') { fallbackSpeak(txt); return; }
 
@@ -2075,7 +2082,7 @@ async function restoreConnectionsFromSupabase() {
     const res  = await fetch(`${W}/auth/status?app=gmail&session=${getSession()}`);
     const data = await res.json();
     if(data.connected && data.email && !C.apps.gmail?.connected) {
-      C.saveApp('gmail', { connected: true, email: data.email });
+      const _gex=C.apps.gmail||{};C.saveApp('gmail', { connected: true, email: data.email, access_token:_gex.access_token||'' });
       syncApps();
       console.log('Restored Gmail connection from Supabase:', data.email);
     }
@@ -2122,7 +2129,8 @@ function checkAppStatus(name){
     .then(d=>{
       console.log('Status response:', JSON.stringify(d));
       if(d.connected){
-        C.saveApp(name,{connected:true,email:d.email||''});
+        const _ex=C.apps[name]||{};
+        C.saveApp(name,{connected:true,email:d.email||'',access_token:_ex.access_token||''});
         syncApps();
         const m=`${APPS[name]?.name} connected${d.email?' as '+d.email:''}! You can now use voice commands.`;
         addMsg('assistant',m);speak(m);
@@ -2630,501 +2638,156 @@ D.inp.addEventListener('input', () => {
 <script>
 
 /* ================================================================
-   ARIA v3 — Targeted Bug Fixes
-   1. ElevenLabs always-on (no fail counter lockout)
-   2. Connected Apps sidebar always shows Gmail after load
-   3. Protected Gmail token (survives Supabase overwrites)
-   4. Gmail Direct API + email cards
-   5. Broad voice intent detection
-   6. sendMsg patched to intercept Gmail commands
-   7. "Hey ARIA" wake word
+   ARIA v4 — Minimal helper (no duplicate API calls, no SR conflicts)
+   - Protected Gmail token store
+   - "Hey ARIA" wake word (pauses when main mic is active)
    ================================================================ */
 
-// ----------------------------------------------------------------
-// 1. PROTECTED TOKEN STORE — survives C.saveApp / Supabase rewrites
-// ----------------------------------------------------------------
-var _TOK_KEY = 'aria_gm_tok_v2';
+// ── Protected token store ────────────────────────────────────────
+var _ARIA_TOK = 'aria_gm_tok_v4';
+function _saveTok(t){ if(t){ try{localStorage.setItem(_ARIA_TOK,t);}catch(e){} try{sessionStorage.setItem(_ARIA_TOK,t);}catch(e){} } }
+function _loadTok(){ try{ return sessionStorage.getItem(_ARIA_TOK)||localStorage.getItem(_ARIA_TOK)||null; }catch(e){ return null; } }
 
-function _saveTok(t) {
-  if (!t) return;
-  try { localStorage.setItem(_TOK_KEY, t); } catch(e){}
-  try { sessionStorage.setItem(_TOK_KEY, t); } catch(e){}
-}
-
-function _gmTok() {
-  var t = null;
-  try { t = sessionStorage.getItem(_TOK_KEY) || localStorage.getItem(_TOK_KEY); } catch(e){}
-  if (!t) { try { t = (C && C.apps && C.apps.gmail) ? C.apps.gmail.access_token : null; } catch(e){} }
-  return t || null;
-}
-
-// Patch C.saveApp — inject token back whenever anything saves Gmail
-(function _patchSaveApp() {
-  if (!window.C || typeof C.saveApp !== 'function') {
-    setTimeout(_patchSaveApp, 300); return;
-  }
-  var _orig = C.saveApp.bind(C);
-  C.saveApp = function(name, data) {
-    if (name === 'gmail' && data) {
-      if (data.access_token) {
-        _saveTok(data.access_token);
-      } else {
-        var t = _gmTok();
-        if (t) data.access_token = t;
-      }
-    }
-    return _orig(name, data);
-  };
-})();
-
-// Capture token immediately from OAuth postMessage
-window.addEventListener('message', function(ev) {
-  if (!ev.data) return;
-  var d = ev.data;
-  if (d.type === 'ARIA_OAUTH_SUCCESS') {
-    var tok = d.access_token || d.token;
-    if (tok) _saveTok(tok);
+// Capture token on OAuth postMessage
+window.addEventListener('message', function(ev){
+  if(ev.data && ev.data.type==='ARIA_OAUTH_SUCCESS'){
+    var t = ev.data.access_token || ev.data.token;
+    if(t) _saveTok(t);
   }
 }, false);
 
-// ----------------------------------------------------------------
-// 2. FIX loadFromSupabase — always call syncApps() at the end
-//    so "Connected Apps" sidebar shows Gmail from localStorage
-// ----------------------------------------------------------------
-(function _patchLoadFromSupabase() {
-  if (typeof loadFromSupabase === 'undefined') {
-    setTimeout(_patchLoadFromSupabase, 400); return;
-  }
-  var _origLFS = window.loadFromSupabase;
-  window.loadFromSupabase = async function() {
-    await _origLFS.apply(this, arguments);
-    // Restore token into C.apps.gmail if lost
-    var tok = _gmTok();
-    if (tok) {
-      try {
-        var apps = C.apps;
-        if (apps.gmail) {
-          apps.gmail.access_token = tok;
-          var s = JSON.stringify(apps);
-          localStorage.setItem('aria_apps', s);
-          sessionStorage.setItem('aria_apps', s);
-        }
-      } catch(e){}
+// On page ready: push protected token into C.apps.gmail if missing
+window.addEventListener('load', function(){
+  setTimeout(function(){
+    var t = _loadTok();
+    if(t && window.C && C.apps && C.apps.gmail && !C.apps.gmail.access_token){
+      C.apps.gmail.access_token = t;
+      // Persist back to localStorage
+      try{
+        var a=C.apps; a.gmail.access_token=t;
+        var s=JSON.stringify(a);
+        localStorage.setItem('aria_apps',s); sessionStorage.setItem('aria_apps',s);
+      }catch(e){}
     }
-    // Always re-render sidebar from localStorage state
-    if (typeof syncApps === 'function') syncApps();
+    if(typeof syncApps==='function') syncApps();
+  }, 1800); // after loadFromSupabase finishes
+});
+
+// Save token whenever OAuth flow sets gmail in C
+(function patchSaveApp(){
+  if(!window.C || typeof C.saveApp!=='function'){ setTimeout(patchSaveApp,400); return; }
+  var _o = C.saveApp.bind(C);
+  C.saveApp = function(n,d){
+    if(n==='gmail' && d){
+      if(d.access_token) _saveTok(d.access_token);
+      else{ var t=_loadTok(); if(t) d.access_token=t; }
+    }
+    return _o(n,d);
   };
 })();
 
-// ----------------------------------------------------------------
-// 3. FIX ElevenLabs — override speakEL to remove fail-counter lockout
-//    The original `let elFails` closure can never be reset externally,
-//    so we replace the entire function on window.
-// ----------------------------------------------------------------
-window.speakEL = async function _ariaEL(txt) {
-  if (!txt) return;
-  if (location.protocol === 'file:') { if (typeof fallbackSpeak === 'function') fallbackSpeak(txt); return; }
-
-  try {
-    if (typeof setMode === 'function') setMode('generating');
-    if (window.S) S.lastText = txt;
-
-    var controller = new AbortController();
-    var timer = setTimeout(function() { controller.abort(); }, 15000);
-
-    var vSel = document.getElementById('vSel') || document.getElementById('voiceSel') || { value: '' };
-    var res = await fetch(W + '/tts', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ text: txt, voice_id: vSel.value || '' }),
-      signal: controller.signal,
-    });
-    clearTimeout(timer);
-
-    var ct = res.headers.get('Content-Type') || '';
-    if (!res.ok || !ct.includes('audio')) {
-      console.warn('[ARIA] EL returned ' + res.status + ' / ' + ct + ' — using browser voice');
-      if (typeof fallbackSpeak === 'function') fallbackSpeak(txt);
-      return;
-    }
-
-    var blob  = await res.blob();
-    var url   = URL.createObjectURL(blob);
-    var audio = new Audio(url);
-    if (window.S) S.audio = audio;
-    var spd = document.getElementById('spd') || document.getElementById('speedSlider');
-    audio.playbackRate = spd ? parseFloat(spd.value) : 1;
-    audio.onplay  = function() { if (typeof setMode === 'function') setMode('speaking'); };
-    audio.onended = audio.onerror = function() {
-      if (typeof setMode === 'function') setMode('ready');
-      URL.revokeObjectURL(url);
-      if (window.S) S.audio = null;
-      var autoOn = document.getElementById('autoOn');
-      if (autoOn && autoOn.checked && typeof startListen === 'function') startListen();
-    };
-    await audio.play();
-    console.log('[ARIA] ElevenLabs OK');
-  } catch(e) {
-    if (e.name !== 'AbortError') console.warn('[ARIA] EL error:', e.message);
-    if (typeof fallbackSpeak === 'function') fallbackSpeak(txt);
-  }
-};
-
-// ----------------------------------------------------------------
-// 4. GMAIL DIRECT API
-// ----------------------------------------------------------------
-var GM_BASE = 'https://gmail.googleapis.com/gmail/v1/users/me';
-
-async function gAPI(path, opts) {
-  opts = opts || {};
-  var tok = _gmTok();
-  if (!tok) throw new Error('Gmail not connected — please reconnect.');
-  var r = await fetch(GM_BASE + path, Object.assign({}, opts, {
-    headers: Object.assign({ Authorization: 'Bearer ' + tok, 'Content-Type': 'application/json' }, opts.headers || {}),
-  }));
-  if (r.status === 401) {
-    localStorage.removeItem(_TOK_KEY); sessionStorage.removeItem(_TOK_KEY);
-    throw new Error('Gmail session expired — please reconnect.');
-  }
-  if (!r.ok) throw new Error('Gmail API ' + r.status);
-  return r.json();
-}
-
-async function gListEmails(q, max) {
-  q = q || 'in:inbox'; max = max || 6;
-  var d = await gAPI('/messages?maxResults=' + max + '&q=' + encodeURIComponent(q));
-  if (!d.messages || !d.messages.length) return [];
-  return Promise.all(d.messages.map(function(m) {
-    return gAPI('/messages/' + m.id + '?format=metadata&metadataHeaders=From&metadataHeaders=Subject&metadataHeaders=Date');
-  }));
-}
-
-async function gGetBody(id) {
-  var d = await gAPI('/messages/' + id + '?format=full');
-  function decode(b64) {
-    try { return atob(b64.replace(/-/g,'+').replace(/_/g,'/')); } catch(e) { return ''; }
-  }
-  function walk(p) {
-    if (!p) return '';
-    if (p.mimeType === 'text/plain' && p.body && p.body.data) return decode(p.body.data);
-    if (p.parts) { for (var i=0; i<p.parts.length; i++) { var t = walk(p.parts[i]); if (t) return t; } }
-    return '';
-  }
-  return walk(d.payload).replace(/<[^>]+>/g,' ').replace(/\s{2,}/g,' ').trim().slice(0, 800);
-}
-
-async function gModifyLabels(id, add, remove) {
-  add = add || []; remove = remove || [];
-  return gAPI('/messages/' + id + '/modify', { method: 'POST', body: JSON.stringify({ addLabelIds: add, removeLabelIds: remove }) });
-}
-
-async function gInboxStats() {
-  var d = await gAPI('/labels/INBOX');
-  return { total: d.messagesTotal, unread: d.messagesUnread };
-}
-
-function _hdr(msg, name) {
-  var h = (msg.payload && msg.payload.headers) ? msg.payload.headers : [];
-  for (var i=0; i<h.length; i++) { if (h[i].name.toLowerCase() === name.toLowerCase()) return h[i].value; }
-  return '';
-}
-
-// ----------------------------------------------------------------
-// 5. EMAIL CARD UI
-// ----------------------------------------------------------------
-(function injectCardCSS() {
-  if (document.getElementById('ariaCardCSS')) return;
-  var st = document.createElement('style');
-  st.id = 'ariaCardCSS';
-  st.textContent = [
-    '.aria-card-wrap{padding:4px 0;font-family:inherit}',
-    '.aria-card-title{font-weight:700;font-size:12px;color:var(--gold,#00d4ff);margin-bottom:8px;letter-spacing:.3px;text-transform:uppercase}',
-    '.aria-card{background:var(--glass,rgba(255,255,255,.03));border:1px solid var(--stroke,rgba(255,255,255,.07));border-radius:12px;padding:10px 13px;margin-bottom:6px;cursor:pointer;transition:border-color .2s,background .2s}',
-    '.aria-card:hover{border-color:var(--gold,#00d4ff);background:var(--glass2,rgba(255,255,255,.055))}',
-    '.aria-card-row{display:flex;justify-content:space-between;align-items:baseline;gap:8px}',
-    '.aria-card-from{font-weight:600;font-size:12px;color:var(--text,#f0f2fc);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:68%}',
-    '.aria-card-date{font-size:11px;color:var(--text3,#6b7eaa);white-space:nowrap}',
-    '.aria-card-subj{font-size:12px;color:var(--text2,#c9d1e8);margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}',
-    '.aria-card-btns{display:flex;gap:5px;margin-top:7px}',
-    '.aria-card-btn{font-size:10px;padding:2px 9px;border-radius:6px;border:1px solid var(--stroke2,rgba(255,255,255,.12));background:transparent;color:var(--text2,#c9d1e8);cursor:pointer;transition:background .15s,color .15s}',
-    '.aria-card-btn:hover{background:var(--gold,#00d4ff);color:#04050a;border-color:var(--gold,#00d4ff)}',
-    '.aria-card-unread{border-left:2px solid var(--cyan,#5de6d8)}',
-  ].join('');
-  document.head.appendChild(st);
-})();
-
-function _shortDate(raw) {
-  if (!raw) return '';
-  var d = new Date(raw);
-  if (isNaN(d)) return raw.split(' ').slice(0,3).join(' ');
-  var now = new Date();
-  if (now - d < 86400000) return d.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});
-  return d.toLocaleDateString([],{month:'short',day:'numeric'});
-}
-
-function buildEmailCard(msg, idx, allMsgs) {
-  var from    = _hdr(msg, 'From');
-  var subject = _hdr(msg, 'Subject') || '(no subject)';
-  var date    = _hdr(msg, 'Date');
-  var unread  = msg.labelIds && msg.labelIds.indexOf('UNREAD') >= 0;
-  var fromName = from.replace(/<[^>]*>/g,'').replace(/"/g,'').trim() || from;
-
-  var card = document.createElement('div');
-  card.className = 'aria-card' + (unread ? ' aria-card-unread' : '');
-
-  card.innerHTML =
-    '<div class="aria-card-row">' +
-      '<div class="aria-card-from">' + fromName.replace(/</g,'&lt;') + '</div>' +
-      '<div class="aria-card-date">' + _shortDate(date) + '</div>' +
-    '</div>' +
-    '<div class="aria-card-subj">' + subject.replace(/</g,'&lt;') + '</div>' +
-    '<div class="aria-card-btns">' +
-      '<button class="aria-card-btn" data-action="read">Read</button>' +
-      '<button class="aria-card-btn" data-action="star">Star</button>' +
-      '<button class="aria-card-btn" data-action="archive">Archive</button>' +
-    '</div>';
-
-  card.querySelectorAll('.aria-card-btn').forEach(function(btn) {
-    btn.addEventListener('click', async function(e) {
-      e.stopPropagation();
-      var action = btn.dataset.action;
-      try {
-        if (action === 'read') {
-          if (typeof speak === 'function') speak('Reading email from ' + fromName + '. Subject: ' + subject + '.');
-          var body = await gGetBody(msg.id);
-          // Use original showEmailDetail if possible
-          if (typeof showEmailDetail === 'function') {
-            showEmailDetail({ from: from, subject: subject, body: body, date: date });
-          } else {
-            _appendBot(body || 'No text content found.');
-          }
-        } else if (action === 'star') {
-          await gModifyLabels(msg.id, ['STARRED'], []);
-          btn.textContent = 'Starred!'; btn.disabled = true;
-          if (typeof speak === 'function') speak('Starred.');
-        } else if (action === 'archive') {
-          await gModifyLabels(msg.id, [], ['INBOX']);
-          card.style.opacity = '.4'; btn.textContent = 'Archived'; btn.disabled = true;
-          if (typeof speak === 'function') speak('Archived.');
-        }
-      } catch(err) { _appendBot('Error: ' + err.message); }
-    });
-  });
-  return card;
-}
-
-function _appendBot(content) {
-  var msgs = document.getElementById('msgs') || document.getElementById('messages') || document.querySelector('.msgs');
-  if (!msgs) return;
-  var row = document.createElement('div');
-  row.className = 'msg assistant';
-  row.style.alignItems = 'flex-start';
-  var av = document.createElement('div'); av.className = 'av'; av.textContent = 'A';
-  var wrap = document.createElement('div'); wrap.style.cssText = 'flex:1;min-width:0;';
-  var bub = document.createElement('div'); bub.className = 'bubble';
-  if (typeof content === 'string') {
-    bub.textContent = content;
-  } else {
-    bub.style.cssText = 'background:transparent;padding:0;';
-    bub.appendChild(content);
-  }
-  wrap.appendChild(bub);
-  row.appendChild(av);
-  row.appendChild(wrap);
-  msgs.appendChild(row);
-  msgs.scrollTop = msgs.scrollHeight;
-}
-
-function renderEmailCards(emails, title) {
-  var wrap = document.createElement('div');
-  wrap.className = 'aria-card-wrap';
-  if (title) {
-    var h = document.createElement('div');
-    h.className = 'aria-card-title';
-    h.textContent = title;
-    wrap.appendChild(h);
-  }
-  emails.forEach(function(msg, i) { wrap.appendChild(buildEmailCard(msg, i, emails)); });
-  return wrap;
-}
-
-// ----------------------------------------------------------------
-// 6. GMAIL ACTIONS
-// ----------------------------------------------------------------
-async function ariaInboxStats() {
-  _appendBot('Checking inbox...');
-  try {
-    var st = await gInboxStats();
-    var m = 'You have ' + st.total + ' emails, ' + st.unread + ' unread.';
-    _appendBot(m); if (typeof speak === 'function') speak(m);
-  } catch(e) { _appendBot('Could not fetch inbox: ' + e.message); }
-}
-
-async function ariaReadEmails(q) {
-  _appendBot('Fetching your emails...');
-  try {
-    var emails = await gListEmails(q || 'in:inbox', 6);
-    if (!emails.length) {
-      var m = 'No emails found.'; _appendBot(m); if (typeof speak === 'function') speak(m); return;
-    }
-    _appendBot(renderEmailCards(emails, 'Your Inbox'), false);
-    if (typeof speak === 'function') speak('Here are your ' + emails.length + ' latest emails.');
-  } catch(e) { _appendBot('Gmail error: ' + e.message); }
-}
-
-async function ariaSearchEmails(rawText) {
-  var match = rawText.match(/(?:from|about|find|search|related to)\s+(.+)/i);
-  var q = match ? match[1].trim() : rawText;
-  _appendBot('Searching: ' + q + '...');
-  try {
-    var emails = await gListEmails(q, 5);
-    if (!emails.length) { var m = 'Nothing found for: ' + q; _appendBot(m); return; }
-    _appendBot(renderEmailCards(emails, 'Search: ' + q), false);
-    if (typeof speak === 'function') speak('Found ' + emails.length + ' emails matching ' + q + '.');
-  } catch(e) { _appendBot('Search error: ' + e.message); }
-}
-
-// ----------------------------------------------------------------
-// 7. INTENT DETECTION — broad + conversational
-// ----------------------------------------------------------------
-var ARIA_INTENTS = [
-  { re: /\b(how many|count|stats?|overview|any new)\b.{0,25}\b(email|mail|message)\b/i,                   fn: function() { return ariaInboxStats(); } },
-  { re: /\b(unread|new)\b.{0,20}\b(email|mail|message)\b/i,                                                fn: function() { return ariaReadEmails('is:unread'); } },
-  { re: /\b(important|starred|flagged)\b.{0,20}\b(email|mail)\b/i,                                         fn: function() { return ariaReadEmails('is:important'); } },
-  { re: /\b(search|find|look for|emails? from|mails? from|emails? about)\b.{0,50}/i,                       fn: function(t) { return ariaSearchEmails(t); } },
-  { re: /\b(read|show|list|get|fetch|open|check|see|view|bring up|pull up)\b.{0,30}\b(email|mail|inbox|message)\b/i, fn: function() { return ariaReadEmails('in:inbox'); } },
-  { re: /\bgo ahead\b.{0,50}\b(email|mail|inbox|message)\b/i,                                              fn: function() { return ariaReadEmails('in:inbox'); } },
-  { re: /\b(tell|give|show|what).{0,30}\b(email|mail|inbox|message)\b/i,                                   fn: function() { return ariaReadEmails('in:inbox'); } },
-  { re: /\b(what|any|my|do i have|i have|got any).{0,25}\b(email|mail|message)\b/i,                        fn: function() { return ariaReadEmails('in:inbox'); } },
-  { re: /\b(inbox|my mail|my emails)\b/i,                                                                    fn: function() { return ariaReadEmails('in:inbox'); } },
-];
-
-function detectIntent(text) {
-  if (!_gmTok()) return null;
-  for (var i=0; i<ARIA_INTENTS.length; i++) {
-    if (ARIA_INTENTS[i].re.test(text)) {
-      var fn = ARIA_INTENTS[i].fn;
-      return (function(f) { return function() { return f(text); }; })(fn);
-    }
-  }
-  return null;
-}
-
-// ----------------------------------------------------------------
-// 8. PATCH sendMsg — intercept Gmail intents before Cloudflare
-// ----------------------------------------------------------------
-(function patchSendMsg() {
-  if (typeof sendMsg === 'undefined') { setTimeout(patchSendMsg, 500); return; }
-  var _orig = window.sendMsg;
-  window.sendMsg = async function() {
-    var inp = document.getElementById('inp') || document.getElementById('userInput') || document.querySelector('textarea,input[type=text]');
-    var text = inp ? inp.value.trim() : '';
-    if (text) {
-      var fn = detectIntent(text);
-      if (fn) {
-        if (inp) { inp.value = ''; if (typeof autoResize === 'function') autoResize(); }
-        await fn();
-        return;
-      }
-    }
-    if (typeof _orig === 'function') return _orig.apply(this, arguments);
-  };
-  // Re-bind send button
-  var btn = document.getElementById('sendBtn');
-  if (btn) {
-    var nb = btn.cloneNode(true);
-    btn.parentNode.replaceChild(nb, btn);
-    nb.addEventListener('click', function() { window.sendMsg(); });
-  }
-  // Re-bind Enter on input
-  var inp2 = document.getElementById('inp') || document.getElementById('userInput') || document.querySelector('textarea');
-  if (inp2) {
-    inp2.addEventListener('keydown', function(e) {
-      if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); window.sendMsg(); }
-    });
-  }
-})();
-
-// ----------------------------------------------------------------
-// 9. "HEY ARIA" WAKE WORD
-// ----------------------------------------------------------------
-(function initWakeWord() {
+// ── "Hey ARIA" wake word ──────────────────────────────────────────
+(function initWake(){
   var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-  if (!SR) return;
-  var wakeRec = null, wakeActive = false, wakeCooldown = false;
+  if(!SR) return;
+
+  var wakeRec=null, wakeOn=false, wakeCooldown=false;
   var WAKE = /\b(hey\s+aria|hi\s+aria|hello\s+aria|okay\s+aria)\b/i;
 
-  function startWake() {
-    if (wakeActive) return;
-    try {
+  // Hook into the main mic state so wake word pauses when mic is active
+  // (Two SR instances cannot run simultaneously in Chrome)
+  var origStartListen = null, origStopListen = null;
+
+  function startWake(){
+    if(wakeOn || (window.S && S.listening)) return; // yield to main mic
+    try{
       wakeRec = new SR();
-      wakeRec.continuous = true; wakeRec.interimResults = false; wakeRec.lang = 'en-US';
-      wakeRec.onresult = function(ev) {
-        var t = ev.results[ev.results.length - 1][0].transcript;
-        if (WAKE.test(t) && !wakeCooldown) {
-          wakeCooldown = true; setTimeout(function() { wakeCooldown = false; }, 3000);
-          var cmd = t.replace(WAKE, '').trim();
-          if (typeof speak === 'function') speak('Yes?');
-          if (cmd) {
-            var inp = document.getElementById('inp') || document.getElementById('userInput') || document.querySelector('textarea');
-            if (inp) { inp.value = cmd; window.sendMsg && window.sendMsg(); }
-          } else {
-            var micBtn = document.getElementById('micBtn') || document.querySelector('.mic-btn,[data-mic]');
-            if (micBtn) micBtn.click();
-          }
+      wakeRec.continuous = true;
+      wakeRec.interimResults = false;
+      wakeRec.lang = 'en-US';
+      wakeRec.onresult = function(ev){
+        var t = ev.results[ev.results.length-1][0].transcript.trim();
+        if(!WAKE.test(t) || wakeCooldown) return;
+        wakeCooldown=true; setTimeout(function(){ wakeCooldown=false; }, 3000);
+        var cmd = t.replace(WAKE,'').trim();
+        if(typeof speak==='function') speak('Yes?');
+        if(cmd){
+          var inp = document.getElementById('inp') || document.querySelector('textarea,input[type=text]');
+          if(inp){ inp.value=cmd; if(typeof autoResize==='function') autoResize(); }
+          if(typeof sendMsg==='function') setTimeout(sendMsg, 100);
+        } else {
+          // Just activate the main mic
+          stopWake();
+          if(typeof startListen==='function') startListen();
         }
       };
-      wakeRec.onerror = function() { wakeActive = false; setTimeout(startWake, 2000); };
-      wakeRec.onend   = function() { wakeActive = false; setTimeout(startWake, 1000); };
-      wakeRec.start(); wakeActive = true;
-    } catch(e) { console.warn('[ARIA] Wake error:', e); }
+      wakeRec.onerror = function(){ wakeOn=false; setTimeout(startWake, 2000); };
+      wakeRec.onend   = function(){ wakeOn=false; if(wakeBtn && wakeBtn._enabled && !(window.S&&S.listening)) setTimeout(startWake,800); };
+      wakeRec.start();
+      wakeOn = true;
+    }catch(e){ console.warn('[ARIA] Wake word error:',e.message); }
   }
 
-  // Toggle button in top bar
-  var hdr = document.querySelector('.top-bar, header, .topbar, .header-bar') || document.querySelector('header');
-  if (!hdr) hdr = document.body.children[0];
-  if (hdr) {
-    var wakeBtn = document.createElement('button');
-    wakeBtn.id = 'ariaWakeBtn';
-    wakeBtn.textContent = 'Wake OFF';
-    wakeBtn.style.cssText = [
-      'background:transparent',
-      'border:1px solid rgba(255,255,255,.15)',
-      'border-radius:8px',
-      'padding:3px 10px',
-      'color:var(--text3,#6b7eaa)',
-      'cursor:pointer',
-      'font-size:11px',
-      'font-family:inherit',
-      'margin:4px',
-      'transition:color .2s,border-color .2s',
-    ].join(';');
-    var wakeOn = false;
-    wakeBtn.addEventListener('click', function() {
-      wakeOn = !wakeOn;
-      if (wakeOn) {
-        startWake();
-        wakeBtn.textContent = 'Hey ARIA: ON';
-        wakeBtn.style.color = '#5de6d8';
-        wakeBtn.style.borderColor = '#5de6d8';
-      } else {
-        try { wakeRec && wakeRec.stop(); } catch(e){}
-        wakeActive = false;
-        wakeBtn.textContent = 'Wake OFF';
-        wakeBtn.style.color = '';
-        wakeBtn.style.borderColor = '';
-      }
-    });
-    // Add to top-right area if possible
-    var topRight = document.querySelector('.top-right, .header-right, .topbar-right');
-    if (topRight) topRight.insertBefore(wakeBtn, topRight.firstChild);
-    else hdr.appendChild(wakeBtn);
+  function stopWake(){
+    wakeOn=false;
+    try{ if(wakeRec) wakeRec.stop(); }catch(e){}
   }
+
+  // Intercept startListen/stopListen to pause/resume wake word
+  window.addEventListener('load', function(){
+    setTimeout(function(){
+      if(typeof startListen==='function'){
+        var _origStart = window.startListen;
+        window.startListen = function(){
+          stopWake(); // pause wake word while mic is active
+          return _origStart.apply(this, arguments);
+        };
+      }
+      if(typeof stopListen==='function'){
+        var _origStop = window.stopListen;
+        window.stopListen = function(){
+          var r = _origStop.apply(this, arguments);
+          // Resume wake word after main mic stops (if button is on)
+          if(wakeBtn && wakeBtn._enabled) setTimeout(startWake, 1000);
+          return r;
+        };
+      }
+    }, 500);
+  });
+
+  // Wake word toggle button
+  var wakeBtn = document.createElement('button');
+  wakeBtn._enabled = false;
+  wakeBtn.id = 'ariaWakeBtn';
+  wakeBtn.textContent = 'Wake: OFF';
+  wakeBtn.style.cssText = [
+    'position:fixed', 'top:12px', 'right:56px', 'z-index:9999',
+    'background:rgba(255,255,255,.06)', 'border:1px solid rgba(255,255,255,.15)',
+    'border-radius:8px', 'padding:4px 10px', 'color:#6b7eaa',
+    'cursor:pointer', 'font-size:11px', 'font-family:inherit',
+    'transition:all .2s', 'backdrop-filter:blur(8px)',
+  ].join(';');
+  wakeBtn.addEventListener('click', function(){
+    wakeBtn._enabled = !wakeBtn._enabled;
+    if(wakeBtn._enabled){
+      startWake();
+      wakeBtn.textContent = 'Hey ARIA: ON';
+      wakeBtn.style.color = '#5de6d8';
+      wakeBtn.style.borderColor = '#5de6d8';
+      wakeBtn.style.background = 'rgba(93,230,216,.08)';
+    } else {
+      stopWake();
+      wakeBtn.textContent = 'Wake: OFF';
+      wakeBtn.style.color = '#6b7eaa';
+      wakeBtn.style.borderColor = 'rgba(255,255,255,.15)';
+      wakeBtn.style.background = 'rgba(255,255,255,.06)';
+    }
+  });
+  document.body.appendChild(wakeBtn);
 })();
 
-console.log('[ARIA v3] Loaded — EL fixed, Gmail active, wake word ready.');
+console.log('[ARIA v4] Token guard + Wake word loaded.');
 
 </script>
-
 </body>
 </html>
