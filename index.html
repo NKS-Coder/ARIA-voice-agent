@@ -10,10 +10,10 @@
 <title>ARIA</title>
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,200;0,9..40,300;0,9..40,400;0,9..40,500;1,9..40,300&family=DM+Serif+Display:ital@0;1&display=swap" rel="stylesheet">
 <style>
-/* ═══════════════════════════════════════════════
-   ARIA — Apple × Stark Industries
+/* �����������������������������������������������
+   ARIA - Apple x Stark Industries
    Ultra-dark glass, surgical precision, zero noise
-═══════════════════════════════════════════════ */
+����������������������������������������������� */
 :root {
   --void:    #04050a;
   --deep:    #070810;
@@ -48,7 +48,7 @@ body {
   flex-direction:column;
 }
 
-/* Ambient light — barely visible, like atmosphere */
+/* Ambient light - barely visible, like atmosphere */
 body::before {
   content:'';
   position:fixed; inset:0; z-index:0; pointer-events:none;
@@ -68,7 +68,7 @@ body::after {
   background-size:48px 48px;
 }
 
-/* ── HEADER ─────────────────────────────────── */
+/* �� HEADER ����������������������������������� */
 .hdr {
   position:relative; z-index:50; flex-shrink:0;
   height:52px; padding:0 24px;
@@ -82,7 +82,7 @@ body::after {
   display:flex; align-items:center; gap:12px;
 }
 
-/* The ARIA orb — minimal, precise */
+/* The ARIA orb - minimal, precise */
 .orb {
   width:28px; height:28px; border-radius:50%;
   position:relative; flex-shrink:0;
@@ -152,15 +152,15 @@ body::after {
 }
 .hdr-btn:hover { background:var(--glass2); color:var(--gold); border-color:rgba(0,212,255,0.28); }
 
-/* ── THREE COLUMN LAYOUT ─────────────────────── */
+/* �� THREE COLUMN LAYOUT ����������������������� */
 .layout {
   position:relative; z-index:10;
   flex:1; display:flex; overflow:hidden;
 }
 
-/* ══════════════════════════════════════════════
-   LEFT — Conversation History
-══════════════════════════════════════════════ */
+/* ����������������������������������������������
+   LEFT - Conversation History
+���������������������������������������������� */
 .left {
   width:var(--left); flex-shrink:0;
   background:rgba(5,6,12,0.9);
@@ -243,9 +243,9 @@ body::after {
   font-size:0.65rem; color:var(--text3); line-height:2;
 }
 
-/* ══════════════════════════════════════════════
-   CENTER — The Stage
-══════════════════════════════════════════════ */
+/* ����������������������������������������������
+   CENTER - The Stage
+���������������������������������������������� */
 .center {
   flex:1; display:flex; flex-direction:column;
   align-items:center; overflow:hidden;
@@ -259,7 +259,7 @@ body::after {
   gap:16px; padding:28px 20px 14px;
 }
 
-/* The orb system — rings are light halos not spinners */
+/* The orb system - rings are light halos not spinners */
 .halo3 {
   width:188px; height:188px; border-radius:50%;
   display:flex; align-items:center; justify-content:center;
@@ -295,7 +295,7 @@ body::after {
   border:1px solid rgba(0,212,255,0.22);
 }
 
-/* The mic button — the hero element */
+/* The mic button - the hero element */
 .mic {
   width:88px; height:88px; border-radius:50%;
   position:relative;
@@ -358,7 +358,7 @@ body::after {
 .mic-label.listening { color:var(--rose); }
 .mic-label.speaking  { color:var(--cyan); }
 
-/* Visualizer — ultra-minimal */
+/* Visualizer - ultra-minimal */
 .viz {
   display:flex; align-items:center; gap:2.5px; height:28px;
 }
@@ -449,7 +449,7 @@ body::after {
 @keyframes td { 0%,80%,100%{transform:scale(.5);opacity:.3;} 40%{transform:scale(1);opacity:1;} }
 .hidden { display:none !important; }
 
-/* Input — Apple-level refinement */
+/* Input - Apple-level refinement */
 .inp-row { display:flex; gap:8px; align-items:flex-end; flex-shrink:0; }
 .inp-shell {
   flex:1;
@@ -487,9 +487,9 @@ textarea::placeholder { color:var(--text3); }
 }
 .send-btn:disabled { background:rgba(255,255,255,0.05); color:var(--text3); cursor:not-allowed; transform:none; }
 
-/* ══════════════════════════════════════════════
-   RIGHT — Controls
-══════════════════════════════════════════════ */
+/* ����������������������������������������������
+   RIGHT - Controls
+���������������������������������������������� */
 .right {
   width:var(--right); flex-shrink:0;
   overflow-y:auto; padding:14px 12px;
@@ -621,7 +621,7 @@ textarea::placeholder { color:var(--text3); }
 }
 .connect-btn:hover { background:linear-gradient(135deg,rgba(0,212,255,0.2),rgba(200,169,110,0.1)); }
 
-/* ── MODAL ─────────────────────────────────── */
+/* �� MODAL ����������������������������������� */
 .modal-bg {
   position:fixed; inset:0; z-index:200;
   background:rgba(0,0,0,0.8);
@@ -718,17 +718,17 @@ textarea::placeholder { color:var(--text3); }
   font-size:0.6rem; color:#7ee8e0; line-height:1.75;
 }
 
-/* ═══════════════════════════════════════════════
-   RESPONSIVE & DYNAMIC — Mobile First
+/* �����������������������������������������������
+   RESPONSIVE & DYNAMIC - Mobile First
    Breakpoints: 1200px, 900px, 600px, 400px
-═══════════════════════════════════════════════ */
+����������������������������������������������� */
 
 /* Smooth transitions for all interactive elements */
 .hi, .pc, .card, .acard, .mic, .send-btn, .new-btn, .hdr-btn, .icon-btn {
   transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-/* Mobile hamburger button — hidden on desktop */
+/* Mobile hamburger button - hidden on desktop */
 .menu-toggle {
   display: none;
   width: 32px; height: 32px; border-radius: 8px;
@@ -750,7 +750,7 @@ textarea::placeholder { color:var(--text3); }
 }
 .sidebar-overlay.open { opacity: 1; }
 
-/* Right panel toggle button — mobile only */
+/* Right panel toggle button - mobile only */
 .right-toggle {
   display: none;
   width: 32px; height: 32px; border-radius: 8px;
@@ -761,9 +761,9 @@ textarea::placeholder { color:var(--text3); }
 }
 .right-toggle:hover { color: var(--gold); border-color: rgba(0,212,255,0.3); }
 
-/* ── LARGE DESKTOP (1400px+) — default, already handled ── */
+/* �� LARGE DESKTOP (1400px+) - default, already handled �� */
 
-/* ── MEDIUM DESKTOP (900px - 1200px) ── */
+/* �� MEDIUM DESKTOP (900px - 1200px) �� */
 @media (max-width: 1200px) {
   :root {
     --left:  220px;
@@ -773,7 +773,7 @@ textarea::placeholder { color:var(--text3); }
   .hdr-right .chip { display: none; } /* hide model badge */
 }
 
-/* ── TABLET LANDSCAPE (768px - 900px) ── */
+/* �� TABLET LANDSCAPE (768px - 900px) �� */
 @media (max-width: 900px) {
   :root {
     --left:  200px;
@@ -808,7 +808,7 @@ textarea::placeholder { color:var(--text3); }
   .mic-icon { font-size: 1.7rem; }
 }
 
-/* ── TABLET PORTRAIT (600px - 768px) ── */
+/* �� TABLET PORTRAIT (600px - 768px) �� */
 @media (max-width: 768px) {
   :root { --left: 0px; }
 
@@ -856,7 +856,7 @@ textarea::placeholder { color:var(--text3); }
   .send-btn { padding: 8px 14px; font-size: 0.72rem; }
 }
 
-/* ── MOBILE (max 600px) ── */
+/* �� MOBILE (max 600px) �� */
 @media (max-width: 600px) {
   .mic-stage { padding: 14px 12px 8px; gap: 10px; }
   .halo3 { width: 148px; height: 148px; }
@@ -887,7 +887,7 @@ textarea::placeholder { color:var(--text3); }
   .status-pill { padding: 4px 10px; font-size: 0.56rem; }
 }
 
-/* ── SMALL MOBILE (max 400px) ── */
+/* �� SMALL MOBILE (max 400px) �� */
 @media (max-width: 400px) {
   .halo3 { width: 136px; height: 136px; }
   .halo2 { width: 108px; height: 108px; }
@@ -902,7 +902,7 @@ textarea::placeholder { color:var(--text3); }
   .send-btn { padding: 7px 10px; font-size: 0.68rem; }
 }
 
-/* ── DYNAMIC HOVER EFFECTS ── */
+/* �� DYNAMIC HOVER EFFECTS �� */
 
 /* Cards lift on hover */
 .card:hover {
@@ -951,7 +951,7 @@ textarea::placeholder { color:var(--text3); }
   scroll-behavior: smooth;
 }
 
-/* Touch devices — remove hover effects that feel wrong */
+/* Touch devices - remove hover effects that feel wrong */
 @media (hover: none) {
   .card:hover { transform: none; box-shadow: none; }
   .hi:hover .hi-title { color: var(--text); }
@@ -970,7 +970,7 @@ textarea::placeholder { color:var(--text3); }
   body { overflow-y: auto; }
 }
 
-/* ── EMAIL CARDS — Gmail accurate colors ─────────────────── */
+/* �� EMAIL CARDS - Gmail accurate colors ������������������� */
 /* Gmail color palette */
 :root {
   --gmail-red:    #EA4335;
@@ -1045,7 +1045,7 @@ textarea::placeholder { color:var(--text3); }
 .email-star    { font-size: 0.8rem; cursor: pointer; opacity: 0.3; }
 .email-star:hover { opacity: 1; }
 
-/* Email detail card — Gmail light theme */
+/* Email detail card - Gmail light theme */
 .email-detail {
   border-radius: 12px; overflow: hidden; width: 100%;
   margin-top: 6px; animation: msg-in 0.3s cubic-bezier(0.16,1,0.3,1);
@@ -1078,7 +1078,7 @@ textarea::placeholder { color:var(--text3); }
   padding-left: 16px; position: relative; line-height: 1.55;
 }
 .email-points li::before {
-  content: '•'; position: absolute; left: 0;
+  content: ''; position: absolute; left: 0;
   font-size: 0.9rem; color: var(--gmail-blue); top: 0px;
 }
 
@@ -1101,7 +1101,7 @@ textarea::placeholder { color:var(--text3); }
 }
 .send-reply-btn:hover { background: #1557b0; box-shadow: 0 2px 8px rgba(26,115,232,0.4); }
 
-/* Inbox stats card — Gmail colors */
+/* Inbox stats card - Gmail colors */
 .inbox-stats {
   border-radius: 12px; border: 1px solid var(--gmail-border);
   overflow: hidden; width: 100%; margin-top: 6px;
@@ -1141,7 +1141,7 @@ textarea::placeholder { color:var(--text3); }
 }
 .gmail-open-btn:hover { background: var(--gmail-hover); box-shadow: 0 1px 3px rgba(0,0,0,0.15); }
 
-/* Gmail panel — slides in from right */
+/* Gmail panel - slides in from right */
 .gmail-panel {
   position: fixed; right: 0; top: 56px;
   width: 480px; height: calc(100vh - 56px);
@@ -1206,7 +1206,7 @@ textarea::placeholder { color:var(--text3); }
 <!-- HEADER -->
 <div class="sidebar-overlay" id="sidebarOverlay"></div>
 <header class="hdr">
-  <button class="menu-toggle" id="menuToggle" title="History">☰</button>
+  <button class="menu-toggle" id="menuToggle" title="History">?</button>
   <div class="logo">
     <div class="orb"><div class="orb-inner"><div class="orb-dot"></div></div></div>
     <div class="brand">
@@ -1220,11 +1220,11 @@ textarea::placeholder { color:var(--text3); }
       <div class="pulse"></div>
       <span id="statusChip">Online</span>
     </div>
-    <div class="model-badge">⚡ Llama 3.3 · 70B</div>
+    <div class="model-badge">? Llama 3.3 � 70B</div>
   </div>
 
   <div class="hdr-right">
-    <button class="hdr-btn" id="gearBtn" title="Settings">⚙</button>
+    <button class="hdr-btn" id="gearBtn" title="Settings">?</button>
   </div>
 </header>
 
@@ -1234,10 +1234,10 @@ textarea::placeholder { color:var(--text3); }
   <!-- LEFT: History -->
   <nav class="left">
     <button class="new-btn" id="newChatBtn">
-      <span class="new-btn-icon">✦</span> New Conversation
+      <span class="new-btn-icon">?</span> New Conversation
     </button>
     <div class="search-wrap">
-      <span class="search-ico">⌕</span>
+      <span class="search-ico">?</span>
       <input type="text" id="histSearch" placeholder="Search...">
     </div>
     <div class="hist-label">Recent</div>
@@ -1251,12 +1251,12 @@ textarea::placeholder { color:var(--text3); }
     <div class="stage">
       <div class="halo3"><div class="halo2"><div class="halo1">
         <div class="mic" id="micBtn">
-          <div class="mic-icon">🎙</div>
+          <div class="mic-icon">??</div>
         </div>
       </div></div></div>
       <div class="mic-label" id="micLbl">Click to speak</div>
 
-      <!-- STOP button — visible when speaking -->
+      <!-- STOP button - visible when speaking -->
       <button id="stopBtn" onclick="stopSpeaking()" style="
         display:none; align-items:center; justify-content:center; gap:6px;
         background:#c5221f; border:1px solid #a50e0e;
@@ -1264,7 +1264,7 @@ textarea::placeholder { color:var(--text3); }
         font-family:'DM Sans',sans-serif; font-size:0.68rem; font-weight:600;
         cursor:pointer; transition:all 0.2s; letter-spacing:0.05em;
         box-shadow: 0 2px 12px rgba(197,34,31,0.4);">
-        ⏹ Stop Speaking
+        ? Stop Speaking
       </button>
 
       <div class="viz" id="viz">
@@ -1298,18 +1298,18 @@ textarea::placeholder { color:var(--text3); }
       <div class="stats">
         <div class="stat"><div class="sv" id="sMsgs">0</div><div class="sl">Messages</div></div>
         <div class="stat"><div class="sv" id="sTime">0s</div><div class="sl">Time</div></div>
-        <div class="stat"><div class="sv" id="sTok">—</div><div class="sl">Tokens</div></div>
+        <div class="stat"><div class="sv" id="sTok">-</div><div class="sl">Tokens</div></div>
       </div>
     </div>
 
     <div class="card">
       <div class="card-hd">Persona</div>
       <div class="pgrid">
-        <button class="pc active" data-p="general"><div class="pi">🤖</div><div class="pn">General</div><div class="pd">All-purpose</div></button>
-        <button class="pc" data-p="sales"><div class="pi">💼</div><div class="pn">Sales</div><div class="pd">Lead & convert</div></button>
-        <button class="pc" data-p="support"><div class="pi">🛠</div><div class="pn">Support</div><div class="pd">Tech help</div></button>
-        <button class="pc" data-p="research"><div class="pi">🔬</div><div class="pn">Research</div><div class="pd">Deep analysis</div></button>
-        <button class="pc" data-p="jarvis" style="grid-column:span 2"><div class="pi">⚡</div><div class="pn">Jarvis Mode</div><div class="pd">Full Iron Man assistant</div></button>
+        <button class="pc active" data-p="general"><div class="pi">??</div><div class="pn">General</div><div class="pd">All-purpose</div></button>
+        <button class="pc" data-p="sales"><div class="pi">??</div><div class="pn">Sales</div><div class="pd">Lead & convert</div></button>
+        <button class="pc" data-p="support"><div class="pi">??</div><div class="pn">Support</div><div class="pd">Tech help</div></button>
+        <button class="pc" data-p="research"><div class="pi">??</div><div class="pn">Research</div><div class="pd">Deep analysis</div></button>
+        <button class="pc" data-p="jarvis" style="grid-column:span 2"><div class="pi">?</div><div class="pn">Jarvis Mode</div><div class="pd">Full Iron Man assistant</div></button>
       </div>
     </div>
 
@@ -1320,14 +1320,14 @@ textarea::placeholder { color:var(--text3); }
         <label class="tog"><input type="checkbox" id="voiceOn" checked><div class="trk"></div></label>
       </div>
       <div class="row">
-        <div><div class="rl">Character</div><div class="rs">Live — changes instantly</div></div>
+        <div><div class="rl">Character</div><div class="rs">Live - changes instantly</div></div>
         <select class="sel" id="voiceSel">
-          <option value="21m00Tcm4TlvDq8ikWAM">Rachel ♀</option>
-          <option value="AZnzlk1XvdvUeBnXmlld">Domi ♀</option>
-          <option value="EXAVITQu4vr4xnSDxMaL" selected>Bella ♀</option>
-          <option value="ErXwobaYiN019PkySvjV">Antoni ♂</option>
-          <option value="pNInz6obpgDQGcFmaJgB">Adam ♂</option>
-          <option value="VR6AewLTigWG4xSOukaG">Arnold ♂</option>
+          <option value="21m00Tcm4TlvDq8ikWAM">Rachel </option>
+          <option value="AZnzlk1XvdvUeBnXmlld">Domi </option>
+          <option value="EXAVITQu4vr4xnSDxMaL" selected>Bella </option>
+          <option value="ErXwobaYiN019PkySvjV">Antoni </option>
+          <option value="pNInz6obpgDQGcFmaJgB">Adam </option>
+          <option value="VR6AewLTigWG4xSOukaG">Arnold </option>
         </select>
       </div>
       <div class="row">
@@ -1339,7 +1339,7 @@ textarea::placeholder { color:var(--text3); }
         <label class="tog"><input type="checkbox" id="autoOn"><div class="trk"></div></label>
       </div>
       <button class="save-voice-btn" id="saveVoiceSidebar">Save Voice as Default</button>
-      <div class="save-voice-saved" id="sidebarVoiceSaved">✓ Voice saved</div>
+      <div class="save-voice-saved" id="sidebarVoiceSaved">� Voice saved</div>
     </div>
 
     <div class="card">
@@ -1358,7 +1358,7 @@ textarea::placeholder { color:var(--text3); }
   <div class="modal">
     <div class="mhdr">
       <div class="mtitle">Settings</div>
-      <button class="mclose" id="closeBtn">✕</button>
+      <button class="mclose" id="closeBtn">?</button>
     </div>
     <div class="mtabs">
       <button class="mtab on" data-tab="apps">Apps</button>
@@ -1368,48 +1368,48 @@ textarea::placeholder { color:var(--text3); }
 
     <!-- APPS -->
     <div class="tpanel on" id="tab-apps">
-      <div class="mnote">🔒 Connections use OAuth2 — you log in with your own account. ARIA never sees your password.</div>
+      <div class="mnote">?? Connections use OAuth2 - you log in with your own account. ARIA never sees your password.</div>
       <div class="msec">Google</div>
-      <div class="acard" id="card-gmail"><div class="acl"><div class="acico">📧</div><div><div class="acname">Gmail</div><div class="acdesc" id="desc-gmail">Send, read, sort emails</div></div></div><button class="abtn connect" id="btn-gmail" onclick="connectApp('gmail')">Connect</button></div>
-      <div class="acard" id="card-calendar"><div class="acl"><div class="acico">📅</div><div><div class="acname">Calendar</div><div class="acdesc" id="desc-calendar">Book meetings</div></div></div><button class="abtn connect" id="btn-calendar" onclick="connectApp('calendar')">Connect</button></div>
+      <div class="acard" id="card-gmail"><div class="acl"><div class="acico">??</div><div><div class="acname">Gmail</div><div class="acdesc" id="desc-gmail">Send, read, sort emails</div></div></div><button class="abtn connect" id="btn-gmail" onclick="connectApp('gmail')">Connect</button></div>
+      <div class="acard" id="card-calendar"><div class="acl"><div class="acico">??</div><div><div class="acname">Calendar</div><div class="acdesc" id="desc-calendar">Book meetings</div></div></div><button class="abtn connect" id="btn-calendar" onclick="connectApp('calendar')">Connect</button></div>
       <div class="msec">Microsoft</div>
-      <div class="acard" id="card-outlook"><div class="acl"><div class="acico">💼</div><div><div class="acname">Outlook</div><div class="acdesc" id="desc-outlook">Send and read emails</div></div></div><button class="abtn connect" id="btn-outlook" onclick="connectApp('outlook')">Connect</button></div>
+      <div class="acard" id="card-outlook"><div class="acl"><div class="acico">??</div><div><div class="acname">Outlook</div><div class="acdesc" id="desc-outlook">Send and read emails</div></div></div><button class="abtn connect" id="btn-outlook" onclick="connectApp('outlook')">Connect</button></div>
       <div class="msec">Messaging</div>
-      <div class="acard" id="card-slack"><div class="acl"><div class="acico">💬</div><div><div class="acname">Slack</div><div class="acdesc" id="desc-slack">Send to channels</div></div></div><button class="abtn connect" id="btn-slack" onclick="connectApp('slack')">Connect</button></div>
-      <div class="acard" id="card-discord"><div class="acl"><div class="acico">🎮</div><div><div class="acname">Discord</div><div class="acdesc" id="desc-discord">Post to channels</div></div></div><button class="abtn connect" id="btn-discord" onclick="connectApp('discord')">Connect</button></div>
+      <div class="acard" id="card-slack"><div class="acl"><div class="acico">??</div><div><div class="acname">Slack</div><div class="acdesc" id="desc-slack">Send to channels</div></div></div><button class="abtn connect" id="btn-slack" onclick="connectApp('slack')">Connect</button></div>
+      <div class="acard" id="card-discord"><div class="acl"><div class="acico">??</div><div><div class="acname">Discord</div><div class="acdesc" id="desc-discord">Post to channels</div></div></div><button class="abtn connect" id="btn-discord" onclick="connectApp('discord')">Connect</button></div>
       <div class="msec">Productivity</div>
-      <div class="acard" id="card-notion"><div class="acl"><div class="acico">📝</div><div><div class="acname">Notion</div><div class="acdesc" id="desc-notion">Create notes</div></div></div><button class="abtn connect" id="btn-notion" onclick="connectApp('notion')">Connect</button></div>
-      <div class="acard" id="card-airtable"><div class="acl"><div class="acico">🗃</div><div><div class="acname">Airtable</div><div class="acdesc" id="desc-airtable">Log data</div></div></div><button class="abtn connect" id="btn-airtable" onclick="connectApp('airtable')">Connect</button></div>
+      <div class="acard" id="card-notion"><div class="acl"><div class="acico">??</div><div><div class="acname">Notion</div><div class="acdesc" id="desc-notion">Create notes</div></div></div><button class="abtn connect" id="btn-notion" onclick="connectApp('notion')">Connect</button></div>
+      <div class="acard" id="card-airtable"><div class="acl"><div class="acico">??</div><div><div class="acname">Airtable</div><div class="acdesc" id="desc-airtable">Log data</div></div></div><button class="abtn connect" id="btn-airtable" onclick="connectApp('airtable')">Connect</button></div>
     </div>
 
     <!-- VOICE -->
     <div class="tpanel" id="tab-voice">
-      <div class="mnote">ElevenLabs API key is encrypted in Cloudflare — no setup needed.</div>
+      <div class="mnote">ElevenLabs API key is encrypted in Cloudflare - no setup needed.</div>
       <div class="mfld">
         <div class="mlbl">Voice Character</div>
         <select class="minp" id="modalVoice" style="cursor:pointer">
-          <option value="21m00Tcm4TlvDq8ikWAM">Rachel — warm natural female</option>
-          <option value="AZnzlk1XvdvUeBnXmlld">Domi — confident female</option>
-          <option value="EXAVITQu4vr4xnSDxMaL" selected>Bella — soft female</option>
-          <option value="ErXwobaYiN019PkySvjV">Antoni — well-rounded male</option>
-          <option value="pNInz6obpgDQGcFmaJgB">Adam — deep male</option>
-          <option value="VR6AewLTigWG4xSOukaG">Arnold — crisp male</option>
+          <option value="21m00Tcm4TlvDq8ikWAM">Rachel - warm natural female</option>
+          <option value="AZnzlk1XvdvUeBnXmlld">Domi - confident female</option>
+          <option value="EXAVITQu4vr4xnSDxMaL" selected>Bella - soft female</option>
+          <option value="ErXwobaYiN019PkySvjV">Antoni - well-rounded male</option>
+          <option value="pNInz6obpgDQGcFmaJgB">Adam - deep male</option>
+          <option value="VR6AewLTigWG4xSOukaG">Arnold - crisp male</option>
         </select>
       </div>
       <div class="mfld">
         <div class="mlbl">Speech Speed</div>
         <input type="range" style="accent-color:var(--gold);width:100%" id="modalSpd" min="0.6" max="1.8" step="0.1" value="1">
-        <div class="mhint">0.6 = slow · 1.0 = normal · 1.8 = fast</div>
+        <div class="mhint">0.6 = slow � 1.0 = normal � 1.8 = fast</div>
       </div>
       <button class="msave-btn" id="saveVoice">Save Voice Settings</button>
-      <div class="msaved" id="voiceSaved">✓ Voice settings saved</div>
+      <div class="msaved" id="voiceSaved">� Voice settings saved</div>
     </div>
 
     <!-- ABOUT -->
     <div class="tpanel" id="tab-about">
       <div class="mnote">
-        <strong>ARIA v9.1</strong> — Built by Nihhar K Sonee (NKS-Coder)<br>
-        Groq Llama 3.3 70B · ElevenLabs · Cloudflare Workers · Supabase<br><br>
+        <strong>ARIA v9.1</strong> - Built by Nihhar K Sonee (NKS-Coder)<br>
+        Groq Llama 3.3 70B � ElevenLabs � Cloudflare Workers � Supabase<br><br>
         All API keys are encrypted server-side in Cloudflare. Nothing sensitive is stored in your browser.
       </div>
       <div class="mfld">
@@ -1424,13 +1424,13 @@ textarea::placeholder { color:var(--text3); }
 const W='https://ariaproxy.nihharksonee.workers.dev';
 const BELLA='EXAVITQu4vr4xnSDxMaL';
 const APPS={
-  gmail:    {name:'Gmail',          icon:'📧',auth:'google',   prompt:null},
-  calendar: {name:'Calendar',       icon:'📅',auth:'google',   prompt:null},
-  outlook:  {name:'Outlook',        icon:'💼',auth:'microsoft',prompt:null},
-  slack:    {name:'Slack',          icon:'💬',auth:'token',    prompt:'Paste your Slack Bot Token (xoxb-...):\n\nGet from api.slack.com/apps'},
-  discord:  {name:'Discord',        icon:'🎮',auth:'webhook',  prompt:'Paste your Discord Webhook URL:\n\nGet from channel Settings → Integrations'},
-  notion:   {name:'Notion',         icon:'📝',auth:'token',    prompt:'Paste your Notion Token:\n\nGet from notion.so/my-integrations'},
-  airtable: {name:'Airtable',       icon:'🗃',auth:'token',    prompt:'Paste your Airtable Token:\n\nGet from airtable.com/create/tokens'},
+  gmail:    {name:'Gmail',          icon:'??',auth:'google',   prompt:null},
+  calendar: {name:'Calendar',       icon:'??',auth:'google',   prompt:null},
+  outlook:  {name:'Outlook',        icon:'??',auth:'microsoft',prompt:null},
+  slack:    {name:'Slack',          icon:'??',auth:'token',    prompt:'Paste your Slack Bot Token (xoxb-...):\n\nGet from api.slack.com/apps'},
+  discord:  {name:'Discord',        icon:'??',auth:'webhook',  prompt:'Paste your Discord Webhook URL:\n\nGet from channel Settings  Integrations'},
+  notion:   {name:'Notion',         icon:'??',auth:'token',    prompt:'Paste your Notion Token:\n\nGet from notion.so/my-integrations'},
+  airtable: {name:'Airtable',       icon:'??',auth:'token',    prompt:'Paste your Airtable Token:\n\nGet from airtable.com/create/tokens'},
 };
 
 // STATE
@@ -1504,7 +1504,7 @@ window.addEventListener('load', async ()=>{
   checkWorker();
 
   // Step 3: Load EVERYTHING from Supabase using current session
-  // This runs on every page load — restores apps + conversations automatically
+  // This runs on every page load - restores apps + conversations automatically
   await loadFromSupabase();
 
   // Step 4: Welcome
@@ -1512,7 +1512,7 @@ window.addEventListener('load', async ()=>{
   speak("Hello. I'm ARIA. How can I help you today?");
 });
 
-// Load all state from Supabase — the single source of truth
+// Load all state from Supabase - the single source of truth
 async function loadFromSupabase() {
   const session = getSession();
   console.log('Loading from Supabase for session:', session);
@@ -1528,7 +1528,7 @@ async function loadFromSupabase() {
       localStorage.setItem('aria_apps', s);
       sessionStorage.setItem('aria_apps', s);
       syncApps();
-      console.log('✅ Restored apps:', Object.keys(appsData.apps));
+      console.log('? Restored apps:', Object.keys(appsData.apps));
     }
   } catch(e) {
     console.warn('Could not load apps from Supabase:', e.message);
@@ -1543,7 +1543,7 @@ async function loadFromSupabase() {
     if(msgs.length > 0 && C.convs.length === 0) {
       // Group into conversation threads (pairs of user+assistant)
       // Use existing localStorage convs if available, otherwise build from Supabase
-      console.log('✅ Found', msgs.length, 'messages in Supabase');
+      console.log('? Found', msgs.length, 'messages in Supabase');
     }
   } catch(e) {
     console.warn('Could not load conversations from Supabase:', e.message);
@@ -1556,10 +1556,10 @@ function enc(s){ return encodeURIComponent(s||''); }
 async function checkWorker(){
   try{
     const r=await fetch(`${W}/health`);const d=await r.json();
-    $('workerStatus').textContent=`✓ ${d.status||'Connected'} · ElevenLabs: ${d.elevenlabs?'✓':'✗'}`;
+    $('workerStatus').textContent=`� ${d.status||'Connected'} � ElevenLabs: ${d.elevenlabs?'�':'?'}`;
     $('workerStatus').style.color='#5de6d8';
   }catch(e){
-    $('workerStatus').textContent='✗ Cannot reach Worker — check Cloudflare deployment';
+    $('workerStatus').textContent='? Cannot reach Worker - check Cloudflare deployment';
     $('workerStatus').style.color='var(--rose)';
   }
 }
@@ -1587,7 +1587,7 @@ $('saveVoiceSidebar').addEventListener('click',()=>{
   C.setVoice(D.vSel.value);C.setSpeed(D.spd.value);
   $('modalVoice').value=D.vSel.value;
   const btn=$('saveVoiceSidebar');
-  btn.textContent='✓ Saved';btn.style.color='var(--cyan)';btn.style.borderColor='rgba(93,230,216,0.3)';
+  btn.textContent='� Saved';btn.style.color='var(--cyan)';btn.style.borderColor='rgba(93,230,216,0.3)';
   $('sidebarVoiceSaved').style.display='block';
   setTimeout(()=>{btn.textContent='Save Voice as Default';btn.style.color='';btn.style.borderColor='';$('sidebarVoiceSaved').style.display='none';},2500);
 });
@@ -1610,10 +1610,10 @@ let sec=0;
 setInterval(()=>{sec++;D.nTime.textContent=sec<60?`${sec}s`:`${Math.floor(sec/60)}m${sec%60}s`;},1000);
 
 // VOICE ENGINE
-// ── VOICE ENGINE ─────────────────────────────────────────────
+// �� VOICE ENGINE ���������������������������������������������
 const synth = window.speechSynthesis;
 let bVoices  = [];
-let elFails  = 0;           // count consecutive EL failures — reset on success
+let elFails  = 0;           // count consecutive EL failures - reset on success
 const EL_MAX_FAILS = 2;     // after 2 fails, try browser voice temporarily
 
 function loadBV() {
@@ -1621,7 +1621,7 @@ function loadBV() {
 
   // Preferred female voices by exact name priority (Windows + Mac + Android)
   const PREFER_FEMALE = [
-    'Microsoft Zira',        // Windows — best female
+    'Microsoft Zira',        // Windows - best female
     'Microsoft Aria',        // Windows 11
     'Microsoft Jenny',       // Windows 11
     'Microsoft Hazel',       // Windows UK female
@@ -1646,7 +1646,7 @@ function loadBV() {
     // Put chosen first, then rest excluding David/Mark male voices
     bVoices = [chosen, ...all.filter(v => v !== chosen && !/(david|mark|richard|george|james|daniel)/i.test(v.name))];
   } else {
-    // No preferred found — sort by gender signals, exclude robotic males
+    // No preferred found - sort by gender signals, exclude robotic males
     bVoices = all
       .filter(v => !/(david|mark|richard|george|james)/i.test(v.name))
       .sort((a,b) => {
@@ -1694,7 +1694,7 @@ async function speakEL(txt) {
 
   // Skip EL temporarily if too many consecutive failures
   if (elFails >= EL_MAX_FAILS) {
-    console.warn(`ElevenLabs skipped after ${elFails} failures — using browser voice`);
+    console.warn(`ElevenLabs skipped after ${elFails} failures - using browser voice`);
     fallbackSpeak(txt);
     // Reset after 30 seconds so we try EL again next message
     setTimeout(() => { elFails = 0; }, 30000);
@@ -1732,7 +1732,7 @@ async function speakEL(txt) {
       return;
     }
 
-    // Success — reset fail counter
+    // Success - reset fail counter
     elFails = 0;
 
     const blob  = await res.blob();
@@ -1748,7 +1748,7 @@ async function speakEL(txt) {
       if ($('autoOn').checked) startListen();
     };
     await audio.play();
-    console.log('✅ ElevenLabs playing');
+    console.log('? ElevenLabs playing');
 
   } catch(e) {
     if (e.name === 'AbortError') {
@@ -1763,10 +1763,10 @@ async function speakEL(txt) {
 
 function speak(txt) {
   if (!$('voiceOn').checked) return;
-  // For email responses — only speak the first 2 sentences, not the full list
+  // For email responses - only speak the first 2 sentences, not the full list
   let spokenTxt = txt;
   if (txt.trim().startsWith('{')) {
-    // Structured response — extract just the summary to speak
+    // Structured response - extract just the summary to speak
     try {
       const data = JSON.parse(txt.trim());
       if (data.type === 'email_list') {
@@ -1804,7 +1804,7 @@ function buildRec(){
   };
   rec.onerror=e=>{
     S.listening=false;setMode('ready');
-    if(e.error==='not-allowed')addMsg('assistant','Microphone blocked. Click the lock icon in your address bar → Microphone → Allow → refresh.',true);
+    if(e.error==='not-allowed')addMsg('assistant','Microphone blocked. Click the lock icon in your address bar  Microphone  Allow  refresh.',true);
     else if(e.error!=='no-speech'&&e.error!=='aborted')addMsg('assistant',`Mic error: ${e.error}`,true);
   };
   rec.onend=()=>{if(S.listening){S.listening=false;setMode('ready');}};
@@ -1832,7 +1832,7 @@ async function startListen(){
     try{
       await navigator.mediaDevices.getUserMedia({audio:true});
     }catch(err){
-      addMsg('assistant','🎤 Microphone blocked. Click the 🔒 lock icon in your address bar → Site settings → Microphone → Allow → refresh the page.',true);
+      addMsg('assistant','?? Microphone blocked. Click the ?? lock icon in your address bar  Site settings  Microphone  Allow  refresh the page.',true);
       return;
     }
   }
@@ -1917,11 +1917,11 @@ async function sendMsg(){
   S.msgs.push({role:'user',content:txt});addMsg('user',txt);
   if(S.msgs.length===1){
     // Set raw title immediately
-    const rawTitle = txt.slice(0,36)+(txt.length>36?'…':'');
+    const rawTitle = txt.slice(0,36)+(txt.length>36?'.':'');
     S.convTitle = rawTitle;
     D.convLabel.textContent = rawTitle;
     renderHist();
-    // Generate smart AI title in background — only once, no loop
+    // Generate smart AI title in background - only once, no loop
     const titleMsg = txt;
     const rawTitleSnapshot = rawTitle;
     setTimeout(() => {
@@ -1930,7 +1930,7 @@ async function sendMsg(){
         if(smartTitle && S.convTitle === rawTitleSnapshot){
           S.convTitle = smartTitle;
           D.convLabel.textContent = smartTitle;
-          // Don't save here — saveCurrentConv runs after AI reply
+          // Don't save here - saveCurrentConv runs after AI reply
           renderHist();
         }
       }).catch(()=>{});
@@ -1953,7 +1953,7 @@ D.inp.addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventD
 function autoResize(){D.inp.style.height='auto';D.inp.style.height=Math.min(D.inp.scrollHeight,110)+'px';}
 D.inp.addEventListener('input',autoResize);
 
-// ── SMART AI TITLE GENERATION ────────────────────────────────
+// �� SMART AI TITLE GENERATION ��������������������������������
 async function generateTitle(firstMessage) {
   // Guard: don't generate title for very short messages
   if (!firstMessage || firstMessage.length < 3) return null;
@@ -2024,7 +2024,7 @@ function renderHist(filter=''){
   convs.forEach(conv=>{
     const d=document.createElement('div');
     d.className='hi'+(conv.id===S.convId?' active':'');
-    d.innerHTML=`<div class="hi-ico">◈</div><div class="hi-body"><div class="hi-title">${conv.title}</div><div class="hi-time">${ftime(conv.time)}</div></div><button class="hi-del" onclick="deleteConv('${conv.id}',event)">✕</button>`;
+    d.innerHTML=`<div class="hi-ico">?</div><div class="hi-body"><div class="hi-title">${conv.title}</div><div class="hi-time">${ftime(conv.time)}</div></div><button class="hi-del" onclick="deleteConv('${conv.id}',event)">?</button>`;
     d.addEventListener('click',()=>loadConv(conv));
     D.histList.appendChild(d);
   });
@@ -2050,7 +2050,7 @@ window.addEventListener('message', (event) => {
     const { app, email, session, access_token, refresh_token } = event.data;
     console.log('OAuth success received:', app, email, 'session:', session);
 
-    // Sync session ID — this is critical
+    // Sync session ID - this is critical
     if (session) {
       setSession(session); // always sync to OAuth session
     }
@@ -2145,7 +2145,7 @@ function syncApps(){
   Object.keys(APPS).forEach(name=>{
     const b=$(`btn-${name}`),c=$(`card-${name}`),d=$(`desc-${name}`);if(!b||!c)return;
     const ok=apps[name]?.connected;c.classList.toggle('on',ok);
-    if(ok){if(d)d.textContent=apps[name]?.email?`✓ ${apps[name].email}`:'✓ Connected';b.textContent='Disconnect';b.className='abtn disco';b.onclick=()=>disconnectApp(name);}
+    if(ok){if(d)d.textContent=apps[name]?.email?`� ${apps[name].email}`:'� Connected';b.textContent='Disconnect';b.className='abtn disco';b.onclick=()=>disconnectApp(name);}
     else{if(d)d.textContent={gmail:'Send, read, sort emails',calendar:'Book meetings',outlook:'Send and read emails',slack:'Send to channels',discord:'Post to channels',notion:'Create notes',airtable:'Log data'}[name]||'';b.textContent='Connect';b.className='abtn connect';b.onclick=()=>connectApp(name);}
   });
   const connected=Object.keys(apps).filter(k=>apps[k]?.connected);
@@ -2154,16 +2154,16 @@ function syncApps(){
   connected.forEach(name=>{
     const app=APPS[name];if(!app)return;
     const d=document.createElement('div');d.className='ai';
-    d.innerHTML=`<div class="ai-l"><div class="ai-ico">${app.icon}</div><div><div class="ai-name">${app.name}</div><div class="ai-sub" style="color:var(--cyan)">✓ Active</div></div></div><div style="width:5px;height:5px;border-radius:50%;background:var(--cyan);box-shadow:0 0 5px var(--cyan)"></div>`;
+    d.innerHTML=`<div class="ai-l"><div class="ai-ico">${app.icon}</div><div><div class="ai-name">${app.name}</div><div class="ai-sub" style="color:var(--cyan)">� Active</div></div></div><div style="width:5px;height:5px;border-radius:50%;background:var(--cyan);box-shadow:0 0 5px var(--cyan)"></div>`;
     D.sApps.appendChild(d);
   });
 }
 
-// ── EMAIL CARD RENDERER ──────────────────────────────────────
+// �� EMAIL CARD RENDERER ��������������������������������������
 
 // Show email detail directly in chat without triggering AI loop
 async function showEmailDetail(email) {
-  // Render email detail DIRECTLY — no Worker call, no loop
+  // Render email detail DIRECTLY - no Worker call, no loop
   // We already have the email data, just display it beautifully
 
   const fromName  = (email.from || '').replace(/<[^>]+>/,'').replace(/"/g,'').trim();
@@ -2245,7 +2245,7 @@ async function showEmailDetail(email) {
       <div style="padding:12px 16px;border-bottom:1px solid #f1f3f4;">
         <div style="font-size:0.55rem;letter-spacing:0.1em;text-transform:uppercase;color:#EA4335;font-weight:600;margin-bottom:6px;">Key Points</div>
         <ul style="list-style:none;display:flex;flex-direction:column;gap:5px;">
-          ${detail.key_points.map(p=>`<li style="font-size:0.74rem;color:#202124;padding-left:14px;position:relative;"><span style="position:absolute;left:0;color:#1a73e8;font-size:1rem;top:-3px;">•</span>${p}</li>`).join('')}
+          ${detail.key_points.map(p=>`<li style="font-size:0.74rem;color:#202124;padding-left:14px;position:relative;"><span style="position:absolute;left:0;color:#1a73e8;font-size:1rem;top:-3px;"></span>${p}</li>`).join('')}
         </ul>
       </div>` : ''}
       ${detail.suggested_reply ? `
@@ -2254,7 +2254,7 @@ async function showEmailDetail(email) {
         <div style="background:#f8f9fa;border:1px solid #e8eaed;border-left:3px solid #1a73e8;border-radius:4px;padding:10px 12px;font-size:0.74rem;color:#202124;line-height:1.75;white-space:pre-wrap;">${detail.suggested_reply}</div>
         <button onclick="sendEmailReply('${encodeURIComponent(email.from||'')}','${encodeURIComponent(email.subject||'')}','${encodeURIComponent(detail.suggested_reply||'')}')"
           style="margin-top:8px;width:100%;background:#1a73e8;color:#fff;border:none;border-radius:20px;padding:9px;font-family:Google Sans,Arial,sans-serif;font-size:0.76rem;font-weight:500;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:5px;">
-          ↩ Send This Reply
+          ? Send This Reply
         </button>
       </div>` : ''}
     `;
@@ -2299,7 +2299,7 @@ function renderEmailResponse(raw, container) {
       return true;
     }
   } catch(e) {
-    // Not JSON — render as plain text
+    // Not JSON - render as plain text
   }
   return false;
 }
@@ -2327,10 +2327,10 @@ function renderInboxStats(data, container) {
       </div>
     </div>
     <div style="display:flex;gap:8px;padding:12px 16px;background:#f6f8fc;flex-wrap:wrap;">
-      <button onclick="sendMsg_quick('mark all emails as read')" style="flex:1;min-width:90px;padding:7px 12px;border-radius:20px;border:1px solid #dadce0;background:#fff;color:#1a73e8;font-family:Google Sans,Arial,sans-serif;font-size:0.68rem;font-weight:500;cursor:pointer;">✓ Mark All Read</button>
-      <button onclick="sendMsg_quick('read my important emails')" style="flex:1;min-width:90px;padding:7px 12px;border-radius:20px;border:1px solid #dadce0;background:#fff;color:#F4B400;font-family:Google Sans,Arial,sans-serif;font-size:0.68rem;font-weight:500;cursor:pointer;">⭐ Important</button>
-      <button onclick="sendMsg_quick('read my unread emails')" style="flex:1;min-width:90px;padding:7px 12px;border-radius:20px;border:1px solid #dadce0;background:#fff;color:#34A853;font-family:Google Sans,Arial,sans-serif;font-size:0.68rem;font-weight:500;cursor:pointer;">📩 Unread</button>
-      <button onclick="openGmailPanel(null)" style="flex:1;min-width:90px;padding:7px 12px;border-radius:20px;border:1px solid #dadce0;background:#EA4335;color:#fff;font-family:Google Sans,Arial,sans-serif;font-size:0.68rem;font-weight:500;cursor:pointer;">↗ Open Gmail</button>
+      <button onclick="sendMsg_quick('mark all emails as read')" style="flex:1;min-width:90px;padding:7px 12px;border-radius:20px;border:1px solid #dadce0;background:#fff;color:#1a73e8;font-family:Google Sans,Arial,sans-serif;font-size:0.68rem;font-weight:500;cursor:pointer;">� Mark All Read</button>
+      <button onclick="sendMsg_quick('read my important emails')" style="flex:1;min-width:90px;padding:7px 12px;border-radius:20px;border:1px solid #dadce0;background:#fff;color:#F4B400;font-family:Google Sans,Arial,sans-serif;font-size:0.68rem;font-weight:500;cursor:pointer;">? Important</button>
+      <button onclick="sendMsg_quick('read my unread emails')" style="flex:1;min-width:90px;padding:7px 12px;border-radius:20px;border:1px solid #dadce0;background:#fff;color:#34A853;font-family:Google Sans,Arial,sans-serif;font-size:0.68rem;font-weight:500;cursor:pointer;">?? Unread</button>
+      <button onclick="openGmailPanel(null)" style="flex:1;min-width:90px;padding:7px 12px;border-radius:20px;border:1px solid #dadce0;background:#EA4335;color:#fff;font-family:Google Sans,Arial,sans-serif;font-size:0.68rem;font-weight:500;cursor:pointer;">? Open Gmail</button>
     </div>
   `;
   container.appendChild(el);
@@ -2366,7 +2366,7 @@ function renderEmailList(data, container) {
         <span style="font-size:0.62rem;color:rgba(255,255,255,0.85);background:rgba(0,0,0,0.2);border-radius:10px;padding:1px 8px;">${data.count} emails</span>
       </div>
       <button onclick="openGmailPanel(window._lastEmails)" style="display:flex;align-items:center;gap:4px;padding:5px 12px;border-radius:20px;border:1px solid rgba(255,255,255,0.35);background:rgba(255,255,255,0.12);color:#fff;font-size:0.63rem;font-weight:500;cursor:pointer;font-family:Arial,sans-serif;">
-        Open ↗
+        Open ?
       </button>
     </div>
     ${data.summary ? `<div style="padding:9px 14px;font-size:0.73rem;color:#5f6368;border-bottom:1px solid #f1f3f4;background:#fafafa;line-height:1.6;">${data.summary}</div>` : ''}
@@ -2393,17 +2393,17 @@ function renderEmailList(data, container) {
       </div>
       <div style="font-size:0.6rem;color:#5f6368;flex-shrink:0;text-align:right;">
         <div>${dateStr}</div>
-        <div style="font-size:0.85rem;margin-top:3px;opacity:0.3;cursor:pointer;" title="Star">☆</div>
+        <div style="font-size:0.85rem;margin-top:3px;opacity:0.3;cursor:pointer;" title="Star">?</div>
       </div>
     `;
     row.onclick = () => showEmailDetail(email);
     panel.appendChild(row);
   });
 
-  // Last row — open in Gmail
+  // Last row - open in Gmail
   const footer = document.createElement('div');
   footer.style.cssText = 'padding:9px 14px;background:#f6f8fc;text-align:center;';
-  footer.innerHTML = `<a href="https://mail.google.com" target="_blank" style="font-size:0.68rem;color:#1a73e8;font-weight:500;text-decoration:none;">View all in Gmail →</a>`;
+  footer.innerHTML = `<a href="https://mail.google.com" target="_blank" style="font-size:0.68rem;color:#1a73e8;font-weight:500;text-decoration:none;">View all in Gmail </a>`;
   panel.appendChild(footer);
 
   container.appendChild(panel);
@@ -2450,7 +2450,7 @@ function renderEmailDetail(data, container) {
       <ul style="list-style:none;display:flex;flex-direction:column;gap:6px;">
         ${detail.key_points.map(p => `
           <li style="font-size:0.76rem;color:#202124;padding-left:16px;position:relative;line-height:1.55;">
-            <span style="position:absolute;left:0;color:#1a73e8;font-size:1rem;top:-2px;">•</span>${p}
+            <span style="position:absolute;left:0;color:#1a73e8;font-size:1rem;top:-2px;"></span>${p}
           </li>`).join('')}
       </ul>
     </div>` : ''}
@@ -2463,7 +2463,7 @@ function renderEmailDetail(data, container) {
       <button onclick="sendEmailReply('${safeFrom}','${safeSubject}','${safeReply}')"
         style="margin-top:10px;width:100%;background:#1a73e8;color:#fff;border:none;border-radius:20px;padding:10px;font-family:Google Sans,Arial,sans-serif;font-size:0.78rem;font-weight:500;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;transition:background 0.2s;"
         onmouseover="this.style.background='#1557b0'" onmouseout="this.style.background='#1a73e8'">
-        ↩ Send This Reply
+        ? Send This Reply
       </button>
     </div>` : ''}
   `;
@@ -2489,7 +2489,7 @@ function sendEmailReply(to, subject, body) {
   sendMsg_quick(cmd);
 }
 
-// ── GMAIL PANEL ───────────────────────────────────────────────
+// �� GMAIL PANEL �����������������������������������������������
 function openGmailPanel(emails) {
   const panel = $('gmailPanel');
   const body  = panel.querySelector('.gmail-panel-body');
@@ -2497,14 +2497,14 @@ function openGmailPanel(emails) {
   // Build panel content
   body.innerHTML = `
     <div class="gmail-notice">
-      <div class="gmail-notice-icon">📬</div>
+      <div class="gmail-notice-icon">??</div>
       <div class="gmail-notice-title">Open Gmail</div>
       <div class="gmail-notice-text">
         Gmail cannot be embedded due to browser security.<br>
         Click below to open your inbox in a new tab.
       </div>
       <a href="https://mail.google.com" target="_blank" class="gmail-open-full">
-        📧 Open Gmail Inbox
+        ?? Open Gmail Inbox
       </a>
     </div>
     ${emails && emails.length ? `
@@ -2536,7 +2536,7 @@ function closeGmailPanel() {
   $('gmailPanel').classList.remove('open');
 }
 
-// ─────────────────────────────────────────────────────────────
+// �������������������������������������������������������������
 
 function getSession(){
   // Try localStorage first
@@ -2571,7 +2571,7 @@ function setSession(sid){
   return sid;
 }
 
-// ── MOBILE RESPONSIVE CONTROLS ────────────────────────────────
+// �� MOBILE RESPONSIVE CONTROLS ��������������������������������
 const leftPanel    = document.querySelector('.left');
 const rightPanel   = document.querySelector('.right');
 const overlay      = $('sidebarOverlay');
@@ -2619,12 +2619,372 @@ D.inp.addEventListener('input', () => {
 <!-- GMAIL PANEL -->
 <div class="gmail-panel" id="gmailPanel">
   <div class="gmail-panel-hdr">
-    <div class="gmail-panel-title">📧 Gmail</div>
-    <button class="gmail-panel-close" onclick="closeGmailPanel()">✕</button>
+    <div class="gmail-panel-title">?? Gmail</div>
+    <button class="gmail-panel-close" onclick="closeGmailPanel()">?</button>
   </div>
   <div class="gmail-panel-body">
     <iframe id="gmailFrame" src="" title="Gmail"></iframe>
   </div>
 </div>
+
+<script>
+/* ═══════════════════════════════════════════════════════════════════
+   ARIA ENHANCED — Gmail Direct API  +  "Hey ARIA" Wake Word
+   All upgrades are additive patches — original code untouched.
+   ═══════════════════════════════════════════════════════════════════ */
+
+// ── 1. Gmail Direct API ──────────────────────────────────────────────
+const GM_BASE = 'https://gmail.googleapis.com/gmail/v1/users/me';
+
+function _gmTok() { return C.apps?.gmail?.access_token || null; }
+
+async function gAPI(path, opts = {}) {
+  const tok = _gmTok();
+  if (!tok) throw new Error('Gmail not connected');
+  const r = await fetch(GM_BASE + path, {
+    ...opts,
+    headers: {
+      Authorization: 'Bearer ' + tok,
+      'Content-Type': 'application/json',
+      ...(opts.headers || {}),
+    },
+  });
+  if (r.status === 401) {
+    addMsg('assistant', '⚠️ Gmail session expired — open Settings → Apps → reconnect Gmail.', true);
+    throw new Error('401');
+  }
+  return r.json();
+}
+
+async function gListEmails(q = 'in:inbox', max = 8) {
+  const res = await gAPI(`/messages?maxResults=${max}&q=${encodeURIComponent(q)}`);
+  if (!res.messages?.length) return [];
+  return Promise.all(res.messages.map(async m => {
+    const d = await gAPI(`/messages/${m.id}?format=metadata` +
+      `&metadataHeaders=From&metadataHeaders=Subject&metadataHeaders=Date`);
+    const hdr = d.payload?.headers || [];
+    const h = n => hdr.find(x => x.name === n)?.value || '';
+    return {
+      id: m.id, threadId: d.threadId,
+      from: h('From'), subject: h('Subject'), date: h('Date'),
+      snippet: d.snippet, labelIds: d.labelIds || [],
+    };
+  }));
+}
+
+async function gGetBody(id) {
+  const d = await gAPI(`/messages/${id}?format=full`);
+  let body = '';
+  (function ex(p) {
+    if (p.body?.data) body += atob(p.body.data.replace(/-/g, '+').replace(/_/g, '/'));
+    (p.parts || []).forEach(ex);
+  })(d.payload);
+  return body.replace(/<[^>]+>/g, ' ').replace(/&nbsp;/g, ' ')
+             .replace(/\s+/g, ' ').trim().slice(0, 3000);
+}
+
+async function gSend(to, subject, body, threadId) {
+  const mime = [
+    `To: ${to}`,
+    `Subject: ${subject.startsWith('Re:') ? subject : 'Re: ' + subject}`,
+    'Content-Type: text/plain; charset=utf-8',
+    '', body,
+  ].join('\r\n');
+  const raw = btoa(unescape(encodeURIComponent(mime)))
+    .replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+  return gAPI('/messages/send', {
+    method: 'POST',
+    body: JSON.stringify({ raw, ...(threadId ? { threadId } : {}) }),
+  });
+}
+
+async function gModifyLabels(id, add, remove) {
+  return gAPI(`/messages/${id}/modify`, {
+    method: 'POST',
+    body: JSON.stringify({ addLabelIds: add, removeLabelIds: remove }),
+  });
+}
+
+async function gInboxStats() {
+  const [lbl, unread, important] = await Promise.all([
+    gAPI('/labels/INBOX'),
+    gAPI('/messages?maxResults=1&q=is:unread+in:inbox'),
+    gAPI('/messages?maxResults=1&q=is:important+in:inbox'),
+  ]);
+  return {
+    total: lbl.messagesTotal || 0,
+    unread: unread.resultSizeEstimate || 0,
+    important: important.resultSizeEstimate || 0,
+  };
+}
+
+// ── 2. Voice Intent Router ───────────────────────────────────────────
+const GMAIL_CMDS = [
+  { re: /\b(how many|check|stats?|overview|count)\b.{0,20}\b(email|mail|inbox)\b/i, fn: () => ariaInboxStats() },
+  { re: /\b(read|show|list|get|fetch)\b.{0,20}\bunread\b|\bunread\b.{0,10}\b(email|mail)/i, fn: () => ariaReadEmails('is:unread in:inbox', 'unread') },
+  { re: /\b(read|show|list|get)\b.{0,20}\b(important|starred)\b/i, fn: () => ariaReadEmails('is:important in:inbox', 'important') },
+  { re: /\b(organize|sort|clean)\b.{0,20}\b(email|mail|inbox)\b/i, fn: () => ariaReadEmails('in:inbox', 'inbox') },
+  { re: /\b(read|show|list|get|check|open|fetch)\b.{0,20}\b(email|mail|inbox)\b/i, fn: () => ariaReadEmails('in:inbox', 'latest') },
+  { re: /\bmark\b.{0,20}\b(important|star)\b|star.{0,10}\b(this|email|mail)\b/i, fn: () => ariaMarkImportant(true) },
+  { re: /\barchive\b.{0,20}\b(this|email|mail)?\b|\bdelete\b.{0,10}\b(this|email)\b/i, fn: () => ariaArchive() },
+  { re: /\bsend\b.{0,15}\breply\b|\breply\b.{0,10}\bsend\b/i, fn: () => ariaSendLastReply() },
+];
+
+function detectGmailIntent(txt) {
+  for (const c of GMAIL_CMDS) if (c.re.test(txt)) return c.fn;
+  return null;
+}
+
+// ── 3. Shared UI Helpers ─────────────────────────────────────────────
+function ariaBusy(on) {
+  D.think.classList.toggle('hidden', !on);
+  D.send.disabled = on;
+  setMode(on ? 'thinking' : 'ready');
+}
+
+function ariaPushCard(data) {
+  const row  = document.createElement('div');
+  row.className = 'msg assistant';
+  row.style.alignItems = 'flex-start';
+  const av   = document.createElement('div');
+  av.className = 'av'; av.textContent = 'A';
+  const wrap = document.createElement('div');
+  wrap.style.cssText = 'flex:1;min-width:0;width:100%;overflow:visible;';
+  const time = document.createElement('div');
+  time.className = 'msg-time';
+  time.textContent = new Date().toLocaleTimeString('en-US', { hour12: true, hour: 'numeric', minute: '2-digit' });
+  if (data.type === 'inbox_stats')  renderInboxStats(data, wrap);
+  else if (data.type === 'email_list') renderEmailList(data, wrap);
+  wrap.appendChild(time);
+  row.appendChild(av); row.appendChild(wrap);
+  D.msgs.appendChild(row);
+  D.msgs.scrollTop = D.msgs.scrollHeight;
+}
+
+function _ariaToast(msg) {
+  let t = document.getElementById('_ariaToast');
+  if (!t) {
+    t = document.createElement('div');
+    t.id = '_ariaToast';
+    t.style.cssText = [
+      'position:fixed;bottom:90px;left:50%;transform:translateX(-50%)',
+      'background:rgba(0,212,255,0.1);border:1px solid rgba(0,212,255,0.38)',
+      'color:#00d4ff;padding:10px 28px;border-radius:24px',
+      'font-size:0.78rem;font-weight:500;letter-spacing:0.06em',
+      'z-index:9999;backdrop-filter:blur(16px)',
+      'pointer-events:none;transition:opacity 0.4s;white-space:nowrap',
+    ].join(';');
+    document.body.appendChild(t);
+  }
+  t.textContent = msg;
+  t.style.opacity = '1';
+  clearTimeout(t._tid);
+  t._tid = setTimeout(() => { t.style.opacity = '0'; }, 2800);
+}
+
+// ── 4. Gmail Command Handlers ────────────────────────────────────────
+async function ariaInboxStats() {
+  addMsg('user', 'Check my inbox stats');
+  S.msgs.push({ role: 'user', content: 'Check inbox' });
+  ariaBusy(true);
+  try {
+    const s = await gInboxStats();
+    ariaBusy(false);
+    ariaPushCard({ type: 'inbox_stats', total: s.total, unread: s.unread, important_count: s.important });
+    const msg = `Your inbox has ${s.total.toLocaleString()} emails — ${s.unread} unread and ${s.important} important.`;
+    speak(msg);
+    S.msgs.push({ role: 'assistant', content: msg });
+    saveCurrentConv();
+  } catch(e) { ariaBusy(false); addMsg('assistant', '⚠️ ' + e.message, true); }
+}
+
+async function ariaReadEmails(q, label) {
+  addMsg('user', `Read my ${label} emails`);
+  S.msgs.push({ role: 'user', content: `Read ${label} emails` });
+  ariaBusy(true);
+  try {
+    const emails = await gListEmails(q, 8);
+    ariaBusy(false);
+    if (!emails.length) {
+      const m = `🎉 Your ${label} inbox is empty — all clear!`;
+      addMsg('assistant', m); speak(m); return;
+    }
+    ariaPushCard({ type: 'email_list', count: emails.length, emails,
+      summary: `Here are your ${emails.length} ${label} emails.` });
+    const msg = `You have ${emails.length} ${label} emails. Tap any email to read it and I'll generate a smart reply for you.`;
+    speak(msg);
+    S.msgs.push({ role: 'assistant', content: msg });
+    saveCurrentConv();
+  } catch(e) { ariaBusy(false); addMsg('assistant', '⚠️ ' + e.message, true); }
+}
+
+async function ariaMarkImportant(star) {
+  const e = window._lastEmail;
+  if (!e) {
+    const m = 'Please tap an email first, then say mark as important.';
+    addMsg('assistant', m); speak(m); return;
+  }
+  try {
+    await gModifyLabels(e.id, star ? ['STARRED', 'IMPORTANT'] : [], star ? [] : ['STARRED', 'IMPORTANT']);
+    const m = star ? '⭐ Marked as important!' : '📌 Removed from important.';
+    addMsg('assistant', m); speak(m);
+  } catch(er) { addMsg('assistant', '⚠️ ' + er.message, true); }
+}
+
+async function ariaArchive() {
+  const e = window._lastEmail;
+  if (!e) {
+    const m = 'Please tap an email first, then say archive.';
+    addMsg('assistant', m); speak(m); return;
+  }
+  try {
+    await gModifyLabels(e.id, [], ['INBOX']);
+    const m = '📦 Email archived!';
+    addMsg('assistant', m); speak(m);
+  } catch(er) { addMsg('assistant', '⚠️ ' + er.message, true); }
+}
+
+async function ariaSendLastReply() {
+  const e = window._lastEmail, rep = window._lastReply;
+  if (!e || !rep) {
+    const m = 'Please open an email and generate a smart reply first.';
+    addMsg('assistant', m); speak(m); return;
+  }
+  ariaBusy(true);
+  try {
+    await gSend(e.from, e.subject, rep, e.threadId);
+    ariaBusy(false);
+    const m = '✅ Reply sent via Gmail!'; addMsg('assistant', m); speak(m);
+  } catch(er) { ariaBusy(false); addMsg('assistant', '⚠️ ' + er.message, true); }
+}
+
+// ── 5. Patch sendMsg — intercept Gmail intents ───────────────────────
+(function patchSendMsg() {
+  // Clone send button to wipe all existing listeners cleanly
+  const oldBtn = document.getElementById('sendBtn');
+  if (!oldBtn) return;
+  const newBtn = oldBtn.cloneNode(true);
+  oldBtn.parentNode.replaceChild(newBtn, oldBtn);
+  D.send = newBtn; // update shared reference
+
+  const _origSend = sendMsg; // capture original
+
+  const _newSend = async function() {
+    const txt = D.inp.value.trim();
+    if (!txt || D.send.disabled) return;
+    // Gmail intent — handle locally, skip Groq
+    if (C.apps?.gmail?.connected) {
+      const fn = detectGmailIntent(txt);
+      if (fn) { D.inp.value = ''; autoResize(); await fn(); return; }
+    }
+    return _origSend();
+  };
+
+  window.sendMsg = _newSend;               // override global (mic / keyboard use this)
+  newBtn.addEventListener('click', _newSend);
+})();
+
+// ── 6. Patch showEmailDetail — fetch full body + track last email ─────
+(function patchShowDetail() {
+  const orig = window.showEmailDetail;
+  window.showEmailDetail = async function(email) {
+    window._lastEmail = email;
+    if (_gmTok() && email.id) {
+      try { email.body = await gGetBody(email.id); } catch(e) { /* use snippet */ }
+    }
+    return orig(email);
+  };
+})();
+
+// ── 7. Patch sendEmailReply — use Gmail API directly ─────────────────
+window.sendEmailReply = async function(to, subject, body) {
+  const dTo  = decodeURIComponent(to);
+  const dSub = decodeURIComponent(subject);
+  const dBdy = decodeURIComponent(body);
+  window._lastReply = dBdy;
+
+  if (!C.apps?.gmail?.connected) {
+    // Fallback: send via original Worker AI compose
+    const cmd = `Send email to ${dTo} with subject "${dSub}" saying: ${dBdy}`;
+    D.inp.value = cmd; autoResize(); sendMsg(); return;
+  }
+  ariaBusy(true);
+  try {
+    await gSend(dTo, dSub, dBdy, window._lastEmail?.threadId || null);
+    ariaBusy(false);
+    const m = '✅ Reply sent via Gmail!'; addMsg('assistant', m); speak(m);
+  } catch(e) { ariaBusy(false); addMsg('assistant', '⚠️ ' + e.message, true); }
+};
+
+// ── 8. "Hey ARIA" Wake Word ──────────────────────────────────────────
+let _wr = null, _wOn = false, _wRun = false;
+
+function _wStart() {
+  if (!SR || _wRun || S.listening) return;
+  _wr = new SR();
+  _wr.continuous = true;
+  _wr.interimResults = false;
+  _wr.lang = 'en-US';
+
+  _wr.onresult = e => {
+    const t = Array.from(e.results).map(r => r[0].transcript).join(' ');
+    if (/hey\s*aria|hey,?\s*area|ok\s*aria/i.test(t)) {
+      _wr.stop(); _wRun = false;
+      _ariaToast('👋 Hey! I\'m listening...');
+      setTimeout(() => {
+        if (!S.listening) startListen();
+        if (_wOn) setTimeout(_wStart, 5000); // resume wake after interaction
+      }, 350);
+    }
+  };
+  _wr.onend  = () => { _wRun = false; if (_wOn && !S.listening) setTimeout(_wStart, 800); };
+  _wr.onerror = () => { _wRun = false; if (_wOn) setTimeout(_wStart, 2500); };
+
+  try { _wr.start(); _wRun = true; } catch(e) {}
+}
+
+function _wToggle() {
+  const btn = document.getElementById('wakeWordBtn');
+  _wOn = !_wOn;
+  if (_wOn) {
+    navigator.mediaDevices.getUserMedia({ audio: true }).then(() => {
+      _wStart();
+      if (btn) {
+        btn.style.cssText += 'background:rgba(0,212,255,0.15)!important;border-color:rgba(0,212,255,0.5)!important;color:var(--gold)!important;';
+        btn.innerHTML = '🎙 <span style="color:var(--cyan)">ON</span>';
+      }
+      _ariaToast('Say "Hey ARIA" anytime to activate!');
+    }).catch(() => {
+      _wOn = false;
+      addMsg('assistant', 'Microphone permission needed for Hey ARIA wake word.', true);
+    });
+  } else {
+    _wRun = false;
+    try { _wr?.stop(); } catch(e) {}
+    if (btn) {
+      btn.style.cssText = btn.style.cssText.replace(/background[^;]+;|border-color[^;]+;|color[^;]+;/g, '');
+      btn.innerHTML = '🎙 <span style="color:var(--text3)">OFF</span>';
+    }
+  }
+}
+
+// ── 9. Inject Wake Word toggle into header ───────────────────────────
+(function injectWakeBtn() {
+  const hdr = document.querySelector('.hdr-right');
+  if (!hdr) return;
+  const btn = document.createElement('button');
+  btn.id = 'wakeWordBtn';
+  btn.className = 'hdr-btn';
+  btn.style.cssText = 'width:auto;padding:0 12px;border-radius:20px;font-size:0.58rem;letter-spacing:0.04em;white-space:nowrap;display:flex;align-items:center;gap:4px;transition:all 0.2s;';
+  btn.title = 'Toggle "Hey ARIA" always-on voice activation';
+  btn.innerHTML = '🎙 <span style="color:var(--text3)">OFF</span>';
+  btn.addEventListener('click', _wToggle);
+  hdr.insertBefore(btn, hdr.firstChild);
+})();
+
+console.log('✅ ARIA Enhanced: Gmail Direct API + Hey ARIA Wake Word loaded.');
+</script>
+
 </body>
 </html>
+
