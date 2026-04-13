@@ -33,9 +33,8 @@ body{font-family:'Manrope',sans-serif;}
 .orb-glow{animation:orb-pulse 4s ease-in-out infinite;}
 body[data-mode="listening"] .orb-main{animation:orb-listen 0.8s ease-in-out infinite;}
 body[data-mode="speaking"] .orb-main{animation:orb-speak 0.5s ease-in-out infinite;}
-/* Hero collapse */
-#heroWrap{transition:max-height 0.5s cubic-bezier(0.16,1,0.3,1),opacity 0.4s ease,padding 0.4s ease;overflow:hidden;max-height:500px;opacity:1;}
-#heroWrap.collapsed{max-height:0!important;opacity:0;padding:0!important;}
+/* Hero — always visible, fixed at top-center */
+#heroWrap{flex-shrink:0;display:flex;flex-direction:column;align-items:center;padding:20px 24px 16px;border-bottom:1px solid rgba(255,255,255,0.04);}
 /* Messages */
 #msgs{flex:1;overflow-y:auto;padding:16px 28px;display:flex;flex-direction:column;gap:14px;}
 @keyframes msg-in{from{opacity:0;transform:translateY(8px);}to{opacity:1;transform:translateY(0);}}
@@ -217,7 +216,7 @@ select.minp option{background:#0a0c10;}
   <!-- Top bar -->
   <div style="display:flex;align-items:center;gap:10px;padding:10px 20px;border-bottom:1px solid rgba(255,255,255,0.04);flex-shrink:0;">
     <button id="menuToggle" style="display:none;width:32px;height:32px;border-radius:8px;align-items:center;justify-content:center;background:none;border:none;color:rgba(255,255,255,0.3);cursor:pointer;"><span class="material-symbols-outlined" style="font-size:18px;">menu</span></button>
-    <a href="#" onclick="document.getElementById('heroWrap').classList.remove('collapsed');return false;" style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.2em;background:linear-gradient(135deg,#007BFF,#00E5FF);-webkit-background-clip:text;-webkit-text-fill-color:transparent;text-decoration:none;">Intelligence</a>
+    <a href="#" style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.2em;background:linear-gradient(135deg,#007BFF,#00E5FF);-webkit-background-clip:text;-webkit-text-fill-color:transparent;text-decoration:none;">Intelligence</a>
     <a href="#" onclick="openModal('apps');return false;" style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.2em;color:rgba(100,116,139,0.8);text-decoration:none;">Integrations</a>
     <a href="#" onclick="openModal('about');return false;" style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.2em;color:rgba(100,116,139,0.8);text-decoration:none;">Protocol</a>
     <div style="flex:1;"></div>
@@ -228,29 +227,33 @@ select.minp option{background:#0a0c10;}
     <button id="rightToggle" style="display:none;width:32px;height:32px;border-radius:8px;align-items:center;justify-content:center;background:none;border:none;color:rgba(255,255,255,0.3);cursor:pointer;"><span class="material-symbols-outlined" style="font-size:18px;">apps</span></button>
   </div>
 
-  <!-- Hero -->
-  <div id="heroWrap" style="display:flex;flex-direction:column;align-items:center;padding:32px 24px 24px;flex-shrink:0;">
-    <div class="orb-main orb-glow" style="width:160px;height:160px;border-radius:50%;background:rgba(0,0,0,0.6);border:1px solid rgba(0,229,255,0.08);display:flex;align-items:center;justify-content:center;position:relative;margin-bottom:24px;">
-      <div style="position:absolute;inset:0;border-radius:50%;background:linear-gradient(to top right,rgba(0,123,255,0.05),transparent,rgba(0,229,255,0.05));animation:pulse 3s ease-in-out infinite;"></div>
-      <div style="width:120px;height:120px;border-radius:50%;background:#080a0d;display:flex;align-items:center;justify-content:center;position:relative;box-shadow:inset 0 0 30px rgba(0,0,0,0.8);">
-        <div style="position:absolute;inset:0;border-radius:50%;background:linear-gradient(to bottom,transparent,rgba(0,229,255,0.05));"></div>
-        <span class="material-symbols-outlined" style="font-size:48px;color:#00E5FF;font-variation-settings:'FILL' 1;filter:drop-shadow(0 0 12px rgba(0,229,255,0.5));position:relative;z-index:1;">psychology</span>
+  <!-- Hero — compact, always pinned at top-center -->
+  <div id="heroWrap">
+    <!-- Orb -->
+    <div class="orb-main orb-glow" style="width:72px;height:72px;border-radius:50%;background:rgba(0,0,0,0.7);border:1px solid rgba(0,229,255,0.1);display:flex;align-items:center;justify-content:center;position:relative;margin-bottom:10px;">
+      <div style="position:absolute;inset:0;border-radius:50%;background:linear-gradient(to top right,rgba(0,123,255,0.06),transparent,rgba(0,229,255,0.06));animation:pulse 3s ease-in-out infinite;"></div>
+      <div style="width:52px;height:52px;border-radius:50%;background:#080a0d;display:flex;align-items:center;justify-content:center;position:relative;box-shadow:inset 0 0 16px rgba(0,0,0,0.9);">
+        <span class="material-symbols-outlined" style="font-size:24px;color:#00E5FF;font-variation-settings:'FILL' 1;filter:drop-shadow(0 0 8px rgba(0,229,255,0.6));position:relative;z-index:1;">psychology</span>
       </div>
     </div>
-    <h1 style="font-size:2.5rem;font-weight:800;color:rgba(255,255,255,0.9);letter-spacing:-0.03em;margin-bottom:6px;">ARIA</h1>
-    <p style="font-size:11px;color:#374151;font-weight:500;margin-bottom:28px;">Neural Command Interface &mdash; speak or type below</p>
-    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:48px;border-top:1px solid rgba(255,255,255,0.04);padding-top:24px;width:100%;max-width:380px;">
+    <!-- Title + subtitle -->
+    <div style="font-size:1.1rem;font-weight:800;color:rgba(255,255,255,0.9);letter-spacing:-0.02em;margin-bottom:2px;">ARIA</div>
+    <div style="font-size:9px;color:#374151;font-weight:500;letter-spacing:0.05em;">Neural Command Interface</div>
+    <!-- Inline metrics -->
+    <div style="display:flex;gap:28px;margin-top:12px;">
       <div style="text-align:center;">
-        <p style="font-size:8px;text-transform:uppercase;letter-spacing:0.2em;color:#374151;font-weight:700;margin-bottom:6px;">Messages</p>
-        <p style="font-size:1.8rem;font-weight:300;color:rgba(255,255,255,0.8);"><span id="sMsgs">0</span></p>
+        <div style="font-size:7px;text-transform:uppercase;letter-spacing:0.18em;color:#374151;font-weight:700;margin-bottom:2px;">Msgs</div>
+        <div style="font-size:1rem;font-weight:300;color:rgba(255,255,255,0.7);"><span id="sMsgs">0</span></div>
       </div>
+      <div style="width:1px;background:rgba(255,255,255,0.05);"></div>
       <div style="text-align:center;">
-        <p style="font-size:8px;text-transform:uppercase;letter-spacing:0.2em;color:#374151;font-weight:700;margin-bottom:6px;">Session</p>
-        <p style="font-size:1.8rem;font-weight:300;color:rgba(255,255,255,0.8);"><span id="sTime">0s</span></p>
+        <div style="font-size:7px;text-transform:uppercase;letter-spacing:0.18em;color:#374151;font-weight:700;margin-bottom:2px;">Session</div>
+        <div style="font-size:1rem;font-weight:300;color:rgba(255,255,255,0.7);"><span id="sTime">0s</span></div>
       </div>
+      <div style="width:1px;background:rgba(255,255,255,0.05);"></div>
       <div style="text-align:center;">
-        <p style="font-size:8px;text-transform:uppercase;letter-spacing:0.2em;color:#374151;font-weight:700;margin-bottom:6px;">Status</p>
-        <p style="font-size:0.8rem;font-weight:600;color:#00E5FF;margin-top:6px;" id="sTok">Ready</p>
+        <div style="font-size:7px;text-transform:uppercase;letter-spacing:0.18em;color:#374151;font-weight:700;margin-bottom:2px;">Status</div>
+        <div style="font-size:0.7rem;font-weight:600;color:#00E5FF;margin-top:2px;" id="sTok">Ready</div>
       </div>
     </div>
   </div>
@@ -1823,19 +1826,7 @@ D.inp.addEventListener('input', () => {
 })();
 </script>
 
-<!-- Hero collapse observer -->
-<script>
-(function(){
-  var msgs = document.getElementById('msgs');
-  var hero = document.getElementById('heroWrap');
-  if(!msgs||!hero) return;
-  var obs = new MutationObserver(function(){
-    if(msgs.children.length > 0) hero.classList.add('collapsed');
-    else hero.classList.remove('collapsed');
-  });
-  obs.observe(msgs, {childList:true});
-})();
-</script>
+<!-- Hero is always visible — no collapse observer needed -->
 
 <!-- data-mode updater for orb animations -->
 <script>
