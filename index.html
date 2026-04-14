@@ -468,6 +468,8 @@ select.minp option{background:#0a0c10;}
 <script>
 const W='https://ariaproxy.nihharksonee.workers.dev';
 const BELLA='EXAVITQu4vr4xnSDxMaL';
+// ElevenLabs direct browser API key — bypasses Worker (paste your key here)
+const EL_KEY = '';
 const APPS={
   gmail:    {name:'Gmail',          icon:'📧',auth:'google',   prompt:null},
   calendar: {name:'Calendar',       icon:'📅',auth:'google',   prompt:null},
@@ -722,94 +724,120 @@ function stopSpeaking() {
 
 function fallbackSpeak(txt) {
   synth.cancel();
-  if (!bVoices.length) loadBV();
-  const u   = new SpeechSynthesisUtterance(txt);
-  // Pick best non-robotic-male voice
-  const best = bVoices.find(v =>
-    !/david|mark|richard|george/i.test(v.name)
-  ) || bVoices[0];
+  // Always get voices fresh — they load async and may not be in bVoices yet
+  let voices = synth.getVoices();
+  if (!voices.length) voices = bVoices;
+  if (!voices.length) {
+    // Voices still loading — retry after short delay
+    setTimeout(() => fallbackSpeak(txt), 400);
+    return;
+  }
+  // Score: prefer female/named voices, prefer Google > Microsoft, exclude robotic males
+  const BAD = /david|mark|richard|george|james|ravi|jorge/i;
+  const scored = voices
+    .filter(v => !BAD.test(v.name))
+    .map(v => {
+      let s = 0;
+      if (/zira|aria|jenny|hazel|susan|karen|samantha|female|woman|alice|moira|tessa|fiona/i.test(v.name)) s += 6;
+      if (/google/i.test(v.name)) s += 4;
+      if (/microsoft/i.test(v.name)) s += 2;
+      if (v.lang && v.lang.startsWith('en')) s += 1;
+      return { v, s };
+    })
+    .sort((a, b) => b.s - a.s);
+  const best = (scored[0] || { v: voices[0] }).v;
+  console.log('Fallback voice:', best?.name || 'default');
+  const u = new SpeechSynthesisUtterance(txt);
   if (best) u.voice = best;
-  u.rate    = parseFloat(D.spd.value);
-  u.pitch   = 1;
+  u.rate  = parseFloat(D.spd.value);
+  u.pitch = 1;
   u.onstart = () => setMode('speaking');
-  u.onend   = u.onerror = () => {
+  u.onend = u.onerror = () => {
     setMode('ready');
     if ($('autoOn').checked) startListen();
   };
+  // iOS Safari: resume if paused before speaking
+  if (synth.paused) synth.resume();
   synth.speak(u);
+  // iOS stuck-speaking watchdog: if synthesis never fires onstart within 2s, retry
+  const watchdog = setTimeout(() => {
+    if (synth.speaking && !synth.paused) return; // fine
+    console.warn('SpeechSynthesis stuck — retrying');
+    synth.cancel();
+    setTimeout(() => {
+      if (synth.paused) synth.resume();
+      const u2 = new SpeechSynthesisUtterance(txt);
+      if (best) u2.voice = best;
+      u2.rate = parseFloat(D.spd.value);
+      u2.onend = u2.onerror = () => { setMode('ready'); if ($('autoOn').checked) startListen(); };
+      synth.speak(u2);
+    }, 100);
+  }, 2000);
+  u.onstart = () => { clearTimeout(watchdog); setMode('speaking'); };
 }
 
 async function speakEL(txt) {
-  elFails = 0; // ARIA v3: always start fresh ΓÇö prior failures do not block EL
-  // Skip EL if on file:// (local testing)
+  elFails = 0;
   if (location.protocol === 'file:') { fallbackSpeak(txt); return; }
-
-  // Skip EL temporarily if too many consecutive failures
-  if (elFails >= EL_MAX_FAILS) {
-    console.warn(`ElevenLabs skipped after ${elFails} failures — using browser voice`);
-    fallbackSpeak(txt);
-    // Reset after 30 seconds so we try EL again next message
-    setTimeout(() => { elFails = 0; }, 30000);
-    return;
-  }
+  if (elFails >= EL_MAX_FAILS) { fallbackSpeak(txt); setTimeout(()=>{elFails=0;},30000); return; }
 
   try {
     setMode('generating');
     S.lastText = txt;
 
+    const voiceId = D.vSel.value || BELLA;
     const controller = new AbortController();
-    const timeout    = setTimeout(() => controller.abort(), 12000); // 12s timeout
+    const timeout = setTimeout(() => controller.abort(), 12000);
 
-    const res = await fetch(`${W}/tts`, {
-      method:  'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body:    JSON.stringify({ text: txt, voice_id: D.vSel.value }),
-      signal:  controller.signal,
-    });
+    // Prefer direct EL API (avoids Worker IP flags); fall back to Worker
+    let res;
+    if (EL_KEY) {
+      res = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voiceId}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'xi-api-key': EL_KEY },
+        body: JSON.stringify({ text: txt, model_id: 'eleven_turbo_v2_5', voice_settings: { stability: 0.4, similarity_boost: 0.8 } }),
+        signal: controller.signal,
+      });
+    } else {
+      res = await fetch(`${W}/tts`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text: txt, voice_id: voiceId }),
+        signal: controller.signal,
+      });
+    }
     clearTimeout(timeout);
 
     if (!res.ok) {
       const errText = await res.text().catch(() => '');
       console.warn('ElevenLabs failed:', res.status, errText);
-      elFails++;
-      fallbackSpeak(txt);
-      return;
+      elFails++; fallbackSpeak(txt); return;
     }
-
     const ct = res.headers.get('Content-Type') || '';
     if (!ct.includes('audio')) {
-      console.warn('ElevenLabs returned non-audio:', ct);
-      elFails++;
-      fallbackSpeak(txt);
-      return;
+      console.warn('ElevenLabs non-audio response:', ct);
+      elFails++; fallbackSpeak(txt); return;
     }
 
-    // Success — reset fail counter
     elFails = 0;
-
-    const blob  = await res.blob();
-    const url   = URL.createObjectURL(blob);
-    const audio = new Audio(url);
-    S.audio     = audio;
+    const blob = await res.blob();
+    const url  = URL.createObjectURL(blob);
+    const audio = S._unlockedAudio || new Audio();
+    audio.src = url;
+    S.audio = audio;
     audio.playbackRate = parseFloat(D.spd.value);
     audio.onplay  = () => setMode('speaking');
     audio.onended = audio.onerror = () => {
-      setMode('ready');
-      URL.revokeObjectURL(url);
-      S.audio = null;
+      setMode('ready'); URL.revokeObjectURL(url); S.audio = null;
       if ($('autoOn').checked) startListen();
     };
     await audio.play();
     console.log('✅ ElevenLabs playing');
 
   } catch(e) {
-    if (e.name === 'AbortError') {
-      console.warn('ElevenLabs request timed out');
-    } else {
-      console.warn('ElevenLabs error:', e.message);
-    }
-    elFails++;
-    fallbackSpeak(txt);
+    if (e.name !== 'AbortError') console.warn('ElevenLabs error:', e.message);
+    else console.warn('ElevenLabs timed out');
+    elFails++; fallbackSpeak(txt);
   }
 }
 
@@ -1029,7 +1057,9 @@ async function callWorker(txt){
 // SEND
 async function sendMsg(){
   const txt=D.inp.value.trim();if(!txt||D.send.disabled)return;
-  D.inp.value='';autoResize();
+  D.inp.value='';D.inp.style.height='auto';autoResize();
+  // On mobile, dismiss keyboard so the input visually clears
+  if(window.innerWidth<=768)D.inp.blur();
   S.msgs.push({role:'user',content:txt});addMsg('user',txt);
   if(S.msgs.length===1){
     // Set raw title immediately
@@ -1805,11 +1835,16 @@ D.inp.addEventListener('input', () => {
       bgRec.onerror = function(e) {
         bgActive = false;
         if (e.error === 'not-allowed') { bgEnabled = false; updateBtn(); return; }
-        if (bgEnabled) setTimeout(bgStart, 2500);
+        // On iOS, restart faster to keep wake loop alive
+        var delay = /iPhone|iPad|iPod/i.test(navigator.userAgent) ? 600 : 2500;
+        if (bgEnabled) setTimeout(bgStart, delay);
       };
       bgRec.onend = function() {
         bgActive = false;
-        if (bgEnabled && !(window.S && S.listening)) setTimeout(bgStart, 800);
+        if (!bgEnabled || (window.S && S.listening)) return;
+        // iOS ignores continuous:true — restart immediately to simulate continuous
+        var delay = /iPhone|iPad|iPod/i.test(navigator.userAgent) ? 150 : 800;
+        setTimeout(bgStart, delay);
       };
       bgRec.start();
       bgActive = true;
@@ -1862,7 +1897,10 @@ D.inp.addEventListener('input', () => {
   wakeBtn.id = 'ariaWakeBtn';
   wakeBtn.textContent = 'Wake: OFF';
   wakeBtn.title = 'Toggle "Hey ARIA" hands-free wake word';
-  wakeBtn.style.cssText = 'position:fixed;top:11px;right:56px;z-index:99999;background:rgba(4,5,10,.85);border:1px solid rgba(255,255,255,.18);border-radius:8px;padding:4px 11px;color:#6b7eaa;cursor:pointer;font-size:11px;font-family:inherit;backdrop-filter:blur(10px);transition:all .2s;';
+  // On mobile push left so it doesn't overlap the right-panel toggle
+  var isMobile = window.innerWidth <= 768;
+  wakeBtn.style.cssText = 'position:fixed;top:11px;right:' + (isMobile ? '90px' : '56px') + ';z-index:99999;background:rgba(4,5,10,.85);border:1px solid rgba(255,255,255,.18);border-radius:8px;padding:4px 11px;color:#6b7eaa;cursor:pointer;font-size:11px;font-family:inherit;backdrop-filter:blur(10px);transition:all .2s;-webkit-tap-highlight-color:transparent;';
+  window.addEventListener('resize', function(){ wakeBtn.style.right = window.innerWidth <= 768 ? '90px' : '56px'; });
 
   wakeBtn.addEventListener('click', async function() {
     if (!bgEnabled) {
@@ -1905,18 +1943,18 @@ window.addEventListener('load', function(){
 </script>
 
 <script>
-// iOS Safari audio unlock — must happen on first user touch before any speak() call
+// iOS Safari audio unlock — fires on first user touch, unlocks all audio paths
 (function(){
   var unlocked = false;
   function iosUnlock() {
     if (unlocked) return;
     unlocked = true;
-    // Unlock speechSynthesis
+    // 1. Unlock speechSynthesis
     try {
       var u = new SpeechSynthesisUtterance('');
       window.speechSynthesis.speak(u);
     } catch(e){}
-    // Unlock AudioContext
+    // 2. Unlock AudioContext
     try {
       var Ctx = window.AudioContext || window.webkitAudioContext;
       if (Ctx) {
@@ -1927,9 +1965,24 @@ window.addEventListener('load', function(){
         ctx.resume();
       }
     } catch(e){}
-    // Re-speak welcome on iOS since first speak() fires before touch
+    // 3. Pre-warm an Audio element so ElevenLabs blob audio plays after async calls
+    // (iOS requires Audio.play() to be initiated in a gesture context at least once)
+    try {
+      var a = new Audio();
+      // Silent 0.1s MP3 data-URI
+      a.src = 'data:audio/mpeg;base64,SUQzBAAAAAAAI1RTU0UAAAAPAAADTGF2ZjU4LjI5LjEwMAAAAAAAAAAAAAAA//tQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWGluZwAAAA8AAAACAAABIADAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMD///////////////////////////////////////////8AAAA5TEFNRTMuMTAwAc0AAAAAAAAAABQAJAXUQgAAgAAAASB6DYlGAAAAAAAAAAAAAAAAAAAA//sQZAAP8AAAaQAAAAgAAA0gAAABAAABpAAAACAAADSAAAAETEFNRTMuMTAwVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVU=';
+      a.volume = 0.001;
+      var p = a.play();
+      if (p && p.then) p.then(function(){ a.pause(); }).catch(function(){});
+      // Store for reuse in speakEL so subsequent plays work
+      if (window.S) window.S._unlockedAudio = new Audio();
+      else setTimeout(function(){ if(window.S) window.S._unlockedAudio = new Audio(); }, 500);
+    } catch(e){}
+    // 4. Re-speak welcome on iOS (original call fired before any touch)
     if (/iPhone|iPad|iPod/i.test(navigator.userAgent)) {
-      setTimeout(function(){ if(typeof speak==='function') speak("Hello. I'm ARIA. How can I help you today?"); }, 400);
+      setTimeout(function(){
+        if(typeof speak==='function') speak("Hello. I'm ARIA. How can I help you today?");
+      }, 600);
     }
   }
   document.addEventListener('touchstart', iosUnlock, {once:true, passive:true});
