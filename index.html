@@ -264,12 +264,14 @@ select.minp option{background:#0a0c10;}
 
   <!-- Hero — compact, always pinned at top-center -->
   <div id="heroWrap">
-    <!-- Orb -->
-    <div class="orb-main orb-glow" style="width:72px;height:72px;border-radius:50%;background:rgba(0,0,0,0.7);border:1px solid rgba(0,229,255,0.1);display:flex;align-items:center;justify-content:center;position:relative;margin-bottom:10px;">
+    <!-- Orb — tap to toggle mic -->
+    <div id="orbBtn" class="orb-main orb-glow" onclick="document.getElementById('micBtn').click()" title="Tap to speak" style="width:72px;height:72px;border-radius:50%;background:rgba(0,0,0,0.7);border:1px solid rgba(0,229,255,0.1);display:flex;align-items:center;justify-content:center;position:relative;margin-bottom:10px;cursor:pointer;-webkit-tap-highlight-color:transparent;">
       <div style="position:absolute;inset:0;border-radius:50%;background:linear-gradient(to top right,rgba(0,123,255,0.06),transparent,rgba(0,229,255,0.06));animation:pulse 3s ease-in-out infinite;"></div>
       <div class="orb-inner-wrap" style="width:52px;height:52px;border-radius:50%;background:#080a0d;display:flex;align-items:center;justify-content:center;position:relative;box-shadow:inset 0 0 16px rgba(0,0,0,0.9);">
-        <span class="material-symbols-outlined" style="font-size:24px;color:#00E5FF;font-variation-settings:'FILL' 1;filter:drop-shadow(0 0 8px rgba(0,229,255,0.6));position:relative;z-index:1;">psychology</span>
+        <span id="orbIcon" class="material-symbols-outlined" style="font-size:24px;color:#00E5FF;font-variation-settings:'FILL' 1;filter:drop-shadow(0 0 8px rgba(0,229,255,0.6));position:relative;z-index:1;">psychology</span>
       </div>
+      <!-- tap hint ring on mobile -->
+      <div id="orbRing" style="position:absolute;inset:-6px;border-radius:50%;border:1.5px dashed rgba(0,229,255,0.25);opacity:0;transition:opacity 0.3s;pointer-events:none;"></div>
     </div>
     <!-- Title + subtitle -->
     <div style="font-size:1.1rem;font-weight:800;color:rgba(255,255,255,0.9);letter-spacing:-0.02em;margin-bottom:2px;">ARIA</div>
@@ -300,6 +302,15 @@ select.minp option{background:#0a0c10;}
   <div id="think" class="hidden">
     <div class="think-dots"><span></span><span></span><span></span></div>
     ARIA is thinking...
+  </div>
+
+  <!-- Live transcript strip — shows while mic is active -->
+  <div id="liveBar" style="display:none;flex-shrink:0;padding:6px 20px 2px;align-items:center;gap:8px;">
+    <div style="display:flex;align-items:center;gap:8px;background:rgba(0,229,255,0.05);border:1px solid rgba(0,229,255,0.15);border-radius:12px;padding:8px 14px;width:100%;">
+      <span class="material-symbols-outlined" id="liveIco" style="font-size:16px;color:#00E5FF;font-variation-settings:'FILL' 1;flex-shrink:0;animation:pulse 1s ease-in-out infinite;">graphic_eq</span>
+      <span id="liveTxt" style="flex:1;font-size:12px;font-weight:500;color:rgba(255,255,255,0.75);font-family:Manrope,sans-serif;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">Listening...</span>
+      <span style="font-size:9px;font-weight:700;letter-spacing:0.12em;color:rgba(0,229,255,0.5);">LIVE</span>
+    </div>
   </div>
 
   <!-- Input bar -->
@@ -837,18 +848,30 @@ const SR=window.SpeechRecognition||window.webkitSpeechRecognition;let rec=null;
 function buildRec(){
   if(!SR)return false;
   rec=new SR();rec.continuous=false;rec.interimResults=true;rec.lang='en-US';
-  rec.onstart=()=>{S.listening=true;setMode('listening');};
+  rec.onstart=()=>{
+    S.listening=true;setMode('listening');
+    const lb=document.getElementById('liveBar'),lt=document.getElementById('liveTxt'),oi=document.getElementById('orbIcon'),or2=document.getElementById('orbRing');
+    if(lb){lb.style.display='flex';} if(lt){lt.textContent='Listening...';} if(oi){oi.textContent='mic';oi.style.color='#00E5FF';} if(or2){or2.style.opacity='1';}
+  };
   rec.onresult=e=>{
     const t=Array.from(e.results).map(r=>r[0].transcript).join('');
     D.inp.value=t;autoResize();
+    const lt=document.getElementById('liveTxt');
+    if(lt){lt.textContent=t||'Listening...';}
     if(e.results[e.results.length-1].isFinal){stopListen();sendMsg();}
   };
   rec.onerror=e=>{
     S.listening=false;setMode('ready');
+    const lb=document.getElementById('liveBar'),oi=document.getElementById('orbIcon'),or2=document.getElementById('orbRing');
+    if(lb){lb.style.display='none';} if(oi){oi.textContent='psychology';} if(or2){or2.style.opacity='0';}
     if(e.error==='not-allowed')addMsg('assistant','Microphone blocked. Click the lock icon in your address bar → Microphone → Allow → refresh.',true);
     else if(e.error!=='no-speech'&&e.error!=='aborted')addMsg('assistant',`Mic error: ${e.error}`,true);
   };
-  rec.onend=()=>{if(S.listening){S.listening=false;setMode('ready');}};
+  rec.onend=()=>{
+    if(S.listening){S.listening=false;setMode('ready');}
+    const lb=document.getElementById('liveBar'),oi=document.getElementById('orbIcon'),or2=document.getElementById('orbRing');
+    if(lb){lb.style.display='none';} if(oi){oi.textContent='psychology';} if(or2){or2.style.opacity='0';}
+  };
   return true;
 }
 
