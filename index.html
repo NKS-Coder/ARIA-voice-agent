@@ -152,17 +152,41 @@ select.minp option{background:#0a0c10;}
 .gmail-open-full{padding:10px 24px;background:#EA4335;color:white;border-radius:20px;text-decoration:none;font-size:0.76rem;font-weight:600;}
 .email-avatar{width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:0.65rem;font-weight:700;color:white;}
 .av-color-0{background:#EA4335;}.av-color-1{background:#1a73e8;}.av-color-2{background:#34A853;}.av-color-3{background:#9c27b0;}.av-color-4{background:#FF5722;}
+/* Placeholder */
+#inp::placeholder{color:rgba(255,255,255,0.2);}
 /* Mobile overlay */
-#sidebarOverlay{display:none;position:fixed;inset:0;z-index:400;background:rgba(0,0,0,0.6);backdrop-filter:blur(4px);}
+#sidebarOverlay{display:none;position:fixed;inset:0;z-index:400;background:rgba(0,0,0,0.7);backdrop-filter:blur(6px);}
 #sidebarOverlay.open{display:block;}
 /* Stop button */
 #stopBtn{align-items:center;gap:4px;padding:4px 10px;border-radius:8px;border:1px solid rgba(245,101,101,0.3);background:rgba(245,101,101,0.08);color:#fc8181;font-size:0.65rem;cursor:pointer;font-family:inherit;}
+/* Responsive */
 @media(max-width:768px){
-  .left{position:fixed!important;left:-270px!important;top:0;bottom:0;z-index:500;width:256px!important;transition:left 0.3s ease;}
-  .left.open{left:0!important;}
-  .right{position:fixed!important;right:-300px!important;top:0;bottom:0;z-index:500;width:272px!important;transition:right 0.3s ease;overflow-y:auto;}
-  .right.open{right:0!important;}
+  /* Sidebars slide offscreen */
+  .left{position:fixed!important;left:-280px!important;top:0;bottom:0;z-index:500;width:260px!important;transition:left 0.3s cubic-bezier(0.16,1,0.3,1);box-shadow:none;}
+  .left.open{left:0!important;box-shadow:20px 0 60px rgba(0,0,0,0.8);}
+  .right{position:fixed!important;right:-290px!important;top:0;bottom:0;z-index:500;width:272px!important;transition:right 0.3s cubic-bezier(0.16,1,0.3,1);overflow-y:auto;box-shadow:none;}
+  .right.open{right:0!important;box-shadow:-20px 0 60px rgba(0,0,0,0.8);}
+  /* Show hamburger toggles */
   #menuToggle,#rightToggle{display:flex!important;}
+  /* Hero compact on phone */
+  #heroWrap{padding:14px 16px 12px!important;}
+  #heroWrap .orb-main{width:54px!important;height:54px!important;}
+  #heroWrap .orb-inner-wrap{width:38px!important;height:38px!important;}
+  /* Input bar safe area + full width */
+  #inputBar{padding:10px 12px calc(10px + env(safe-area-inset-bottom)) 12px!important;}
+  /* Execute button: icon only on very small screens */
+  #sendBtn .send-label{display:none;}
+  #sendBtn{padding:9px 14px!important;}
+  /* convLabel hidden on small phones */
+  #convLabel{display:none!important;}
+  /* Metrics row smaller */
+  #heroMetrics{gap:16px!important;}
+}
+@media(max-width:400px){
+  #heroWrap .orb-main{width:44px!important;height:44px!important;margin-bottom:6px!important;}
+  #heroWrap>div:nth-child(2){font-size:0.9rem!important;}
+  #heroWrap>div:nth-child(3){display:none;}
+  #heroMetrics{display:none!important;}
 }
 @keyframes pulse{0%,100%{opacity:1;}50%{opacity:0.5;}}
 </style>
@@ -232,7 +256,7 @@ select.minp option{background:#0a0c10;}
     <!-- Orb -->
     <div class="orb-main orb-glow" style="width:72px;height:72px;border-radius:50%;background:rgba(0,0,0,0.7);border:1px solid rgba(0,229,255,0.1);display:flex;align-items:center;justify-content:center;position:relative;margin-bottom:10px;">
       <div style="position:absolute;inset:0;border-radius:50%;background:linear-gradient(to top right,rgba(0,123,255,0.06),transparent,rgba(0,229,255,0.06));animation:pulse 3s ease-in-out infinite;"></div>
-      <div style="width:52px;height:52px;border-radius:50%;background:#080a0d;display:flex;align-items:center;justify-content:center;position:relative;box-shadow:inset 0 0 16px rgba(0,0,0,0.9);">
+      <div class="orb-inner-wrap" style="width:52px;height:52px;border-radius:50%;background:#080a0d;display:flex;align-items:center;justify-content:center;position:relative;box-shadow:inset 0 0 16px rgba(0,0,0,0.9);">
         <span class="material-symbols-outlined" style="font-size:24px;color:#00E5FF;font-variation-settings:'FILL' 1;filter:drop-shadow(0 0 8px rgba(0,229,255,0.6));position:relative;z-index:1;">psychology</span>
       </div>
     </div>
@@ -240,7 +264,7 @@ select.minp option{background:#0a0c10;}
     <div style="font-size:1.1rem;font-weight:800;color:rgba(255,255,255,0.9);letter-spacing:-0.02em;margin-bottom:2px;">ARIA</div>
     <div style="font-size:9px;color:#374151;font-weight:500;letter-spacing:0.05em;">Neural Command Interface</div>
     <!-- Inline metrics -->
-    <div style="display:flex;gap:28px;margin-top:12px;">
+    <div id="heroMetrics" style="display:flex;gap:28px;margin-top:12px;">
       <div style="text-align:center;">
         <div style="font-size:7px;text-transform:uppercase;letter-spacing:0.18em;color:#374151;font-weight:700;margin-bottom:2px;">Msgs</div>
         <div style="font-size:1rem;font-weight:300;color:rgba(255,255,255,0.7);"><span id="sMsgs">0</span></div>
@@ -268,16 +292,17 @@ select.minp option{background:#0a0c10;}
   </div>
 
   <!-- Input bar -->
-  <div style="padding:12px 20px 20px;flex-shrink:0;">
+  <div id="inputBar" style="padding:12px 20px 20px;flex-shrink:0;">
     <div class="glass-2 micro-border" style="border-radius:9999px;padding:10px 16px;display:flex;align-items:center;gap:10px;box-shadow:0 20px 60px -10px rgba(0,0,0,0.9);border:1px solid rgba(255,255,255,0.05);">
-      <button id="micBtn" style="width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);cursor:pointer;transition:all 0.2s;">
+      <button id="micBtn" style="width:38px;height:38px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);cursor:pointer;transition:all 0.2s;">
         <span class="material-symbols-outlined ms-icon" style="font-size:20px;color:#007BFF;font-variation-settings:'FILL' 1;">mic</span>
       </button>
       <div id="viz"></div>
-      <div id="micLbl" class="mic-label">Click to speak</div>
-      <textarea id="inp" rows="1" placeholder="Command neural core..." style="flex:1;background:transparent;border:none;resize:none;outline:none;color:rgba(255,255,255,0.8);font-family:Manrope,sans-serif;font-size:14px;font-weight:500;line-height:1.5;max-height:110px;overflow-y:auto;placeholder-color:rgba(255,255,255,0.15);"></textarea>
-      <button id="sendBtn" style="flex-shrink:0;background:linear-gradient(to right,#007BFF,#00E5FF);color:#000;padding:9px 22px;border-radius:9999px;font-size:10px;font-weight:800;letter-spacing:0.15em;border:none;cursor:pointer;font-family:inherit;transition:all 0.2s;" onmouseover="this.style.filter='brightness(1.1)'" onmouseout="this.style.filter='none'">
-        EXECUTE
+      <div id="micLbl" class="mic-label" style="display:none;"></div>
+      <textarea id="inp" rows="1" placeholder="Command ARIA..." style="flex:1;background:transparent;border:none;resize:none;outline:none;color:rgba(255,255,255,0.85);font-family:Manrope,sans-serif;font-size:14px;font-weight:500;line-height:1.5;max-height:110px;overflow-y:auto;"></textarea>
+      <button id="sendBtn" style="flex-shrink:0;background:linear-gradient(to right,#007BFF,#00E5FF);color:#000;padding:9px 20px;border-radius:9999px;font-size:10px;font-weight:800;letter-spacing:0.15em;border:none;cursor:pointer;font-family:inherit;transition:all 0.2s;display:flex;align-items:center;gap:6px;" onmouseover="this.style.filter='brightness(1.15)'" onmouseout="this.style.filter='none'">
+        <span class="material-symbols-outlined" style="font-size:16px;font-variation-settings:'FILL' 1;">send</span>
+        <span class="send-label">EXECUTE</span>
       </button>
     </div>
   </div>
