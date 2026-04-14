@@ -161,6 +161,8 @@ select.minp option{background:#0a0c10;}
 #stopBtn{align-items:center;gap:4px;padding:4px 10px;border-radius:8px;border:1px solid rgba(245,101,101,0.3);background:rgba(245,101,101,0.08);color:#fc8181;font-size:0.65rem;cursor:pointer;font-family:inherit;}
 /* Responsive */
 @media(max-width:768px){
+  /* Use dynamic viewport height to exclude Safari chrome */
+  .flex.h-screen{height:100dvh!important;}
   /* Sidebars slide offscreen */
   .left{position:fixed!important;left:-280px!important;top:0;bottom:0;z-index:500;width:260px!important;transition:left 0.3s cubic-bezier(0.16,1,0.3,1);box-shadow:none;}
   .left.open{left:0!important;box-shadow:20px 0 60px rgba(0,0,0,0.8);}
@@ -172,8 +174,17 @@ select.minp option{background:#0a0c10;}
   #heroWrap{padding:14px 16px 12px!important;}
   #heroWrap .orb-main{width:54px!important;height:54px!important;}
   #heroWrap .orb-inner-wrap{width:38px!important;height:38px!important;}
-  /* Input bar safe area + full width */
-  #inputBar{padding:10px 12px calc(10px + env(safe-area-inset-bottom)) 12px!important;}
+  /* Input bar: fixed to bottom of screen, always visible */
+  #inputBar{
+    position:fixed!important;
+    bottom:0!important;left:0!important;right:0!important;
+    z-index:200!important;
+    padding:10px 12px env(safe-area-inset-bottom,16px) 12px!important;
+    background:#05070A!important;
+    border-top:1px solid rgba(255,255,255,0.06)!important;
+  }
+  /* Push messages up so they're not hidden behind fixed input bar */
+  #msgs{padding-bottom:80px!important;}
   /* Execute button: icon only on very small screens */
   #sendBtn .send-label{display:none;}
   #sendBtn{padding:9px 14px!important;}
@@ -1870,5 +1881,37 @@ window.addEventListener('load', function(){
 });
 </script>
 
+<script>
+// iOS Safari audio unlock — must happen on first user touch before any speak() call
+(function(){
+  var unlocked = false;
+  function iosUnlock() {
+    if (unlocked) return;
+    unlocked = true;
+    // Unlock speechSynthesis
+    try {
+      var u = new SpeechSynthesisUtterance('');
+      window.speechSynthesis.speak(u);
+    } catch(e){}
+    // Unlock AudioContext
+    try {
+      var Ctx = window.AudioContext || window.webkitAudioContext;
+      if (Ctx) {
+        var ctx = new Ctx();
+        var buf = ctx.createBuffer(1,1,22050);
+        var src = ctx.createBufferSource();
+        src.buffer = buf; src.connect(ctx.destination); src.start(0);
+        ctx.resume();
+      }
+    } catch(e){}
+    // Re-speak welcome on iOS since first speak() fires before touch
+    if (/iPhone|iPad|iPod/i.test(navigator.userAgent)) {
+      setTimeout(function(){ if(typeof speak==='function') speak("Hello. I'm ARIA. How can I help you today?"); }, 400);
+    }
+  }
+  document.addEventListener('touchstart', iosUnlock, {once:true, passive:true});
+  document.addEventListener('click', iosUnlock, {once:true});
+})();
+</script>
 </body>
 </html>
