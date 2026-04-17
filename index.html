@@ -496,7 +496,7 @@ const APPS={
 };
 
 // STATE
-const S={msgs:[],listening:false,persona:'general',msgN:0,audio:null,lastText:'',convId:null,convTitle:''};
+const S={msgs:[],listening:false,autoListening:false,persona:'general',msgN:0,audio:null,lastText:'',convId:null,convTitle:''};
 
 // CONFIG
 // CONFIG
@@ -850,9 +850,13 @@ async function speakEL(txt, _retry=0) {
     S.audio = audio;
     audio.playbackRate = parseFloat(D.spd.value);
     audio.onplay  = () => setMode('speaking');
-    audio.onended = audio.onerror = () => {
+    audio.onended = () => {
       setMode('ready'); URL.revokeObjectURL(url); S.audio = null;
       startAutoListenWindow();
+    };
+    audio.onerror = () => {
+      // Don't start auto-listen on error — audio may not have played at all
+      setMode('ready'); URL.revokeObjectURL(url); S.audio = null;
     };
     await audio.play();
     console.log('✅ ElevenLabs playing');
@@ -916,11 +920,10 @@ function buildRec(){
     const lt=document.getElementById('liveTxt');
     if(lt){lt.textContent=t||'Listening...';}
     if(e.results[e.results.length-1].isFinal){
-      // Anti-echo: if transcript matches ARIA's last spoken text, discard silently
-      const norm=s=>s.trim().toLowerCase().replace(/[^a-z0-9 ]/g,'');
-      const tN=norm(t),lN=norm(S.lastText||'');
-      const isEcho=lN.length>8&&tN.length>4&&(tN.startsWith(lN.slice(0,18))||lN.startsWith(tN.slice(0,18)));
-      if(isEcho){clearAutoListenTimer();stopListen();return;}
+      // Robust echo detection: word-overlap Jaccard similarity against ARIA's last text
+      if(S.autoListening && _isEcho(t, S.lastText)){
+        clearAutoListenTimer();stopListen();return;
+      }
       D.inp.value=t;autoResize();
       clearAutoListenTimer();stopListen();sendMsg();
     }
@@ -981,16 +984,30 @@ D.mic.addEventListener('click',()=>{if(S.listening)stopListen();else startListen
 
 // AUTO-LISTEN COUNTDOWN (5 seconds after ARIA responds)
 let _autoListenT=null;
+
+// Word-overlap echo detector: returns true if transcript is likely ARIA's own voice
+function _isEcho(transcript, lastText){
+  if(!lastText||!transcript)return false;
+  const words=s=>s.toLowerCase().replace(/[^a-z0-9 ]/g,'').split(/\s+/).filter(w=>w.length>2);
+  const tw=words(transcript), lw=words(lastText.slice(0,150));
+  if(!tw.length||!lw.length)return false;
+  const lSet=new Set(lw);
+  const matches=tw.filter(w=>lSet.has(w)).length;
+  return matches/Math.min(tw.length,lw.length)>=0.5; // ≥50% content-word overlap = echo
+}
+
 function clearAutoListenTimer(){
   if(_autoListenT){clearInterval(_autoListenT);_autoListenT=null;}
+  S.autoListening=false;
   const tag=document.getElementById('liveTag'),inner=document.querySelector('#liveBar .live-inner');
   if(tag){tag.textContent='LIVE';tag.classList.remove('counting','expiring');}
   if(inner){inner.classList.remove('counting');}
 }
 function startAutoListenWindow(){
   if(!$('autoOn').checked)return;
-  // Delay mic open so ARIA's speaker audio fully dissipates before the mic activates
+  // 1000ms delay: lets speaker audio fully dissipate before mic opens
   setTimeout(()=>{
+    S.autoListening=true;
     startListen();
     let secs=5;
     const tag=document.getElementById('liveTag'),inner=document.querySelector('#liveBar .live-inner');
@@ -1003,9 +1020,9 @@ function startAutoListenWindow(){
         else{tag.textContent=secs+'s';if(secs<=2)tag.classList.add('expiring');else tag.classList.remove('expiring');}
       }
       if(inner&&secs<=0){inner.classList.remove('counting');}
-      if(secs<=0){clearInterval(_autoListenT);_autoListenT=null;if(S.listening)stopListen();}
+      if(secs<=0){clearInterval(_autoListenT);_autoListenT=null;S.autoListening=false;if(S.listening)stopListen();}
     },1000);
-  }, 650);
+  }, 1000);
 }
 
 // MODE
