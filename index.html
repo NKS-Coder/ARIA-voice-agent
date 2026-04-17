@@ -733,6 +733,36 @@ let bVoices  = [];
 let elFails  = 0;           // count consecutive EL failures — reset on success
 const EL_MAX_FAILS = 999;   // ARIA v3: never permanently lock out ElevenLabs
 
+// ── Audio unlock ──────────────────────────────────────────
+// Chrome blocks audio.play() if called >1s after user gesture.
+// Call unlockAudio() immediately on mic/send click to pre-engage the tab's audio.
+let _audioUnlocked = false;
+function unlockAudio() {
+  if (_audioUnlocked) return;
+  try {
+    const a = new Audio();
+    a.src = 'data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQAAAAA=';
+    a.volume = 0.001;
+    const p = a.play();
+    if (p && p.then) p.then(() => { _audioUnlocked = true; a.pause(); }).catch(() => {});
+  } catch(e) {}
+}
+
+// Brief toast shown when ElevenLabs falls back to browser TTS
+function _showElFallbackToast(reason) {
+  let el = document.getElementById('_elToast');
+  if (!el) {
+    el = document.createElement('div');
+    el.id = '_elToast';
+    el.style.cssText = 'position:fixed;bottom:80px;left:50%;transform:translateX(-50%);background:rgba(30,10,10,0.92);border:1px solid rgba(255,80,80,0.4);color:rgba(255,180,180,0.9);font-size:11px;padding:6px 14px;border-radius:8px;z-index:99999;pointer-events:none;transition:opacity 0.4s;font-family:Manrope,sans-serif;';
+    document.body.appendChild(el);
+  }
+  el.textContent = '\u26a0 ElevenLabs unavailable \u2014 using browser voice' + (reason ? ' (' + reason + ')' : '');
+  el.style.opacity = '1';
+  clearTimeout(el._t);
+  el._t = setTimeout(() => { el.style.opacity = '0'; }, 4000);
+}
+
 function loadBV() {
   const all = synth.getVoices().filter(v => v.lang.startsWith('en'));
 
@@ -879,22 +909,24 @@ async function speakEL(txt, _retry=0) {
         await new Promise(r => setTimeout(r, 600 * (_retry + 1)));
         return speakEL(txt, _retry + 1);
       }
-      elFails++; fallbackSpeak(txt); return;
+      elFails++; _showElFallbackToast('HTTP ' + res.status); fallbackSpeak(txt); return;
     }
     const ct = res.headers.get('Content-Type') || '';
-    if (!ct.includes('audio')) {
+    // Accept audio/*, application/octet-stream (some proxies omit type), or empty
+    const ctOk = !ct || ct.includes('audio') || ct.includes('octet-stream');
+    if (!ctOk) {
       console.warn('ElevenLabs non-audio response:', ct);
       if (_retry < 2) {
         await new Promise(r => setTimeout(r, 600 * (_retry + 1)));
         return speakEL(txt, _retry + 1);
       }
-      elFails++; fallbackSpeak(txt); return;
+      elFails++; _showElFallbackToast('bad content-type'); fallbackSpeak(txt); return;
     }
 
     elFails = 0;
     const blob = await res.blob();
     const url  = URL.createObjectURL(blob);
-    const audio = S._unlockedAudio || new Audio();
+    const audio = new Audio();
     audio.src = url;
     S.audio = audio;
     audio.playbackRate = parseFloat(D.spd.value);
@@ -911,14 +943,25 @@ async function speakEL(txt, _retry=0) {
     console.log('✅ ElevenLabs playing');
 
   } catch(e) {
+    if (e.name === 'NotAllowedError' || (e.message && e.message.includes('play()'))) {
+      // Browser blocked autoplay — this is expected for the welcome message (no user gesture yet).
+      // Don't retry; just fall back silently (no toast for welcome msg).
+      elFails++; fallbackSpeak(txt); return;
+    }
     if (e.name !== 'AbortError') {
       console.warn('ElevenLabs error:', e.message);
       if (_retry < 2) {
         await new Promise(r => setTimeout(r, 600 * (_retry + 1)));
         return speakEL(txt, _retry + 1);
       }
+      _showElFallbackToast(e.name);
     } else {
       console.warn('ElevenLabs timed out');
+      if (_retry < 2) {
+        await new Promise(r => setTimeout(r, 600 * (_retry + 1)));
+        return speakEL(txt, _retry + 1);
+      }
+      _showElFallbackToast('timeout');
     }
     elFails++; fallbackSpeak(txt);
   }
@@ -1045,7 +1088,7 @@ async function startListen(){
 }
 
 function stopListen(){clearAutoListenTimer();S.listening=false;setMode('ready');try{rec?.stop();}catch(e){}}
-D.mic.addEventListener('click',()=>{if(S.listening)stopListen();else startListen();});
+D.mic.addEventListener('click',()=>{unlockAudio();if(S.listening)stopListen();else startListen();});
 
 // AUTO-LISTEN COUNTDOWN (5 seconds after ARIA responds)
 let _autoListenT=null,_autoListenStart=0;
@@ -1243,7 +1286,7 @@ async function sendMsg(){
     addMsg('assistant',m,true);speak(m);
   }
 }
-D.send.addEventListener('click',sendMsg);
+D.send.addEventListener('click',()=>{unlockAudio();sendMsg();});
 D.inp.addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendMsg();}});
 function autoResize(){D.inp.style.height='auto';D.inp.style.height=Math.min(D.inp.scrollHeight,110)+'px';}
 D.inp.addEventListener('input',autoResize);
@@ -1983,7 +2026,15 @@ D.inp.addEventListener('input', () => {
       };
       bgRec.onerror = function(e) {
         bgActive = false;
-        if (e.error === 'not-allowed') { bgEnabled = false; updateBtn(); return; }
+        if (e.error === 'not-allowed') {
+          bgEnabled = false; updateBtn();
+          // Show visible notification — user needs to grant mic permission
+          var toastEl = document.getElementById('_elToast');
+          if (!toastEl) { toastEl = document.createElement('div'); toastEl.id = '_elToast'; toastEl.style.cssText = 'position:fixed;bottom:80px;left:50%;transform:translateX(-50%);background:rgba(30,10,10,0.92);border:1px solid rgba(255,80,80,0.4);color:rgba(255,180,180,0.9);font-size:11px;padding:6px 14px;border-radius:8px;z-index:99999;pointer-events:none;transition:opacity 0.4s;font-family:Manrope,sans-serif;'; document.body.appendChild(toastEl); }
+          toastEl.textContent = '\u26a0 Microphone blocked \u2014 allow mic in browser then try wake again';
+          toastEl.style.opacity = '1'; clearTimeout(toastEl._t); toastEl._t = setTimeout(function(){ toastEl.style.opacity='0'; }, 5000);
+          return;
+        }
         // no-speech / aborted / network — just restart
         if (bgEnabled && !bgStopping) {
           var delay = /iPhone|iPad|iPod/i.test(navigator.userAgent) ? 600 : 2500;
@@ -2058,6 +2109,7 @@ D.inp.addEventListener('input', () => {
   window.addEventListener('resize', function(){ wakeBtn.style.right = window.innerWidth <= 768 ? '90px' : '56px'; });
 
   wakeBtn.addEventListener('click', async function() {
+    if (typeof unlockAudio === 'function') unlockAudio();
     if (!bgEnabled) {
       try {
         await navigator.mediaDevices.getUserMedia({ audio: true });
