@@ -82,12 +82,12 @@ body[data-mode="speaking"] .orb-main{animation:orb-speak 0.5s ease-in-out infini
 .cs-trigger:hover,.cs-wrap.open .cs-trigger{border-color:rgba(0,229,255,0.25);color:rgba(255,255,255,0.8);}
 .cs-arrow{font-size:14px;color:rgba(255,255,255,0.3);transition:transform 0.2s;flex-shrink:0;font-variation-settings:'FILL' 0,'wght' 300;}
 .cs-wrap.open .cs-arrow{transform:rotate(180deg);}
-.cs-drop{position:absolute;top:calc(100% + 5px);left:0;right:0;background:#0d0f14;border:1px solid rgba(255,255,255,0.1);border-radius:10px;overflow:hidden;z-index:300;display:none;box-shadow:0 16px 48px rgba(0,0,0,0.95);}
+.cs-drop{position:absolute;top:calc(100% + 5px);left:0;right:0;background:#05070A;border:1px solid rgba(255,255,255,0.1);border-radius:10px;overflow:hidden;z-index:9999;display:none;box-shadow:0 16px 48px rgba(0,0,0,0.98);}
 .cs-wrap.open .cs-drop{display:block;}
-.cs-opt{padding:9px 12px;font-size:11px;color:rgba(255,255,255,0.5);cursor:pointer;font-family:Manrope,sans-serif;transition:background 0.1s,color 0.1s;border-bottom:1px solid rgba(255,255,255,0.04);}
+.cs-opt{padding:9px 12px;font-size:11px;color:rgba(255,255,255,0.75);cursor:pointer;font-family:Manrope,sans-serif;transition:background 0.1s,color 0.1s;border-bottom:1px solid rgba(255,255,255,0.05);}
 .cs-opt:last-child{border-bottom:none;}
-.cs-opt:hover{background:rgba(0,229,255,0.07);color:rgba(255,255,255,0.85);}
-.cs-opt.cs-sel{color:#00E5FF;background:rgba(0,229,255,0.06);}
+.cs-opt:hover{background:rgba(0,229,255,0.1);color:rgba(255,255,255,0.95);}
+.cs-opt.cs-sel{color:#00E5FF;background:rgba(0,229,255,0.08);font-weight:600;}
 /* EL retry indicator */
 @keyframes el-retry{0%,100%{opacity:0.4;}50%{opacity:1;}}
 body[data-mode="generating"] #orbBtn{opacity:0.85;}
@@ -2005,13 +2005,17 @@ D.inp.addEventListener('input', () => {
     if (window.S && S.listening) return;
     try {
       bgRec = new SR();
-      bgRec.continuous = true;
+      bgRec.continuous = false;   // false is more reliable on Chrome; onend auto-restarts
       bgRec.interimResults = false;
       bgRec.lang = 'en-US';
       bgRec.onresult = function(ev) {
         var t = ev.results[ev.results.length - 1][0].transcript.trim();
-        // Show last few chars on button so user knows mic is active
-        if (wakeBtn && t) { wakeBtn.title = 'Heard: "' + t.slice(-40) + '"'; }
+        // Pulse the button + update tooltip so user can confirm it's hearing them
+        if (wakeBtn && t) {
+          wakeBtn.title = 'Heard: "' + t.slice(-60) + '"';
+          wakeBtn.style.opacity = '0.6';
+          setTimeout(function(){ wakeBtn.style.opacity = '1'; }, 150);
+        }
         if (!WAKE_RE2.test(t) || bgCooldown) return;
         bgCooldown = true; setTimeout(function() { bgCooldown = false; }, 3000);
         var cmd = t.replace(WAKE_RE2, '').trim();
@@ -2036,10 +2040,9 @@ D.inp.addEventListener('input', () => {
           toastEl.style.opacity = '1'; clearTimeout(toastEl._t); toastEl._t = setTimeout(function(){ toastEl.style.opacity='0'; }, 5000);
           return;
         }
-        // no-speech / aborted / network — just restart
+        // no-speech / aborted / network — restart quickly
         if (bgEnabled && !bgStopping) {
-          var delay = /iPhone|iPad|iPod/i.test(navigator.userAgent) ? 600 : 2500;
-          setTimeout(bgStart, delay);
+          setTimeout(bgStart, 300);
         }
       };
       bgRec.onend = function() {
@@ -2047,8 +2050,8 @@ D.inp.addEventListener('input', () => {
         // If we stopped intentionally (main mic taking over), don't auto-restart here
         if (bgStopping) return;
         if (!bgEnabled || (window.S && S.listening)) return;
-        var delay = /iPhone|iPad|iPod/i.test(navigator.userAgent) ? 150 : 2000;
-        setTimeout(bgStart, delay);
+        // Restart quickly — 100ms gap is nearly seamless for wake word detection
+        setTimeout(bgStart, 100);
       };
       bgRec.start();
       bgActive = true;
@@ -2077,7 +2080,7 @@ D.inp.addEventListener('input', () => {
         var _sl2 = window.stopListen;
         window.stopListen = function() {
           var r = _sl2.apply(this, arguments);
-          if (bgEnabled) setTimeout(bgStart, 1000);
+          if (bgEnabled) setTimeout(bgStart, 200);
           return r;
         };
       }
