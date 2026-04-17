@@ -77,7 +77,8 @@ body[data-mode="speaking"] .orb-main{animation:orb-speak 0.5s ease-in-out infini
 #liveTag.counting{animation:countdown-tick 1s ease-in-out infinite;}
 #liveTag.expiring{color:#ff9500!important;animation:pulse 0.5s ease-in-out infinite;}
 /* Voice select polish */
-#voiceSel{-webkit-appearance:none;appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='rgba(255,255,255,0.3)' stroke-width='1.5' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 11px center;padding-right:30px!important;}
+#voiceSel{-webkit-appearance:none;appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='rgba(255,255,255,0.3)' stroke-width='1.5' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 11px center;padding-right:30px!important;background-color:#080a0d!important;}
+#voiceSel option{background:#080a0d!important;color:rgba(255,255,255,0.75)!important;}
 /* EL retry indicator */
 @keyframes el-retry{0%,100%{opacity:0.4;}50%{opacity:1;}}
 body[data-mode="generating"] #orbBtn{opacity:0.85;}
@@ -912,10 +913,17 @@ function buildRec(){
   };
   rec.onresult=e=>{
     const t=Array.from(e.results).map(r=>r[0].transcript).join('');
-    D.inp.value=t;autoResize();
     const lt=document.getElementById('liveTxt');
     if(lt){lt.textContent=t||'Listening...';}
-    if(e.results[e.results.length-1].isFinal){clearAutoListenTimer();stopListen();sendMsg();}
+    if(e.results[e.results.length-1].isFinal){
+      // Anti-echo: if transcript matches ARIA's last spoken text, discard silently
+      const norm=s=>s.trim().toLowerCase().replace(/[^a-z0-9 ]/g,'');
+      const tN=norm(t),lN=norm(S.lastText||'');
+      const isEcho=lN.length>8&&tN.length>4&&(tN.startsWith(lN.slice(0,18))||lN.startsWith(tN.slice(0,18)));
+      if(isEcho){clearAutoListenTimer();stopListen();return;}
+      D.inp.value=t;autoResize();
+      clearAutoListenTimer();stopListen();sendMsg();
+    }
   };
   rec.onerror=e=>{
     S.listening=false;setMode('ready');
@@ -981,20 +989,23 @@ function clearAutoListenTimer(){
 }
 function startAutoListenWindow(){
   if(!$('autoOn').checked)return;
-  startListen();
-  let secs=5;
-  const tag=document.getElementById('liveTag'),inner=document.querySelector('#liveBar .live-inner');
-  if(tag){tag.textContent=secs+'s';tag.classList.add('counting');tag.classList.remove('expiring');}
-  if(inner){inner.classList.add('counting');}
-  _autoListenT=setInterval(()=>{
-    secs--;
-    if(tag){
-      if(secs<=0){tag.textContent='LIVE';tag.classList.remove('counting','expiring');}
-      else{tag.textContent=secs+'s';if(secs<=2)tag.classList.add('expiring');else tag.classList.remove('expiring');}
-    }
-    if(inner&&secs<=0){inner.classList.remove('counting');}
-    if(secs<=0){clearInterval(_autoListenT);_autoListenT=null;if(S.listening)stopListen();}
-  },1000);
+  // Delay mic open so ARIA's speaker audio fully dissipates before the mic activates
+  setTimeout(()=>{
+    startListen();
+    let secs=5;
+    const tag=document.getElementById('liveTag'),inner=document.querySelector('#liveBar .live-inner');
+    if(tag){tag.textContent=secs+'s';tag.classList.add('counting');tag.classList.remove('expiring');}
+    if(inner){inner.classList.add('counting');}
+    _autoListenT=setInterval(()=>{
+      secs--;
+      if(tag){
+        if(secs<=0){tag.textContent='LIVE';tag.classList.remove('counting','expiring');}
+        else{tag.textContent=secs+'s';if(secs<=2)tag.classList.add('expiring');else tag.classList.remove('expiring');}
+      }
+      if(inner&&secs<=0){inner.classList.remove('counting');}
+      if(secs<=0){clearInterval(_autoListenT);_autoListenT=null;if(S.listening)stopListen();}
+    },1000);
+  }, 650);
 }
 
 // MODE
