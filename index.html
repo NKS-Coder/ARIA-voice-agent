@@ -76,9 +76,18 @@ body[data-mode="speaking"] .orb-main{animation:orb-speak 0.5s ease-in-out infini
 @keyframes countdown-tick{0%{opacity:1;transform:scale(1.1);}100%{opacity:0.6;transform:scale(1);}}
 #liveTag.counting{animation:countdown-tick 1s ease-in-out infinite;}
 #liveTag.expiring{color:#ff9500!important;animation:pulse 0.5s ease-in-out infinite;}
-/* Voice select polish */
-#voiceSel{-webkit-appearance:none;appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='rgba(255,255,255,0.3)' stroke-width='1.5' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 11px center;padding-right:30px!important;background-color:#080a0d!important;}
-#voiceSel option{background:#080a0d!important;color:rgba(255,255,255,0.75)!important;}
+/* Custom voice dropdown */
+.cs-wrap{position:relative;margin-bottom:10px;}
+.cs-trigger{display:flex;align-items:center;justify-content:space-between;width:100%;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.07);border-radius:12px;padding:8px 12px;font-size:11px;color:rgba(255,255,255,0.6);cursor:pointer;font-family:Manrope,sans-serif;transition:border-color 0.15s;text-align:left;outline:none;}
+.cs-trigger:hover,.cs-wrap.open .cs-trigger{border-color:rgba(0,229,255,0.25);color:rgba(255,255,255,0.8);}
+.cs-arrow{font-size:14px;color:rgba(255,255,255,0.3);transition:transform 0.2s;flex-shrink:0;font-variation-settings:'FILL' 0,'wght' 300;}
+.cs-wrap.open .cs-arrow{transform:rotate(180deg);}
+.cs-drop{position:absolute;top:calc(100% + 5px);left:0;right:0;background:#0d0f14;border:1px solid rgba(255,255,255,0.1);border-radius:10px;overflow:hidden;z-index:300;display:none;box-shadow:0 16px 48px rgba(0,0,0,0.95);}
+.cs-wrap.open .cs-drop{display:block;}
+.cs-opt{padding:9px 12px;font-size:11px;color:rgba(255,255,255,0.5);cursor:pointer;font-family:Manrope,sans-serif;transition:background 0.1s,color 0.1s;border-bottom:1px solid rgba(255,255,255,0.04);}
+.cs-opt:last-child{border-bottom:none;}
+.cs-opt:hover{background:rgba(0,229,255,0.07);color:rgba(255,255,255,0.85);}
+.cs-opt.cs-sel{color:#00E5FF;background:rgba(0,229,255,0.06);}
 /* EL retry indicator */
 @keyframes el-retry{0%,100%{opacity:0.4;}50%{opacity:1;}}
 body[data-mode="generating"] #orbBtn{opacity:0.85;}
@@ -359,14 +368,30 @@ select.minp option{background:#0a0c10;}
     <!-- Voice engine -->
     <section>
       <h3 style="font-size:8px;text-transform:uppercase;letter-spacing:0.3em;font-weight:700;color:#374151;margin-bottom:12px;">Voice Engine</h3>
-      <select id="voiceSel" style="width:100%;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.07);border-radius:12px;padding:8px 12px;font-size:11px;color:rgba(255,255,255,0.6);outline:none;font-family:inherit;cursor:pointer;margin-bottom:10px;">
-        <option value="21m00Tcm4TlvDq8ikWAM">Rachel &mdash; warm natural female</option>
-        <option value="AZnzlk1XvdvUeBnXmlld">Domi &mdash; confident female</option>
-        <option value="EXAVITQu4vr4xnSDxMaL" selected>Bella &mdash; soft female</option>
-        <option value="ErXwobaYiN019PkySvjV">Antoni &mdash; well-rounded male</option>
-        <option value="pNInz6obpgDQGcFmaJgB">Adam &mdash; deep male</option>
-        <option value="VR6AewLTigWG4xSOukaG">Arnold &mdash; crisp male</option>
+      <!-- Hidden native select — keeps D.vSel.value working -->
+      <select id="voiceSel" style="display:none;">
+        <option value="21m00Tcm4TlvDq8ikWAM">Rachel — warm natural female</option>
+        <option value="AZnzlk1XvdvUeBnXmlld">Domi — confident female</option>
+        <option value="EXAVITQu4vr4xnSDxMaL" selected>Bella — soft female</option>
+        <option value="ErXwobaYiN019PkySvjV">Antoni — well-rounded male</option>
+        <option value="pNInz6obpgDQGcFmaJgB">Adam — deep male</option>
+        <option value="VR6AewLTigWG4xSOukaG">Arnold — crisp male</option>
       </select>
+      <!-- Custom dark dropdown -->
+      <div class="cs-wrap" id="voiceSelWrap">
+        <button type="button" class="cs-trigger" id="voiceSelTrigger">
+          <span id="voiceSelLabel">Bella — soft female</span>
+          <span class="cs-arrow material-symbols-outlined">expand_more</span>
+        </button>
+        <div class="cs-drop" id="voiceSelDrop">
+          <div class="cs-opt" data-val="21m00Tcm4TlvDq8ikWAM">Rachel — warm natural female</div>
+          <div class="cs-opt" data-val="AZnzlk1XvdvUeBnXmlld">Domi — confident female</div>
+          <div class="cs-opt cs-sel" data-val="EXAVITQu4vr4xnSDxMaL">Bella — soft female</div>
+          <div class="cs-opt" data-val="ErXwobaYiN019PkySvjV">Antoni — well-rounded male</div>
+          <div class="cs-opt" data-val="pNInz6obpgDQGcFmaJgB">Adam — deep male</div>
+          <div class="cs-opt" data-val="VR6AewLTigWG4xSOukaG">Arnold — crisp male</div>
+        </div>
+      </div>
       <input id="spd" type="range" min="0.6" max="1.8" step="0.1" value="1" style="width:100%;accent-color:#007BFF;margin-bottom:6px;"/>
       <div style="display:flex;justify-content:space-between;font-size:8px;color:#374151;margin-bottom:10px;"><span>Slow</span><span>Normal</span><span>Fast</span></div>
       <button id="saveVoiceSidebar" style="width:100%;padding:8px;border-radius:10px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.07);font-size:10px;font-weight:700;color:rgba(255,255,255,0.35);cursor:pointer;font-family:inherit;text-transform:uppercase;letter-spacing:0.12em;transition:all 0.15s;">Save Voice</button>
@@ -663,6 +688,9 @@ $('saveVoiceSidebar').addEventListener('click',()=>{
 // LIVE VOICE SWITCH
 function setVoice(v){
   C.setVoice(v);D.vSel.value=$('modalVoice').value=v;
+  // Sync custom dropdown UI
+  const drop=document.getElementById('voiceSelDrop');
+  if(drop){drop.querySelectorAll('.cs-opt').forEach(o=>{o.classList.toggle('cs-sel',o.dataset.val===v);if(o.dataset.val===v){const lbl=document.getElementById('voiceSelLabel');if(lbl)lbl.textContent=o.textContent;}});}
   if(S.audio||window.speechSynthesis.speaking){
     if(S.audio){S.audio.pause();S.audio=null;}
     window.speechSynthesis.cancel();setMode('ready');
@@ -671,6 +699,27 @@ function setVoice(v){
 }
 D.vSel.addEventListener('change',()=>setVoice(D.vSel.value));
 $('modalVoice').addEventListener('change',()=>setVoice($('modalVoice').value));
+
+// CUSTOM VOICE DROPDOWN
+(function(){
+  const wrap=document.getElementById('voiceSelWrap');
+  const trigger=document.getElementById('voiceSelTrigger');
+  const drop=document.getElementById('voiceSelDrop');
+  if(!wrap||!trigger||!drop)return;
+  const open=()=>wrap.classList.add('open');
+  const close=()=>wrap.classList.remove('open');
+  trigger.addEventListener('click',e=>{e.stopPropagation();wrap.classList.contains('open')?close():open();});
+  document.addEventListener('click',close);
+  drop.addEventListener('click',e=>{
+    e.stopPropagation();
+    const opt=e.target.closest('.cs-opt');
+    if(!opt)return;
+    setVoice(opt.dataset.val);
+    close();
+  });
+  // Sync label when voice is loaded from storage on init
+  setTimeout(()=>{const v=D.vSel.value||BELLA;setVoice(v);},250);
+})();
 D.spd.addEventListener('input',()=>{C.setSpeed(D.spd.value);if(S.audio)S.audio.playbackRate=parseFloat(D.spd.value);});
 
 // TIMER
