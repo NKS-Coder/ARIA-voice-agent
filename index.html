@@ -733,19 +733,17 @@ let bVoices  = [];
 let elFails  = 0;           // count consecutive EL failures — reset on success
 const EL_MAX_FAILS = 999;   // ARIA v3: never permanently lock out ElevenLabs
 
-// ── Audio unlock ──────────────────────────────────────────
-// Chrome blocks audio.play() if called >1s after user gesture.
-// Call unlockAudio() immediately on mic/send click to pre-engage the tab's audio.
-let _audioUnlocked = false;
+// ── AudioContext (permanent autoplay bypass) ──────────────
+// Chrome blocks audio.play() called >1s after user gesture.
+// AudioContext, once resumed during a user gesture, stays unlocked forever.
+let _audioCtx = null;
+function _getAudioCtx() {
+  if (!_audioCtx) _audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  return _audioCtx;
+}
 function unlockAudio() {
-  if (_audioUnlocked) return;
-  try {
-    const a = new Audio();
-    a.src = 'data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQAAAAA=';
-    a.volume = 0.001;
-    const p = a.play();
-    if (p && p.then) p.then(() => { _audioUnlocked = true; a.pause(); }).catch(() => {});
-  } catch(e) {}
+  const ctx = _getAudioCtx();
+  if (ctx.state === 'suspended') ctx.resume().catch(() => {});
 }
 
 // Brief toast shown when ElevenLabs falls back to browser TTS
@@ -925,45 +923,45 @@ async function speakEL(txt, _retry=0) {
 
     elFails = 0;
     const blob = await res.blob();
-    const url  = URL.createObjectURL(blob);
-    const audio = new Audio();
-    audio.src = url;
-    S.audio = audio;
-    audio.playbackRate = parseFloat(D.spd.value);
-    audio.onplay  = () => setMode('speaking');
-    audio.onended = () => {
-      setMode('ready'); URL.revokeObjectURL(url); S.audio = null;
-      startAutoListenWindow();
+    const arrayBuffer = await blob.arrayBuffer();
+
+    // Use AudioContext so playback works regardless of autoplay policy.
+    // AudioContext stays unlocked after any user gesture — no timing issues.
+    const ctx = _getAudioCtx();
+    if (ctx.state === 'suspended') await ctx.resume();
+    const audioBuf = await ctx.decodeAudioData(arrayBuffer);
+    const src = ctx.createBufferSource();
+    src.buffer = audioBuf;
+    src.playbackRate.value = parseFloat(D.spd.value || '1');
+    src.connect(ctx.destination);
+
+    let _played = false;
+    const _cleanup = (triggerAutoListen) => {
+      if (_played) return; _played = true;
+      setMode('ready'); S.audio = null;
+      if (triggerAutoListen) startAutoListenWindow();
     };
-    audio.onerror = () => {
-      // Don't start auto-listen on error — audio may not have played at all
-      setMode('ready'); URL.revokeObjectURL(url); S.audio = null;
+    src.onended = () => _cleanup(true);
+    S.audio = {
+      pause()  { try { src.stop(0); } catch(e) {} _cleanup(false); },
+      set playbackRate(v) { src.playbackRate.value = v; },
+      get playbackRate()  { return src.playbackRate.value; },
     };
-    await audio.play();
-    console.log('✅ ElevenLabs playing');
+    setMode('speaking');
+    src.start(0);
+    console.log('✅ ElevenLabs playing via AudioContext, voice:', voiceId);
 
   } catch(e) {
-    if (e.name === 'NotAllowedError' || (e.message && e.message.includes('play()'))) {
-      // Browser blocked autoplay — this is expected for the welcome message (no user gesture yet).
-      // Don't retry; just fall back silently (no toast for welcome msg).
-      elFails++; fallbackSpeak(txt); return;
+    const isAbort = e.name === 'AbortError';
+    const label = isAbort ? 'timeout' : (e.name || e.message || 'error');
+    console.warn('ElevenLabs error:', label, e.message || '');
+    if (!isAbort && _retry < 2) {
+      await new Promise(r => setTimeout(r, 600 * (_retry + 1)));
+      return speakEL(txt, _retry + 1);
     }
-    if (e.name !== 'AbortError') {
-      console.warn('ElevenLabs error:', e.message);
-      if (_retry < 2) {
-        await new Promise(r => setTimeout(r, 600 * (_retry + 1)));
-        return speakEL(txt, _retry + 1);
-      }
-      _showElFallbackToast(e.name);
-    } else {
-      console.warn('ElevenLabs timed out');
-      if (_retry < 2) {
-        await new Promise(r => setTimeout(r, 600 * (_retry + 1)));
-        return speakEL(txt, _retry + 1);
-      }
-      _showElFallbackToast('timeout');
-    }
-    elFails++; fallbackSpeak(txt);
+    elFails++;
+    if (_retry >= 2 || isAbort) _showElFallbackToast(label);
+    fallbackSpeak(txt);
   }
 }
 
@@ -1998,7 +1996,8 @@ D.inp.addEventListener('input', () => {
   if (!SR) return;
 
   var bgRec = null, bgActive = false, bgEnabled = false, bgCooldown = false, bgStopping = false;
-  var WAKE_RE2 = /^\s*(hey\s+aria|hi\s+aria|hello\s+aria|okay\s+aria|aria)\s*[,.]?\s*/i;
+  // Broad regex: catches "hey ARIA", "hi area", "hey Arya", "area" (common STT mishears)
+  var WAKE_RE2 = /^\s*(hey\s+|hi\s+|hello\s+|okay\s+|ok\s+)?(aria|area|arya|eria|aura|arria|areia)\s*[,.]?\s*/i;
 
   function bgStart() {
     if (bgActive || !bgEnabled || bgStopping) return;
@@ -2011,6 +2010,8 @@ D.inp.addEventListener('input', () => {
       bgRec.lang = 'en-US';
       bgRec.onresult = function(ev) {
         var t = ev.results[ev.results.length - 1][0].transcript.trim();
+        // Show last few chars on button so user knows mic is active
+        if (wakeBtn && t) { wakeBtn.title = 'Heard: "' + t.slice(-40) + '"'; }
         if (!WAKE_RE2.test(t) || bgCooldown) return;
         bgCooldown = true; setTimeout(function() { bgCooldown = false; }, 3000);
         var cmd = t.replace(WAKE_RE2, '').trim();
