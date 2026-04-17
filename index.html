@@ -83,8 +83,9 @@ body[data-mode="speaking"] .orb-main{animation:orb-speak 0.5s ease-in-out infini
 .cs-trigger:hover,.cs-wrap.open .cs-trigger{border-color:rgba(0,229,255,0.25);color:rgba(255,255,255,0.8);}
 .cs-arrow{font-size:14px;color:rgba(255,255,255,0.3);transition:transform 0.2s;flex-shrink:0;font-variation-settings:'FILL' 0,'wght' 300;}
 .cs-wrap.open .cs-arrow{transform:rotate(180deg);}
-.cs-drop{position:absolute;top:calc(100% + 5px);left:0;right:0;background:#05070A !important;border:1px solid rgba(255,255,255,0.1);border-radius:10px;overflow:hidden;z-index:9999;display:none;box-shadow:0 16px 48px rgba(0,0,0,0.98);}
-.cs-wrap.open .cs-drop{display:block;}
+/* Drop is appended to body with position:fixed — immune to overflow clipping */
+.cs-drop{position:fixed;background:#04050a;border:1px solid rgba(255,255,255,0.12);border-radius:10px;overflow:hidden;z-index:999999;display:none;box-shadow:0 16px 48px rgba(0,0,0,0.98);min-width:180px;}
+.cs-drop.cs-open{display:block;}
 .cs-opt{padding:9px 12px;font-size:11px;color:rgba(255,255,255,0.75);cursor:pointer;font-family:Manrope,sans-serif;transition:background 0.1s,color 0.1s;border-bottom:1px solid rgba(255,255,255,0.05);}
 .cs-opt:last-child{border-bottom:none;}
 .cs-opt:hover{background:rgba(0,229,255,0.1);color:rgba(255,255,255,0.95);}
@@ -725,31 +726,49 @@ D.vSel.addEventListener('change',()=>setVoice(D.vSel.value));
 $('modalVoice').addEventListener('change',()=>setVoice($('modalVoice').value));
 
 // CUSTOM VOICE DROPDOWNS (sidebar + Settings modal)
+// Drops are appended to document.body with position:fixed so they are NEVER
+// clipped by overflow:auto on any parent (e.g. the sidebar scroll container).
 (function(){
   function wire(wrapId, triggerId, dropId){
     const wrap=document.getElementById(wrapId);
     const trigger=document.getElementById(triggerId);
     const drop=document.getElementById(dropId);
     if(!wrap||!trigger||!drop)return;
-    const close=()=>wrap.classList.remove('open');
+
+    // Move drop out of sidebar/modal DOM and onto body
+    document.body.appendChild(drop);
+
+    function openDrop(){
+      // Close all other drops first
+      document.querySelectorAll('.cs-drop.cs-open').forEach(d=>{ d.classList.remove('cs-open'); document.querySelectorAll('.cs-wrap.open').forEach(w=>w.classList.remove('open')); });
+      const r=trigger.getBoundingClientRect();
+      drop.style.left=r.left+'px';
+      drop.style.top=(r.bottom+4)+'px';
+      drop.style.width=r.width+'px';
+      drop.classList.add('cs-open');
+      wrap.classList.add('open');
+    }
+    function closeDrop(){ drop.classList.remove('cs-open'); wrap.classList.remove('open'); }
+
     trigger.addEventListener('click',e=>{
       e.stopPropagation();
-      // Close the other dropdown if it's open
-      document.querySelectorAll('.cs-wrap.open').forEach(w=>{if(w!==wrap)w.classList.remove('open');});
-      wrap.classList.toggle('open');
+      drop.classList.contains('cs-open')?closeDrop():openDrop();
     });
     drop.addEventListener('click',e=>{
       e.stopPropagation();
       const opt=e.target.closest('.cs-opt');
       if(!opt)return;
       setVoice(opt.dataset.val);
-      close();
+      closeDrop();
     });
+    // Reposition if window resizes/scrolls while open
+    window.addEventListener('scroll',()=>{ if(drop.classList.contains('cs-open')){const r=trigger.getBoundingClientRect();drop.style.left=r.left+'px';drop.style.top=(r.bottom+4)+'px';}},true);
+    window.addEventListener('resize',()=>{ if(drop.classList.contains('cs-open'))closeDrop(); });
   }
   wire('voiceSelWrap','voiceSelTrigger','voiceSelDrop');
   wire('modalVoiceWrap','modalVoiceTrigger','modalVoiceDrop');
   // Close any open dropdown on outside click
-  document.addEventListener('click',()=>document.querySelectorAll('.cs-wrap.open').forEach(w=>w.classList.remove('open')));
+  document.addEventListener('click',()=>document.querySelectorAll('.cs-drop.cs-open').forEach(d=>{d.classList.remove('cs-open');document.querySelectorAll('.cs-wrap.open').forEach(w=>w.classList.remove('open'));}));
   // Sync label when voice is loaded from storage on init
   setTimeout(()=>{const v=D.vSel.value||BELLA;setVoice(v);},250);
 })();
@@ -767,14 +786,16 @@ let elFails  = 0;           // count consecutive EL failures — reset on succes
 const EL_MAX_FAILS = 999;   // ARIA v3: never permanently lock out ElevenLabs
 
 // ── AudioContext (permanent autoplay bypass) ──────────────
-// Chrome blocks audio.play() called >1s after user gesture.
-// AudioContext, once resumed during a user gesture, stays unlocked forever.
+// Chrome blocks audio.play() until user interacts. AudioContext, once resumed
+// during a user gesture, stays unlocked forever for that tab session.
 let _audioCtx = null;
+let _userGestured = false; // true after first mic/send/wake click
 function _getAudioCtx() {
   if (!_audioCtx) _audioCtx = new (window.AudioContext || window.webkitAudioContext)();
   return _audioCtx;
 }
 function unlockAudio() {
+  _userGestured = true;
   const ctx = _getAudioCtx();
   if (ctx.state === 'suspended') ctx.resume().catch(() => {});
 }
@@ -903,6 +924,9 @@ function fallbackSpeak(txt) {
 
 async function speakEL(txt, _retry=0) {
   if (location.protocol === 'file:') { fallbackSpeak(txt); return; }
+  // Skip ElevenLabs for page-load welcome message — AudioContext suspended until
+  // user gesture. Queued audio plays unpredictably and conflicts with later TTS.
+  if (!_userGestured) { fallbackSpeak(txt); return; }
   if (_retry === 0) elFails = 0;
 
   try {
@@ -1046,8 +1070,9 @@ function buildRec(){
     if(lt){lt.textContent=t||'Listening...';}
     if(e.results[e.results.length-1].isFinal){
       // Echo gate: only within first 2s of auto-listen start AND word-overlap match
+      // Disabled during wake-triggered windows (_wakeListenActive) so user speech isn't swallowed
       const fresh=Date.now()-_autoListenStart<2000;
-      if(S.autoListening&&fresh&&_isEcho(t,S.lastText)){
+      if(S.autoListening&&fresh&&!window._wakeListenActive&&_isEcho(t,S.lastText)){
         // Restart recognition silently — keep the 5s window alive
         S.listening=false;
         setTimeout(()=>{if(S.autoListening&&_autoListenT){buildRec();try{rec.start();S.listening=true;}catch(x){}}},300);
@@ -1999,25 +2024,19 @@ D.inp.addEventListener('input', () => {
   D.inp.style.height = Math.min(D.inp.scrollHeight, window.innerWidth < 600 ? 80 : 110) + 'px';
 });
 </script>
-<!-- ARIA Wake Word — clean v6 (no window.S bug, no SR conflict) -->
+<!-- ARIA Wake Word v7 — no monkey-patching, explicit restart every path -->
 <script>
 (function ariaWakeWord() {
   // ── 1. sendMsg hook: strip "Hey ARIA" prefix from typed/dictated text ─
   function patchSendMsg() {
     if (typeof sendMsg === 'undefined') { setTimeout(patchSendMsg, 500); return; }
-    var WAKE_RE = /^\s*(hey\s+aria|hi\s+aria|hello\s+aria|okay\s+aria|aria)\s*[,.]?\s*/i;
+    var WAKE_RE = /^\s*(hey\s+|hi\s+|hello\s+|okay\s+|ok\s+)?(aria|area|arya|eria)\s*[,.]?\s*/i;
     var _orig = window.sendMsg;
     window.sendMsg = async function _wakeAwareSend() {
       var inp = document.getElementById('inp') || document.querySelector('textarea,input[type=text]');
       if (inp && WAKE_RE.test(inp.value)) {
         var cmd = inp.value.replace(WAKE_RE, '').trim();
-        if (!cmd) {
-          inp.value = '';
-          if (typeof autoResize === 'function') autoResize();
-          if (typeof speak === 'function') speak('Yes? How can I help?');
-          if (typeof startListen === 'function') setTimeout(startListen, 800);
-          return;
-        }
+        if (!cmd) { inp.value = ''; if (typeof autoResize === 'function') autoResize(); return; }
         inp.value = cmd;
         if (typeof autoResize === 'function') autoResize();
       }
@@ -2026,185 +2045,167 @@ D.inp.addEventListener('input', () => {
   }
   patchSendMsg();
 
-  // ── 2. Background continuous SR for hands-free wake word ─────────────
+  // ── 2. Background SR — cycles continuously, detects wake phrase ──────
   var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
   if (!SR) return;
 
-  var bgRec = null, bgActive = false, bgEnabled = false, bgCooldown = false, bgStopping = false;
-  // Broad regex: catches "hey ARIA", "hi area", "hey Arya", "area" (common STT mishears)
-  var WAKE_RE2 = /^\s*(hey\s+|hi\s+|hello\s+|okay\s+|ok\s+)?(aria|area|arya|eria|aura|arria|areia)\s*[,.]?\s*/i;
+  var bgRec = null, bgEnabled = false, bgCooldown = false, wakeBtn = null;
+  var WAKE_RE = /\b(hey\s+area|hey\s+aria|hey\s+arya|hi\s+aria|hello\s+aria|ok\s+aria|okay\s+aria)\b/i;
 
-  function bgStart() {
-    if (bgActive || !bgEnabled || bgStopping) return;
-    // Yield to main mic if it is active
-    if (window.S && S.listening) return;
+  // Kill any existing bgRec with no callbacks (prevents ghost events)
+  function bgKill() {
+    if (!bgRec) return;
+    var r = bgRec; bgRec = null;
+    r.onresult = r.onerror = r.onend = null;
+    try { r.abort(); } catch(e) {}
+  }
+
+  // Start one recognition cycle. Reschedules itself on end/error.
+  function bgCycle() {
+    if (!bgEnabled) return;
+    if (window.S && window.S.listening) {
+      // Main mic active — wait 600ms then check again
+      setTimeout(bgCycle, 600);
+      return;
+    }
+    bgKill();
     try {
       bgRec = new SR();
-      bgRec.continuous = false;   // false is more reliable on Chrome; onend auto-restarts
+      bgRec.continuous = false;
       bgRec.interimResults = false;
       bgRec.lang = 'en-US';
+
       bgRec.onresult = function(ev) {
         var t = ev.results[ev.results.length - 1][0].transcript.trim();
-        // Pulse the button + update tooltip so user can confirm it's hearing them
-        if (wakeBtn && t) {
-          wakeBtn.title = 'Heard: "' + t.slice(-60) + '"';
-          wakeBtn.style.opacity = '0.6';
-          setTimeout(function(){ wakeBtn.style.opacity = '1'; }, 150);
-        }
-        if (!WAKE_RE2.test(t) || bgCooldown) return;
-        bgCooldown = true; setTimeout(function() { bgCooldown = false; }, 3000);
-        var cmd = t.replace(WAKE_RE2, '').trim();
-        bgStop();
-        if (cmd) {
-          var inp = document.getElementById('inp') || document.querySelector('textarea');
-          if (inp) { inp.value = cmd; if (typeof autoResize === 'function') autoResize(); }
-          setTimeout(function() { if (typeof sendMsg === 'function') sendMsg(); }, 200);
-        } else {
-          // "Hey ARIA" with no command — open extended 10-second listening window
-          // No verbal "Yes?" — avoids race with speak()'s own auto-listen trigger
-          // Instead, play a quick sound cue via AudioContext beep
-          try {
-            var ctx = (typeof _getAudioCtx === 'function') ? _getAudioCtx() : null;
-            if (ctx) {
-              if (ctx.state === 'suspended') ctx.resume();
-              var osc = ctx.createOscillator(), gn = ctx.createGain();
-              osc.frequency.value = 880; gn.gain.value = 0.05;
-              osc.connect(gn); gn.connect(ctx.destination);
-              osc.start(); osc.stop(ctx.currentTime + 0.08);
-            }
-          } catch(e) {}
-          setTimeout(function() {
-            if (typeof startListen !== 'function') return;
-            // Prime auto-listen state so rec.onend/onerror restart it for up to 10s
-            if (window.S) {
-              window.S.autoListening = true;
-              window._autoListenStart = Date.now();
-            }
-            if (window._autoListenT) { try { clearInterval(window._autoListenT); } catch(e) {} }
-            var secs = 10;
-            var tag = document.getElementById('liveTag');
-            var inner = document.querySelector('#liveBar .live-inner');
-            if (tag) { tag.textContent = secs + 's'; tag.classList.add('counting'); }
-            if (inner) inner.classList.add('counting');
-            window._autoListenT = setInterval(function() {
-              secs--;
-              if (tag) {
-                if (secs <= 0) { tag.textContent = 'LIVE'; tag.classList.remove('counting','expiring'); }
-                else { tag.textContent = secs + 's'; if (secs <= 3) tag.classList.add('expiring'); else tag.classList.remove('expiring'); }
-              }
-              if (secs <= 0) {
-                clearInterval(window._autoListenT); window._autoListenT = null;
-                if (window.S) window.S.autoListening = false;
-                if (typeof stopListen === 'function' && window.S && window.S.listening) stopListen();
-              }
-            }, 1000);
-            startListen();
-          }, 250);
-        }
+        if (wakeBtn) { wakeBtn.title = 'Heard: "' + t + '"'; }
+        if (!bgEnabled || bgCooldown || !WAKE_RE.test(t)) return;
+        bgCooldown = true;
+        setTimeout(function() { bgCooldown = false; }, 4000);
+        var cmd = t.replace(WAKE_RE, '').replace(/^[\s,.-]+/, '').trim();
+        bgKill(); // stop listening — about to hand off to main mic
+        onWake(cmd);
       };
+
       bgRec.onerror = function(e) {
-        bgActive = false;
         if (e.error === 'not-allowed') {
           bgEnabled = false; updateBtn();
-          // Show visible notification — user needs to grant mic permission
-          var toastEl = document.getElementById('_elToast');
-          if (!toastEl) { toastEl = document.createElement('div'); toastEl.id = '_elToast'; toastEl.style.cssText = 'position:fixed;bottom:80px;left:50%;transform:translateX(-50%);background:rgba(30,10,10,0.92);border:1px solid rgba(255,80,80,0.4);color:rgba(255,180,180,0.9);font-size:11px;padding:6px 14px;border-radius:8px;z-index:99999;pointer-events:none;transition:opacity 0.4s;font-family:Manrope,sans-serif;'; document.body.appendChild(toastEl); }
-          toastEl.textContent = '\u26a0 Microphone blocked \u2014 allow mic in browser then try wake again';
-          toastEl.style.opacity = '1'; clearTimeout(toastEl._t); toastEl._t = setTimeout(function(){ toastEl.style.opacity='0'; }, 5000);
+          if (typeof _showElFallbackToast === 'function')
+            _showElFallbackToast('\u26a0 Mic blocked — allow mic permission then try again');
           return;
         }
-        // no-speech / aborted / network — restart quickly
-        if (bgEnabled && !bgStopping) {
-          setTimeout(bgStart, 300);
-        }
+        // no-speech / network / aborted — just cycle again
+        if (bgEnabled) setTimeout(bgCycle, 300);
       };
+
       bgRec.onend = function() {
-        bgActive = false;
-        // If we stopped intentionally (main mic taking over), don't auto-restart here
-        if (bgStopping) return;
-        if (!bgEnabled || (window.S && S.listening)) return;
-        // Restart quickly — 100ms gap is nearly seamless for wake word detection
-        setTimeout(bgStart, 100);
+        if (bgEnabled && !(window.S && window.S.listening)) setTimeout(bgCycle, 150);
       };
+
       bgRec.start();
-      bgActive = true;
     } catch(e) {
-      bgActive = false;
-      console.warn('[ARIA] Wake SR error:', e.message);
+      console.warn('[ARIA wake]', e.message);
+      if (bgEnabled) setTimeout(bgCycle, 600);
     }
   }
 
-  function bgStop() {
-    bgStopping = true;
-    bgActive = false;
-    try { if (bgRec) bgRec.stop(); } catch(e) {}
-    // Clear the stopping flag after enough time for onend to fire
-    setTimeout(function() { bgStopping = false; }, 1500);
+  // Called when wake phrase detected. cmd = text after the wake phrase (may be empty).
+  function onWake(cmd) {
+    if (typeof unlockAudio === 'function') unlockAudio();
+
+    if (cmd) {
+      // Inline command: fill input and send directly
+      var inp = document.getElementById('inp');
+      if (inp) { inp.value = cmd; if (typeof autoResize === 'function') autoResize(); }
+      setTimeout(function() {
+        if (typeof sendMsg === 'function') sendMsg();
+        // Restart bg listening after send completes (give AI time to respond)
+        setTimeout(bgCycle, 4000);
+      }, 150);
+      return;
+    }
+
+    // No inline command: beep + open main mic for 10 seconds
+    try {
+      var ctx = typeof _getAudioCtx === 'function' ? _getAudioCtx() : null;
+      if (ctx) {
+        if (ctx.state === 'suspended') ctx.resume();
+        var osc = ctx.createOscillator(), gn = ctx.createGain();
+        osc.frequency.value = 880; gn.gain.value = 0.06;
+        osc.connect(gn); gn.connect(ctx.destination);
+        osc.start(); osc.stop(ctx.currentTime + 0.1);
+      }
+    } catch(e) {}
+
+    setTimeout(function() {
+      openWakeListenWindow(10);
+    }, 200);
   }
 
-  // Pause bg SR when main mic activates; resume when it stops
-  window.addEventListener('load', function() {
-    setTimeout(function() {
-      if (typeof startListen === 'function') {
-        var _sl = window.startListen;
-        window.startListen = function() { bgStop(); return _sl.apply(this, arguments); };
-      }
-      if (typeof stopListen === 'function') {
-        var _sl2 = window.stopListen;
-        window.stopListen = function() {
-          var r = _sl2.apply(this, arguments);
-          if (bgEnabled) setTimeout(bgStart, 200);
-          return r;
-        };
-      }
-    }, 700);
-  });
+  // Open main mic for `maxSecs` seconds. Uses S.autoListening so rec auto-restarts on no-speech.
+  // Disables echo detection (_wakeListenActive flag) so user's first words aren't swallowed.
+  function openWakeListenWindow(maxSecs) {
+    if (typeof startListen !== 'function') { setTimeout(bgCycle, 1000); return; }
 
-  // ── 3. Wake button UI ─────────────────────────────────────────────────
+    window._wakeListenActive = true; // suppress echo check for this window
+    if (window.S) { window.S.autoListening = true; window._autoListenStart = Date.now() - 9000; } // set start far in past so echo gate (2s) is inactive
+
+    if (window._autoListenT) { clearInterval(window._autoListenT); window._autoListenT = null; }
+    var secs = maxSecs;
+    var tag = document.getElementById('liveTag'), inner = document.querySelector('#liveBar .live-inner');
+    if (tag) { tag.textContent = secs + 's'; tag.classList.add('counting'); tag.classList.remove('expiring'); }
+    if (inner) inner.classList.add('counting');
+
+    window._autoListenT = setInterval(function() {
+      secs--;
+      if (tag) {
+        if (secs <= 0) { tag.textContent = 'LIVE'; tag.classList.remove('counting','expiring'); }
+        else { tag.textContent = secs + 's'; if (secs <= 3) tag.classList.add('expiring'); else tag.classList.remove('expiring'); }
+      }
+      if (inner && secs <= 0) inner.classList.remove('counting');
+      if (secs <= 0) {
+        clearInterval(window._autoListenT); window._autoListenT = null;
+        window._wakeListenActive = false;
+        if (window.S) window.S.autoListening = false;
+        if (window.S && window.S.listening && typeof stopListen === 'function') stopListen();
+        // Resume background wake detection after main mic closes
+        setTimeout(bgCycle, 400);
+      }
+    }, 1000);
+
+    startListen();
+  }
+
+  // ── 3. Wake button ────────────────────────────────────────────────────
   function updateBtn() {
     if (!wakeBtn) return;
-    if (bgEnabled) {
-      wakeBtn.textContent = 'Hey ARIA: ON';
-      wakeBtn.style.color = '#5de6d8';
-      wakeBtn.style.borderColor = '#5de6d8';
-      wakeBtn.style.background = 'rgba(93,230,216,.1)';
-    } else {
-      wakeBtn.textContent = 'Wake: OFF';
-      wakeBtn.style.color = '#6b7eaa';
-      wakeBtn.style.borderColor = 'rgba(255,255,255,.18)';
-      wakeBtn.style.background = 'rgba(4,5,10,.85)';
-    }
+    wakeBtn.textContent = bgEnabled ? 'Hey ARIA: ON' : 'Wake: OFF';
+    wakeBtn.style.color = bgEnabled ? '#5de6d8' : '#6b7eaa';
+    wakeBtn.style.borderColor = bgEnabled ? '#5de6d8' : 'rgba(255,255,255,.18)';
+    wakeBtn.style.background = bgEnabled ? 'rgba(93,230,216,.1)' : 'rgba(4,5,10,.85)';
   }
 
-  var wakeBtn = document.createElement('button');
+  wakeBtn = document.createElement('button');
   wakeBtn.id = 'ariaWakeBtn';
   wakeBtn.textContent = 'Wake: OFF';
-  wakeBtn.title = 'Toggle "Hey ARIA" hands-free wake word';
-  // On mobile push left so it doesn't overlap the right-panel toggle
-  var isMobile = window.innerWidth <= 768;
-  wakeBtn.style.cssText = 'position:fixed;top:11px;right:' + (isMobile ? '90px' : '56px') + ';z-index:99999;background:rgba(4,5,10,.85);border:1px solid rgba(255,255,255,.18);border-radius:8px;padding:4px 11px;color:#6b7eaa;cursor:pointer;font-size:11px;font-family:inherit;backdrop-filter:blur(10px);transition:all .2s;-webkit-tap-highlight-color:transparent;';
+  wakeBtn.title = 'Toggle "Hey ARIA" wake word';
+  var _mob = window.innerWidth <= 768;
+  wakeBtn.style.cssText = 'position:fixed;top:11px;right:' + (_mob ? '90px' : '56px') + ';z-index:99999;background:rgba(4,5,10,.85);border:1px solid rgba(255,255,255,.18);border-radius:8px;padding:4px 11px;color:#6b7eaa;cursor:pointer;font-size:11px;font-family:inherit;backdrop-filter:blur(10px);transition:all .2s;-webkit-tap-highlight-color:transparent;';
   window.addEventListener('resize', function(){ wakeBtn.style.right = window.innerWidth <= 768 ? '90px' : '56px'; });
 
   wakeBtn.addEventListener('click', async function() {
     if (typeof unlockAudio === 'function') unlockAudio();
     if (!bgEnabled) {
-      try {
-        await navigator.mediaDevices.getUserMedia({ audio: true });
-      } catch(e) {
-        alert('Microphone permission required for wake word.'); return;
-      }
-      bgEnabled = true;
-      bgStart();
+      try { await navigator.mediaDevices.getUserMedia({ audio: true }); }
+      catch(e) { alert('Microphone permission required for wake word.'); return; }
+      bgEnabled = true; bgCycle();
     } else {
-      bgEnabled = false;
-      bgStop();
+      bgEnabled = false; bgKill();
     }
     updateBtn();
   });
 
   document.body.appendChild(wakeBtn);
-  console.log('[ARIA v6] Wake word + email cards + Gmail sidebar button loaded.');
-})();
+  console.log('[ARIA wake v7] loaded — bgCycle model, no monkey-patching');
 </script>
 
 <!-- Hero is always visible — no collapse observer needed -->
