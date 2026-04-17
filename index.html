@@ -1937,11 +1937,11 @@ D.inp.addEventListener('input', () => {
   var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
   if (!SR) return;
 
-  var bgRec = null, bgActive = false, bgEnabled = false, bgCooldown = false;
+  var bgRec = null, bgActive = false, bgEnabled = false, bgCooldown = false, bgStopping = false;
   var WAKE_RE2 = /^\s*(hey\s+aria|hi\s+aria|hello\s+aria|okay\s+aria|aria)\s*[,.]?\s*/i;
 
   function bgStart() {
-    if (bgActive || !bgEnabled) return;
+    if (bgActive || !bgEnabled || bgStopping) return;
     // Yield to main mic if it is active
     if (window.S && S.listening) return;
     try {
@@ -1967,15 +1967,18 @@ D.inp.addEventListener('input', () => {
       bgRec.onerror = function(e) {
         bgActive = false;
         if (e.error === 'not-allowed') { bgEnabled = false; updateBtn(); return; }
-        // On iOS, restart faster to keep wake loop alive
-        var delay = /iPhone|iPad|iPod/i.test(navigator.userAgent) ? 600 : 2500;
-        if (bgEnabled) setTimeout(bgStart, delay);
+        // no-speech / aborted / network — just restart
+        if (bgEnabled && !bgStopping) {
+          var delay = /iPhone|iPad|iPod/i.test(navigator.userAgent) ? 600 : 2500;
+          setTimeout(bgStart, delay);
+        }
       };
       bgRec.onend = function() {
         bgActive = false;
+        // If we stopped intentionally (main mic taking over), don't auto-restart here
+        if (bgStopping) return;
         if (!bgEnabled || (window.S && S.listening)) return;
-        // iOS ignores continuous:true — restart immediately to simulate continuous
-        var delay = /iPhone|iPad|iPod/i.test(navigator.userAgent) ? 150 : 800;
+        var delay = /iPhone|iPad|iPod/i.test(navigator.userAgent) ? 150 : 2000;
         setTimeout(bgStart, delay);
       };
       bgRec.start();
@@ -1987,8 +1990,11 @@ D.inp.addEventListener('input', () => {
   }
 
   function bgStop() {
+    bgStopping = true;
     bgActive = false;
     try { if (bgRec) bgRec.stop(); } catch(e) {}
+    // Clear the stopping flag after enough time for onend to fire
+    setTimeout(function() { bgStopping = false; }, 1500);
   }
 
   // Pause bg SR when main mic activates; resume when it stops
