@@ -969,22 +969,38 @@ function buildRec(){
     const lt=document.getElementById('liveTxt');
     if(lt){lt.textContent=t||'Listening...';}
     if(e.results[e.results.length-1].isFinal){
-      // Robust echo detection: word-overlap Jaccard similarity against ARIA's last text
-      if(S.autoListening && _isEcho(t, S.lastText)){
-        clearAutoListenTimer();stopListen();return;
+      // Echo gate: only within first 2s of auto-listen start AND word-overlap match
+      const fresh=Date.now()-_autoListenStart<2000;
+      if(S.autoListening&&fresh&&_isEcho(t,S.lastText)){
+        // Restart recognition silently — keep the 5s window alive
+        S.listening=false;
+        setTimeout(()=>{if(S.autoListening&&_autoListenT){buildRec();try{rec.start();S.listening=true;}catch(x){}}},300);
+        return;
       }
       D.inp.value=t;autoResize();
       clearAutoListenTimer();stopListen();sendMsg();
     }
   };
   rec.onerror=e=>{
-    S.listening=false;setMode('ready');
+    S.listening=false;
+    // no-speech / aborted during auto-listen → restart silently, keep countdown alive
+    if(S.autoListening&&_autoListenT&&(e.error==='no-speech'||e.error==='aborted')){
+      setTimeout(()=>{if(S.autoListening&&_autoListenT){buildRec();try{rec.start();S.listening=true;}catch(x){}}},300);
+      return;
+    }
+    setMode('ready');
     const lb=document.getElementById('liveBar'),oi=document.getElementById('orbIcon'),or2=document.getElementById('orbRing');
     if(lb){lb.style.display='none';} if(oi){oi.textContent='psychology';} if(or2){or2.style.opacity='0';}
     if(e.error==='not-allowed')addMsg('assistant','Microphone blocked. Click the lock icon in your address bar → Microphone → Allow → refresh.',true);
     else if(e.error!=='no-speech'&&e.error!=='aborted')addMsg('assistant',`Mic error: ${e.error}`,true);
   };
   rec.onend=()=>{
+    // Auto-listen: if countdown still active, restart recognition to keep listening
+    if(S.autoListening&&_autoListenT){
+      S.listening=false;
+      setTimeout(()=>{if(S.autoListening&&_autoListenT){buildRec();try{rec.start();S.listening=true;}catch(x){}}},200);
+      return;
+    }
     if(S.listening){S.listening=false;setMode('ready');}
     const lb=document.getElementById('liveBar'),oi=document.getElementById('orbIcon'),or2=document.getElementById('orbRing');
     if(lb){lb.style.display='none';} if(oi){oi.textContent='psychology';} if(or2){or2.style.opacity='0';}
@@ -1011,7 +1027,7 @@ async function startListen(){
   if(!isMobile){
     // Desktop: explicitly request mic permission first for better UX
     try{
-      await navigator.mediaDevices.getUserMedia({audio:true});
+      await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true,noiseSuppression:true,autoGainControl:true}});
     }catch(err){
       addMsg('assistant','🎤 Microphone blocked. Click the 🔒 lock icon in your address bar → Site settings → Microphone → Allow → refresh the page.',true);
       return;
@@ -1032,7 +1048,7 @@ function stopListen(){clearAutoListenTimer();S.listening=false;setMode('ready');
 D.mic.addEventListener('click',()=>{if(S.listening)stopListen();else startListen();});
 
 // AUTO-LISTEN COUNTDOWN (5 seconds after ARIA responds)
-let _autoListenT=null;
+let _autoListenT=null,_autoListenStart=0;
 
 // Word-overlap echo detector: returns true if transcript is likely ARIA's own voice
 function _isEcho(transcript, lastText){
@@ -1054,9 +1070,10 @@ function clearAutoListenTimer(){
 }
 function startAutoListenWindow(){
   if(!$('autoOn').checked)return;
-  // 1000ms delay: lets speaker audio fully dissipate before mic opens
+  // 1500ms delay: lets speaker audio fully dissipate + echo cancellation warm-up
   setTimeout(()=>{
     S.autoListening=true;
+    _autoListenStart=Date.now();
     startListen();
     let secs=5;
     const tag=document.getElementById('liveTag'),inner=document.querySelector('#liveBar .live-inner');
