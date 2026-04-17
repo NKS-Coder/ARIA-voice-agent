@@ -72,6 +72,20 @@ body[data-mode="speaking"] .orb-main{animation:orb-speak 0.5s ease-in-out infini
 /* mic-label */
 .mic-label{font-size:0.62rem;color:rgba(255,255,255,0.25);white-space:nowrap;}
 .mic-label.listening{color:#00E5FF;}.mic-label.speaking{color:#007BFF;}
+/* Auto-listen countdown */
+@keyframes countdown-tick{0%{opacity:1;transform:scale(1.1);}100%{opacity:0.6;transform:scale(1);}}
+#liveTag.counting{animation:countdown-tick 1s ease-in-out infinite;}
+#liveTag.expiring{color:#ff9500!important;animation:pulse 0.5s ease-in-out infinite;}
+/* Voice select polish */
+#voiceSel{-webkit-appearance:none;appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='rgba(255,255,255,0.3)' stroke-width='1.5' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 11px center;padding-right:30px!important;}
+/* EL retry indicator */
+@keyframes el-retry{0%,100%{opacity:0.4;}50%{opacity:1;}}
+body[data-mode="generating"] #orbBtn{opacity:0.85;}
+/* Polished section headers in right sidebar */
+.sidebar-section-hdr{font-size:8px;text-transform:uppercase;letter-spacing:0.3em;font-weight:700;color:rgba(100,116,139,0.5);margin-bottom:12px;}
+/* Countdown ring on liveBar */
+#liveBar .live-inner{transition:border-color 0.3s;}
+#liveBar .live-inner.counting{border-color:rgba(255,149,0,0.4)!important;}
 /* History */
 .hi{display:flex;align-items:center;gap:8px;padding:7px 10px;border-radius:10px;cursor:pointer;transition:background 0.15s;}
 .hi:hover{background:rgba(255,255,255,0.04);}
@@ -306,10 +320,10 @@ select.minp option{background:#0a0c10;}
 
   <!-- Live transcript strip — shows while mic is active -->
   <div id="liveBar" style="display:none;flex-shrink:0;padding:6px 20px 2px;align-items:center;gap:8px;">
-    <div style="display:flex;align-items:center;gap:8px;background:rgba(0,229,255,0.05);border:1px solid rgba(0,229,255,0.15);border-radius:12px;padding:8px 14px;width:100%;">
+    <div class="live-inner" style="display:flex;align-items:center;gap:8px;background:rgba(0,229,255,0.05);border:1px solid rgba(0,229,255,0.15);border-radius:12px;padding:8px 14px;width:100%;transition:border-color 0.3s;">
       <span class="material-symbols-outlined" id="liveIco" style="font-size:16px;color:#00E5FF;font-variation-settings:'FILL' 1;flex-shrink:0;animation:pulse 1s ease-in-out infinite;">graphic_eq</span>
       <span id="liveTxt" style="flex:1;font-size:12px;font-weight:500;color:rgba(255,255,255,0.75);font-family:Manrope,sans-serif;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">Listening...</span>
-      <span style="font-size:9px;font-weight:700;letter-spacing:0.12em;color:rgba(0,229,255,0.5);">LIVE</span>
+      <span id="liveTag" style="font-size:9px;font-weight:700;letter-spacing:0.12em;color:rgba(0,229,255,0.5);min-width:22px;text-align:right;">LIVE</span>
     </div>
   </div>
 
@@ -754,7 +768,7 @@ function fallbackSpeak(txt) {
   u.onstart = () => setMode('speaking');
   u.onend = u.onerror = () => {
     setMode('ready');
-    if ($('autoOn').checked) startListen();
+    startAutoListenWindow();
   };
   // iOS Safari: resume if paused before speaking
   if (synth.paused) synth.resume();
@@ -769,17 +783,16 @@ function fallbackSpeak(txt) {
       const u2 = new SpeechSynthesisUtterance(txt);
       if (best) u2.voice = best;
       u2.rate = parseFloat(D.spd.value);
-      u2.onend = u2.onerror = () => { setMode('ready'); if ($('autoOn').checked) startListen(); };
+      u2.onend = u2.onerror = () => { setMode('ready'); startAutoListenWindow(); };
       synth.speak(u2);
     }, 100);
   }, 2000);
   u.onstart = () => { clearTimeout(watchdog); setMode('speaking'); };
 }
 
-async function speakEL(txt) {
-  elFails = 0;
+async function speakEL(txt, _retry=0) {
   if (location.protocol === 'file:') { fallbackSpeak(txt); return; }
-  if (elFails >= EL_MAX_FAILS) { fallbackSpeak(txt); setTimeout(()=>{elFails=0;},30000); return; }
+  if (_retry === 0) elFails = 0;
 
   try {
     setMode('generating');
@@ -811,11 +824,20 @@ async function speakEL(txt) {
     if (!res.ok) {
       const errText = await res.text().catch(() => '');
       console.warn('ElevenLabs failed:', res.status, errText);
+      if (_retry < 2) {
+        console.log(`Retrying ElevenLabs (${_retry+1}/2)...`);
+        await new Promise(r => setTimeout(r, 600 * (_retry + 1)));
+        return speakEL(txt, _retry + 1);
+      }
       elFails++; fallbackSpeak(txt); return;
     }
     const ct = res.headers.get('Content-Type') || '';
     if (!ct.includes('audio')) {
       console.warn('ElevenLabs non-audio response:', ct);
+      if (_retry < 2) {
+        await new Promise(r => setTimeout(r, 600 * (_retry + 1)));
+        return speakEL(txt, _retry + 1);
+      }
       elFails++; fallbackSpeak(txt); return;
     }
 
@@ -829,14 +851,21 @@ async function speakEL(txt) {
     audio.onplay  = () => setMode('speaking');
     audio.onended = audio.onerror = () => {
       setMode('ready'); URL.revokeObjectURL(url); S.audio = null;
-      if ($('autoOn').checked) startListen();
+      startAutoListenWindow();
     };
     await audio.play();
     console.log('✅ ElevenLabs playing');
 
   } catch(e) {
-    if (e.name !== 'AbortError') console.warn('ElevenLabs error:', e.message);
-    else console.warn('ElevenLabs timed out');
+    if (e.name !== 'AbortError') {
+      console.warn('ElevenLabs error:', e.message);
+      if (_retry < 2) {
+        await new Promise(r => setTimeout(r, 600 * (_retry + 1)));
+        return speakEL(txt, _retry + 1);
+      }
+    } else {
+      console.warn('ElevenLabs timed out');
+    }
     elFails++; fallbackSpeak(txt);
   }
 }
@@ -886,7 +915,7 @@ function buildRec(){
     D.inp.value=t;autoResize();
     const lt=document.getElementById('liveTxt');
     if(lt){lt.textContent=t||'Listening...';}
-    if(e.results[e.results.length-1].isFinal){stopListen();sendMsg();}
+    if(e.results[e.results.length-1].isFinal){clearAutoListenTimer();stopListen();sendMsg();}
   };
   rec.onerror=e=>{
     S.listening=false;setMode('ready');
@@ -939,8 +968,34 @@ async function startListen(){
   }
 }
 
-function stopListen(){S.listening=false;setMode('ready');try{rec?.stop();}catch(e){}}
+function stopListen(){clearAutoListenTimer();S.listening=false;setMode('ready');try{rec?.stop();}catch(e){}}
 D.mic.addEventListener('click',()=>{if(S.listening)stopListen();else startListen();});
+
+// AUTO-LISTEN COUNTDOWN (5 seconds after ARIA responds)
+let _autoListenT=null;
+function clearAutoListenTimer(){
+  if(_autoListenT){clearInterval(_autoListenT);_autoListenT=null;}
+  const tag=document.getElementById('liveTag'),inner=document.querySelector('#liveBar .live-inner');
+  if(tag){tag.textContent='LIVE';tag.classList.remove('counting','expiring');}
+  if(inner){inner.classList.remove('counting');}
+}
+function startAutoListenWindow(){
+  if(!$('autoOn').checked)return;
+  startListen();
+  let secs=5;
+  const tag=document.getElementById('liveTag'),inner=document.querySelector('#liveBar .live-inner');
+  if(tag){tag.textContent=secs+'s';tag.classList.add('counting');tag.classList.remove('expiring');}
+  if(inner){inner.classList.add('counting');}
+  _autoListenT=setInterval(()=>{
+    secs--;
+    if(tag){
+      if(secs<=0){tag.textContent='LIVE';tag.classList.remove('counting','expiring');}
+      else{tag.textContent=secs+'s';if(secs<=2)tag.classList.add('expiring');else tag.classList.remove('expiring');}
+    }
+    if(inner&&secs<=0){inner.classList.remove('counting');}
+    if(secs<=0){clearInterval(_autoListenT);_autoListenT=null;if(S.listening)stopListen();}
+  },1000);
+}
 
 // MODE
 function setMode(m){
