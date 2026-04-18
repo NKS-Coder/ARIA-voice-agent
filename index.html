@@ -959,7 +959,7 @@ function speak(txt) {
 const SR=window.SpeechRecognition||window.webkitSpeechRecognition;let rec=null;
 function buildRec(){
   if(!SR)return false;
-  rec=new SR();rec.continuous=false;rec.interimResults=true;rec.lang='en-US';
+  rec=new SR();rec.continuous=true;rec.interimResults=true;rec.lang='en-US';
   rec.onstart=()=>{
     S.listening=true;setMode('listening');
     const lb=document.getElementById('liveBar'),lt=document.getElementById('liveTxt'),oi=document.getElementById('orbIcon'),or2=document.getElementById('orbRing');
@@ -989,12 +989,17 @@ function buildRec(){
   };
   rec.onerror=e=>{
     S.listening=false;
-    // no-speech / aborted during auto-listen OR wake window → restart silently
     const _activeWindow=_autoListenT||window._wakeListenActive;
+    // Auto-listen / wake window: restart silently on no-speech or aborted
     if(S.autoListening&&_activeWindow&&(e.error==='no-speech'||e.error==='aborted')){
       setTimeout(()=>{
         if(S.autoListening&&(_autoListenT||window._wakeListenActive)){buildRec();try{rec.start();S.listening=true;}catch(x){}}
       },300);
+      return;
+    }
+    // Manual mic: restart on no-speech so a brief pause doesn't kill the session
+    if(!S.autoListening&&(e.error==='no-speech'||e.error==='aborted')){
+      buildRec();try{rec.start();S.listening=true;}catch(x){setMode('ready');}
       return;
     }
     setMode('ready');
@@ -1035,7 +1040,9 @@ async function startListen(){
 
   synth.cancel();
   if(S.audio){S.audio.pause();S.audio=null;}
-  if(!rec)buildRec();
+  // Always build a fresh rec — reusing a previously-ended instance causes InvalidStateError
+  try{if(rec)rec.stop();}catch(e){}
+  buildRec();
 
   const isMobile=/iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
 
@@ -2166,10 +2173,10 @@ D.inp.addEventListener('input', () => {
     stopWaitingForCommand();
     bgKill();
     // Give Chrome ~250ms to fully release the mic from the aborted SR
-    await new Promise(function(r){ setTimeout(r, 250); });
+    await new Promise(function(r){ setTimeout(r, 400); });
     // Clear the pausing flag later so the watchdog can resume bgCycle
     // once the main rec finishes (S.listening becomes false).
-    setTimeout(function(){ _pausingBg = false; }, 1800);
+    setTimeout(function(){ _pausingBg = false; }, 2000);
   };
 
   // ── 3. Wake button ────────────────────────────────────────────────────
