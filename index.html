@@ -1029,6 +1029,10 @@ async function startListen(){
     return;
   }
 
+  // Pause the background wake recognizer FIRST so Chrome's single-SR-per-tab
+  // limit doesn't kill the main rec before it starts.
+  if(typeof window._ariaWakePause==='function'){ try{ await window._ariaWakePause(); }catch(e){} }
+
   synth.cancel();
   if(S.audio){S.audio.pause();S.audio=null;}
   if(!rec)buildRec();
@@ -2154,27 +2158,19 @@ D.inp.addEventListener('input', () => {
     }
   }, 2000);
 
-  // ── Patch startListen so the manual mic pauses wake recognizer first ──
-  function patchStartListen() {
-    if (typeof window.startListen !== 'function') { setTimeout(patchStartListen, 500); return; }
-    var _orig = window.startListen;
-    window.startListen = async function _wakeAwareStart() {
-      if (bgRec || bgEnabled) {
-        _pausingBg = true;
-        bgKill();
-        await new Promise(function(r){ setTimeout(r, 220); });
-      }
-      try {
-        var result = await _orig.apply(this, arguments);
-        setTimeout(function(){ _pausingBg = false; }, 1500);
-        return result;
-      } catch(e) {
-        _pausingBg = false;
-        throw e;
-      }
-    };
-  }
-  patchStartListen();
+  // ── Expose pause hook: the main startListen calls this before rec.start()
+  //    so bgRec cleanly releases the mic first (Chrome allows only ONE SR per tab).
+  window._ariaWakePause = async function() {
+    if (!bgRec && !bgEnabled) return;
+    _pausingBg = true;
+    stopWaitingForCommand();
+    bgKill();
+    // Give Chrome ~250ms to fully release the mic from the aborted SR
+    await new Promise(function(r){ setTimeout(r, 250); });
+    // Clear the pausing flag later so the watchdog can resume bgCycle
+    // once the main rec finishes (S.listening becomes false).
+    setTimeout(function(){ _pausingBg = false; }, 1800);
+  };
 
   // ── 3. Wake button ────────────────────────────────────────────────────
   function updateBtn() {
