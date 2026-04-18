@@ -712,8 +712,12 @@ function setVoice(v){
     if(!drop)return;
     const labelId=dropId==='voiceSelDrop'?'voiceSelLabel':'modalVoiceLabel';
     drop.querySelectorAll('.cs-opt').forEach(o=>{
-      o.classList.toggle('cs-sel',o.dataset.val===v);
-      if(o.dataset.val===v){const lbl=document.getElementById(labelId);if(lbl)lbl.textContent=o.textContent;}
+      const sel=o.dataset.val===v;
+      o.classList.toggle('cs-sel',sel);
+      // Re-apply forced dark bg/color since CSS cs-sel can't override inline !important
+      o.style.setProperty('background-color', sel?'rgba(0,229,255,0.08)':'#04050a', 'important');
+      o.style.setProperty('color', sel?'#00E5FF':'rgba(255,255,255,0.78)', 'important');
+      if(sel){const lbl=document.getElementById(labelId);if(lbl)lbl.textContent=o.textContent;}
     });
   });
   if(S.audio||window.speechSynthesis.speaking){
@@ -737,10 +741,27 @@ $('modalVoice').addEventListener('change',()=>setVoice($('modalVoice').value));
 
     // Move drop out of sidebar/modal DOM and onto body
     document.body.appendChild(drop);
-    // Force dark background — browsers can override class styles on body-appended elements
-    drop.style.background = '#04050a';
-    drop.style.backgroundColor = '#04050a';
-    drop.querySelectorAll('.cs-opt').forEach(o => { o.style.backgroundColor = '#04050a'; });
+    // setProperty with 'important' = inline !important — beats ALL CSS including Tailwind
+    function _forceDarkDrop(el) {
+      el.style.setProperty('background-color', '#04050a', 'important');
+      el.style.setProperty('background', '#04050a', 'important');
+      el.style.setProperty('color-scheme', 'dark', 'important');
+    }
+    _forceDarkDrop(drop);
+    drop.querySelectorAll('.cs-opt').forEach(o => {
+      o.style.setProperty('background-color', '#04050a', 'important');
+      o.style.setProperty('color', 'rgba(255,255,255,0.78)', 'important');
+      // JS hover: inline !important overrides CSS :hover so we use events instead
+      o.addEventListener('mouseenter', () => {
+        o.style.setProperty('background-color', 'rgba(0,229,255,0.12)', 'important');
+        o.style.setProperty('color', '#fff', 'important');
+      });
+      o.addEventListener('mouseleave', () => {
+        const isSel = o.classList.contains('cs-sel');
+        o.style.setProperty('background-color', isSel ? 'rgba(0,229,255,0.08)' : '#04050a', 'important');
+        o.style.setProperty('color', isSel ? '#00E5FF' : 'rgba(255,255,255,0.78)', 'important');
+      });
+    });
 
     function openDrop(){
       // Close all other drops first
@@ -749,8 +770,8 @@ $('modalVoice').addEventListener('change',()=>setVoice($('modalVoice').value));
       drop.style.left=r.left+'px';
       drop.style.top=(r.bottom+4)+'px';
       drop.style.width=r.width+'px';
-      drop.style.background = '#04050a';
-      drop.style.backgroundColor = '#04050a';
+      drop.style.setProperty('background-color', '#04050a', 'important');
+      drop.style.setProperty('background', '#04050a', 'important');
       drop.classList.add('cs-open');
       wrap.classList.add('open');
     }
@@ -1095,18 +1116,25 @@ function buildRec(){
       if(S.autoListening&&fresh&&!window._wakeListenActive&&_isEcho(t,S.lastText)){
         // Restart recognition silently — keep the 5s window alive
         S.listening=false;
-        setTimeout(()=>{if(S.autoListening&&_autoListenT){buildRec();try{rec.start();S.listening=true;}catch(x){}}},300);
+        const _ok=_autoListenT||window._wakeListenActive;
+        setTimeout(()=>{if(S.autoListening&&_ok){buildRec();try{rec.start();S.listening=true;}catch(x){}}},300);
         return;
       }
       D.inp.value=t;autoResize();
-      clearAutoListenTimer();stopListen();sendMsg();
+      clearAutoListenTimer();
+      window._wakeListenActive=false; // command received — close wake window
+      if(window._wakeCountT){clearInterval(window._wakeCountT);window._wakeCountT=null;}
+      stopListen();sendMsg();
     }
   };
   rec.onerror=e=>{
     S.listening=false;
-    // no-speech / aborted during auto-listen → restart silently, keep countdown alive
-    if(S.autoListening&&_autoListenT&&(e.error==='no-speech'||e.error==='aborted')){
-      setTimeout(()=>{if(S.autoListening&&_autoListenT){buildRec();try{rec.start();S.listening=true;}catch(x){}}},300);
+    // no-speech / aborted during auto-listen OR wake window → restart silently
+    const _activeWindow=_autoListenT||window._wakeListenActive;
+    if(S.autoListening&&_activeWindow&&(e.error==='no-speech'||e.error==='aborted')){
+      setTimeout(()=>{
+        if(S.autoListening&&(_autoListenT||window._wakeListenActive)){buildRec();try{rec.start();S.listening=true;}catch(x){}}
+      },300);
       return;
     }
     setMode('ready');
@@ -1116,10 +1144,12 @@ function buildRec(){
     else if(e.error!=='no-speech'&&e.error!=='aborted')addMsg('assistant',`Mic error: ${e.error}`,true);
   };
   rec.onend=()=>{
-    // Auto-listen: if countdown still active, restart recognition to keep listening
-    if(S.autoListening&&_autoListenT){
+    // Restart recognition if: normal auto-listen countdown OR wake listen window is active
+    if(S.autoListening&&(_autoListenT||window._wakeListenActive)){
       S.listening=false;
-      setTimeout(()=>{if(S.autoListening&&_autoListenT){buildRec();try{rec.start();S.listening=true;}catch(x){}}},200);
+      setTimeout(()=>{
+        if(S.autoListening&&(_autoListenT||window._wakeListenActive)){buildRec();try{rec.start();S.listening=true;}catch(x){}}
+      },200);
       return;
     }
     if(S.listening){S.listening=false;setMode('ready');}
