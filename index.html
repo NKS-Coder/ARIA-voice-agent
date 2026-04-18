@@ -345,6 +345,10 @@ select.minp option{background:#0a0c10;}
       <button id="micBtn" style="width:38px;height:38px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);cursor:pointer;transition:all 0.2s;">
         <span class="material-symbols-outlined ms-icon" style="font-size:20px;color:#007BFF;font-variation-settings:'FILL' 1;">mic</span>
       </button>
+      <!-- Inline stop button — visible only when ARIA is speaking or listening -->
+      <button id="inlineStopBtn" onclick="(function(){if(window.S&&window.S.listening&&typeof stopListen==='function')stopListen();if(typeof stopSpeaking==='function')stopSpeaking();})()" title="Stop" style="display:none;width:34px;height:34px;border-radius:50%;flex-shrink:0;align-items:center;justify-content:center;background:rgba(245,101,101,0.12);border:1px solid rgba(245,101,101,0.35);cursor:pointer;transition:all 0.2s;">
+        <span class="material-symbols-outlined" style="font-size:18px;color:#fc8181;font-variation-settings:'FILL' 1;">stop</span>
+      </button>
       <div id="viz"></div>
       <div id="micLbl" class="mic-label" style="display:none;"></div>
       <textarea id="inp" rows="1" placeholder="Command ARIA..." style="flex:1;background:transparent;border:none;resize:none;outline:none;color:rgba(255,255,255,0.85);font-family:Manrope,sans-serif;font-size:14px;font-weight:500;line-height:1.5;max-height:110px;overflow-y:auto;"></textarea>
@@ -526,8 +530,8 @@ select.minp option{background:#0a0c10;}
 <script>
 const W='https://ariaproxy.nihharksonee.workers.dev';
 const BELLA='EXAVITQu4vr4xnSDxMaL';
-// ElevenLabs direct browser API key — bypasses Worker (paste your key here)
-const EL_KEY = '';
+// ElevenLabs direct key — set here OR store via: localStorage.setItem('el_key','sk_...')
+const EL_KEY = localStorage.getItem('el_key') || '';
 const APPS={
   gmail:    {name:'Gmail',          icon:'📧',auth:'google',   prompt:null},
   calendar: {name:'Calendar',       icon:'📅',auth:'google',   prompt:null},
@@ -1248,19 +1252,21 @@ function setMode(m){
   D.viz.classList.remove('on');
   D.micLbl.className='mic-label';
   const map={
-    ready:      ['Click to speak','',         '', false],
-    listening:  ['Listening...',  'listening','', false],
-    thinking:   ['Thinking...',   '',         '', false],
-    speaking:   ['Speaking...',   'speaking', 'on', true],
-    generating: ['Generating...', '',         '', false],
+    ready:      ['Click to speak','',         '', false, false],
+    listening:  ['Listening...',  'listening','', false, true],
+    thinking:   ['Thinking...',   '',         '', false, false],
+    speaking:   ['Speaking...',   'speaking', 'on', true, true],
+    generating: ['Generating...', '',         '', false, false],
   };
-  const[lbl,mc,vc,showStop]=map[m]||map.ready;
+  const[lbl,mc,vc,showStop,showInlineStop]=map[m]||map.ready;
   D.micLbl.textContent=lbl;
   D.status.textContent=lbl==='Click to speak'?'Online':lbl;
   if(mc){D.mic.classList.add(mc);D.micLbl.classList.add(mc);}
   if(vc)D.viz.classList.add(vc);
   const sb=$('stopBtn');
   if(sb) sb.style.display=showStop?'flex':'none';
+  const isb=$('inlineStopBtn');
+  if(isb) isb.style.display=showInlineStop?'flex':'none';
 }
 
 // MESSAGES
