@@ -84,12 +84,12 @@ body[data-mode="speaking"] .orb-main{animation:orb-speak 0.5s ease-in-out infini
 .cs-arrow{font-size:14px;color:rgba(255,255,255,0.3);transition:transform 0.2s;flex-shrink:0;font-variation-settings:'FILL' 0,'wght' 300;}
 .cs-wrap.open .cs-arrow{transform:rotate(180deg);}
 /* Drop is appended to body with position:fixed — immune to overflow clipping */
-.cs-drop{position:fixed;background:#04050a;border:1px solid rgba(255,255,255,0.12);border-radius:10px;overflow:hidden;z-index:999999;display:none;box-shadow:0 16px 48px rgba(0,0,0,0.98);min-width:180px;}
+.cs-drop{position:fixed;background:#04050a !important;background-color:#04050a !important;border:1px solid rgba(255,255,255,0.12);border-radius:10px;overflow-y:auto;z-index:999999;display:none;box-shadow:0 16px 48px rgba(0,0,0,0.98);min-width:180px;max-height:280px;}
 .cs-drop.cs-open{display:block;}
-.cs-opt{padding:9px 12px;font-size:11px;color:rgba(255,255,255,0.75);cursor:pointer;font-family:Manrope,sans-serif;transition:background 0.1s,color 0.1s;border-bottom:1px solid rgba(255,255,255,0.05);}
+.cs-opt{padding:9px 12px;font-size:11px;color:rgba(255,255,255,0.75);background:#04050a !important;cursor:pointer;font-family:Manrope,sans-serif;transition:background 0.1s,color 0.1s;border-bottom:1px solid rgba(255,255,255,0.05);}
 .cs-opt:last-child{border-bottom:none;}
-.cs-opt:hover{background:rgba(0,229,255,0.1);color:rgba(255,255,255,0.95);}
-.cs-opt.cs-sel{color:#00E5FF;background:rgba(0,229,255,0.08);font-weight:600;}
+.cs-opt:hover{background:rgba(0,229,255,0.15) !important;color:rgba(255,255,255,0.95);}
+.cs-opt.cs-sel{color:#00E5FF;background:rgba(0,229,255,0.1) !important;font-weight:600;}
 /* EL retry indicator */
 @keyframes el-retry{0%,100%{opacity:0.4;}50%{opacity:1;}}
 body[data-mode="generating"] #orbBtn{opacity:0.85;}
@@ -385,7 +385,7 @@ select.minp option{background:#0a0c10;}
           <span id="voiceSelLabel">Bella — soft female</span>
           <span class="cs-arrow material-symbols-outlined">expand_more</span>
         </button>
-        <div class="cs-drop" id="voiceSelDrop">
+        <div class="cs-drop" id="voiceSelDrop" style="background:#04050a;background-color:#04050a;">
           <div class="cs-opt" data-val="21m00Tcm4TlvDq8ikWAM">Rachel — warm natural female</div>
           <div class="cs-opt" data-val="AZnzlk1XvdvUeBnXmlld">Domi — confident female</div>
           <div class="cs-opt cs-sel" data-val="EXAVITQu4vr4xnSDxMaL">Bella — soft female</div>
@@ -480,7 +480,7 @@ select.minp option{background:#0a0c10;}
             <span id="modalVoiceLabel">Bella &mdash; soft female</span>
             <span class="cs-arrow material-symbols-outlined">expand_more</span>
           </button>
-          <div class="cs-drop" id="modalVoiceDrop">
+          <div class="cs-drop" id="modalVoiceDrop" style="background:#04050a;background-color:#04050a;">
             <div class="cs-opt" data-val="21m00Tcm4TlvDq8ikWAM">Rachel &mdash; warm natural female</div>
             <div class="cs-opt" data-val="AZnzlk1XvdvUeBnXmlld">Domi &mdash; confident female</div>
             <div class="cs-opt cs-sel" data-val="EXAVITQu4vr4xnSDxMaL">Bella &mdash; soft female</div>
@@ -737,6 +737,10 @@ $('modalVoice').addEventListener('change',()=>setVoice($('modalVoice').value));
 
     // Move drop out of sidebar/modal DOM and onto body
     document.body.appendChild(drop);
+    // Force dark background — browsers can override class styles on body-appended elements
+    drop.style.background = '#04050a';
+    drop.style.backgroundColor = '#04050a';
+    drop.querySelectorAll('.cs-opt').forEach(o => { o.style.backgroundColor = '#04050a'; });
 
     function openDrop(){
       // Close all other drops first
@@ -745,6 +749,8 @@ $('modalVoice').addEventListener('change',()=>setVoice($('modalVoice').value));
       drop.style.left=r.left+'px';
       drop.style.top=(r.bottom+4)+'px';
       drop.style.width=r.width+'px';
+      drop.style.background = '#04050a';
+      drop.style.backgroundColor = '#04050a';
       drop.classList.add('cs-open');
       wrap.classList.add('open');
     }
@@ -986,36 +992,50 @@ async function speakEL(txt, _retry=0) {
 
     // Use AudioContext so playback works regardless of autoplay policy.
     // AudioContext stays unlocked after any user gesture — no timing issues.
-    const ctx = _getAudioCtx();
-    if (ctx.state === 'suspended') await ctx.resume();
-    const audioBuf = await ctx.decodeAudioData(arrayBuffer);
-    const src = ctx.createBufferSource();
-    src.buffer = audioBuf;
-    src.playbackRate.value = parseFloat(D.spd.value || '1');
-    src.connect(ctx.destination);
+    try {
+      const ctx = _getAudioCtx();
+      if (ctx.state === 'suspended') await ctx.resume();
+      if (ctx.state === 'suspended') {
+        // Still suspended — AudioContext couldn't resume (no user gesture path?)
+        // Fall back to browser TTS immediately rather than hanging
+        throw new Error('AudioContext suspended');
+      }
+      const audioBuf = await ctx.decodeAudioData(arrayBuffer.slice(0));
+      const src = ctx.createBufferSource();
+      src.buffer = audioBuf;
+      src.playbackRate.value = parseFloat(D.spd.value || '1');
+      src.connect(ctx.destination);
 
-    let _played = false;
-    const _cleanup = (triggerAutoListen) => {
-      if (_played) return; _played = true;
-      setMode('ready'); S.audio = null;
-      if (triggerAutoListen) startAutoListenWindow();
-    };
-    src.onended = () => _cleanup(true);
-    S.audio = {
-      pause()  { try { src.stop(0); } catch(e) {} _cleanup(false); },
-      set playbackRate(v) { src.playbackRate.value = v; },
-      get playbackRate()  { return src.playbackRate.value; },
-    };
-    setMode('speaking');
-    src.start(0);
-    console.log('✅ ElevenLabs playing via AudioContext, voice:', voiceId);
+      let _played = false;
+      const _cleanup = (triggerAutoListen) => {
+        if (_played) return; _played = true;
+        setMode('ready'); S.audio = null;
+        if (triggerAutoListen) startAutoListenWindow();
+      };
+      src.onended = () => _cleanup(true);
+      S.audio = {
+        pause()  { try { src.stop(0); } catch(e) {} _cleanup(false); },
+        set playbackRate(v) { src.playbackRate.value = v; },
+        get playbackRate()  { return src.playbackRate.value; },
+      };
+      setMode('speaking');
+      src.start(0);
+      console.log('✅ ElevenLabs playing via AudioContext, voice:', voiceId);
+      return; // success — skip outer catch
+    } catch(audioErr) {
+      console.warn('AudioContext playback failed, using browser TTS:', audioErr.message);
+      setMode('ready');
+      fallbackSpeak(txt);
+      return;
+    }
 
   } catch(e) {
     const isAbort = e.name === 'AbortError';
     const label = isAbort ? 'timeout' : (e.name || e.message || 'error');
     console.warn('ElevenLabs error:', label, e.message || '');
     if (_retry < 3) {
-      await new Promise(r => setTimeout(r, 800 * (_retry + 1)));
+      // First retry is immediate; subsequent retries add a short delay
+      if (_retry > 0) await new Promise(r => setTimeout(r, 600 * _retry));
       return speakEL(txt, _retry + 1);
     }
     elFails++;
@@ -2050,7 +2070,7 @@ D.inp.addEventListener('input', () => {
   if (!SR) return;
 
   var bgRec = null, bgEnabled = false, bgCooldown = false, wakeBtn = null;
-  var WAKE_RE = /\b(hey\s+area|hey\s+aria|hey\s+arya|hi\s+aria|hello\s+aria|ok\s+aria|okay\s+aria)\b/i;
+  var WAKE_RE = /\b(hey|hi|hello|ok|okay)\s+(aria|area|arya|eria|areia|aerya|arria)\b/i;
 
   // Kill any existing bgRec with no callbacks (prevents ghost events)
   function bgKill() {
@@ -2141,21 +2161,27 @@ D.inp.addEventListener('input', () => {
     }, 200);
   }
 
-  // Open main mic for `maxSecs` seconds. Uses S.autoListening so rec auto-restarts on no-speech.
-  // Disables echo detection (_wakeListenActive flag) so user's first words aren't swallowed.
+  // Open main mic for `maxSecs` seconds after wake phrase detected.
+  // Calls clearAutoListenTimer() to cancel any running auto-listen interval (which uses a
+  // let-scoped _autoListenT in the main script — only that function can clear it).
+  // Uses a separate window._wakeCountT to avoid naming collision.
   function openWakeListenWindow(maxSecs) {
     if (typeof startListen !== 'function') { setTimeout(bgCycle, 1000); return; }
 
-    window._wakeListenActive = true; // suppress echo check for this window
-    if (window.S) { window.S.autoListening = true; window._autoListenStart = Date.now() - 9000; } // set start far in past so echo gate (2s) is inactive
+    // Cancel any running auto-listen window first (clears main script's _autoListenT)
+    if (typeof clearAutoListenTimer === 'function') clearAutoListenTimer();
+    // Also clear any previous wake countdown
+    if (window._wakeCountT) { clearInterval(window._wakeCountT); window._wakeCountT = null; }
 
-    if (window._autoListenT) { clearInterval(window._autoListenT); window._autoListenT = null; }
+    window._wakeListenActive = true; // suppress echo check for this window
+    if (window.S) { window.S.autoListening = true; }
+
     var secs = maxSecs;
     var tag = document.getElementById('liveTag'), inner = document.querySelector('#liveBar .live-inner');
     if (tag) { tag.textContent = secs + 's'; tag.classList.add('counting'); tag.classList.remove('expiring'); }
     if (inner) inner.classList.add('counting');
 
-    window._autoListenT = setInterval(function() {
+    window._wakeCountT = setInterval(function() {
       secs--;
       if (tag) {
         if (secs <= 0) { tag.textContent = 'LIVE'; tag.classList.remove('counting','expiring'); }
@@ -2163,16 +2189,18 @@ D.inp.addEventListener('input', () => {
       }
       if (inner && secs <= 0) inner.classList.remove('counting');
       if (secs <= 0) {
-        clearInterval(window._autoListenT); window._autoListenT = null;
+        clearInterval(window._wakeCountT); window._wakeCountT = null;
         window._wakeListenActive = false;
         if (window.S) window.S.autoListening = false;
         if (window.S && window.S.listening && typeof stopListen === 'function') stopListen();
         // Resume background wake detection after main mic closes
-        setTimeout(bgCycle, 400);
+        setTimeout(bgCycle, 500);
       }
     }, 1000);
 
-    startListen();
+    // Delay startListen 450ms: allows bgRec.abort() to fully resolve before Chrome
+    // permits a new SpeechRecognition instance (Chrome allows only one active at a time)
+    setTimeout(function() { startListen(); }, 450);
   }
 
   // ── 3. Wake button ────────────────────────────────────────────────────
