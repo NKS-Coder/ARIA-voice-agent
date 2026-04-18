@@ -282,7 +282,7 @@ select.minp option{background:#0a0c10;}
     <a href="#" onclick="openModal('about');return false;" style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.2em;color:rgba(100,116,139,0.8);text-decoration:none;">Protocol</a>
     <div style="flex:1;"></div>
     <span id="convLabel" style="font-size:10px;color:rgba(255,255,255,0.2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:200px;">New Conversation</span>
-    <button id="stopBtn" style="display:none;" onclick="stopSpeaking()">
+    <button id="stopBtn" style="display:none;" onclick="stopSpeaking();if(window.S&&window.S.listening&&typeof stopListen==='function')stopListen();if(typeof window._ariaWakePause==='function')window._ariaWakePause();">
       <span class="material-symbols-outlined" style="font-size:13px;">stop</span> Stop
     </button>
     <button id="rightToggle" style="display:none;width:32px;height:32px;border-radius:8px;align-items:center;justify-content:center;background:none;border:none;color:rgba(255,255,255,0.3);cursor:pointer;"><span class="material-symbols-outlined" style="font-size:18px;">apps</span></button>
@@ -988,6 +988,7 @@ function buildRec(){
     }
   };
   rec.onerror=e=>{
+    const wasListening=S.listening; // capture before zeroing — stopListen() sets false before rec.stop()
     S.listening=false;
     // Chrome fires onerror → then fires onend automatically.
     // Null onend NOW so the auto-fired onend can't see S.listening=true
@@ -1001,10 +1002,9 @@ function buildRec(){
       },300);
       return;
     }
-    // Manual mic: restart on no-speech/aborted so brief pauses or
-    // late mic-release don't kill the session. Small delay lets Chrome
-    // fully release before we re-acquire.
-    if(!S.autoListening&&(e.error==='no-speech'||e.error==='aborted')){
+    // Manual mic: restart on no-speech/aborted ONLY if we were actively listening
+    // (wasListening=false means stopListen() explicitly stopped us — don't restart).
+    if(!S.autoListening&&wasListening&&(e.error==='no-speech'||e.error==='aborted')){
       setTimeout(()=>{buildRec();try{rec.start();S.listening=true;}catch(x){setMode('ready');}},150);
       return;
     }
@@ -1127,7 +1127,7 @@ function setMode(m){
   D.micLbl.className='mic-label';
   const map={
     ready:      ['Click to speak','',         '', false, false],
-    listening:  ['Listening...',  'listening','', false, true],
+    listening:  ['Listening...',  'listening','', true, true],
     thinking:   ['Thinking...',   '',         '', false, false],
     speaking:   ['Speaking...',   'speaking', 'on', true, true],
     generating: ['Generating...', '',         '', false, false],
@@ -1231,7 +1231,9 @@ async function callWorker(txt){
   const capNote = connectedApps.length
     ? `[SYSTEM: You have live integrations active: ${connectedApps.join(', ')}. ` +
       `You CAN send emails, read inbox, star/label messages via Gmail. ` +
-      `Always confirm actions you actually perform rather than saying you cannot.]`
+      `Always confirm actions you actually perform rather than saying you cannot. ` +
+      `CRITICAL: When the user asks to list, read, or show emails/inbox messages, you MUST respond with ONLY a raw JSON object (no markdown, no text before or after) in this exact format: {"type":"email_list","title":"Unread Emails","emails":[{"id":"<id>","from":"Sender Name","email":"sender@example.com","subject":"Subject line","date":"Jan 1","snippet":"Preview text...","unread":true}]}. ` +
+      `Include up to 5 emails. For all other requests respond normally as text.]`
     : '';
   const msgs = S.msgs.slice(-12);
   // Prepend the capability note to the last user message (non-destructively)
@@ -2222,22 +2224,6 @@ D.inp.addEventListener('input', () => {
     wakeBtn.style.borderColor = bgEnabled ? '#5de6d8' : 'rgba(255,255,255,.18)';
     wakeBtn.style.background = bgEnabled ? 'rgba(93,230,216,.1)' : 'rgba(4,5,10,.85)';
   }
-
-  // ── Top stop button ───────────────────────────────────────────────────
-  var topStopBtn = document.createElement('button');
-  topStopBtn.id = 'ariaTopStopBtn';
-  topStopBtn.title = 'Stop listening / speaking';
-  topStopBtn.innerHTML = '&#9632; Stop';
-  var _mobS = window.innerWidth <= 768;
-  topStopBtn.style.cssText = 'position:fixed;top:11px;right:' + (_mobS ? '210px' : '175px') + ';z-index:99999;background:rgba(245,80,80,.15);border:1px solid rgba(245,101,101,.45);border-radius:8px;padding:4px 11px;color:#fc8181;cursor:pointer;font-size:11px;font-family:inherit;backdrop-filter:blur(10px);transition:all .2s;-webkit-tap-highlight-color:transparent;';
-  topStopBtn.addEventListener('click', function() {
-    if (typeof stopListen === 'function' && window.S && window.S.listening) stopListen();
-    if (typeof stopSpeaking === 'function') stopSpeaking();
-    stopWaitingForCommand();
-    if (typeof clearAutoListenTimer === 'function') clearAutoListenTimer();
-  });
-  window.addEventListener('resize', function(){ topStopBtn.style.right = window.innerWidth <= 768 ? '210px' : '175px'; });
-  document.body.appendChild(topStopBtn);
 
   wakeBtn = document.createElement('button');
   wakeBtn.id = 'ariaWakeBtn';
