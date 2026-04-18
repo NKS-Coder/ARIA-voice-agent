@@ -907,8 +907,8 @@ function fallbackSpeak(txt) {
   if (best) u.voice = best;
   u.rate  = parseFloat(D.spd.value || '1');
   u.pitch = 1;
-  u.onstart = () => { clearTimeout(watchdog); setMode('speaking'); };
-  u.onend = u.onerror = () => { setMode('ready'); startAutoListenWindow(); };
+  u.onstart = () => { clearTimeout(watchdog); setMode('speaking'); if(typeof window._ariaWakeTTSStart==='function')window._ariaWakeTTSStart(); };
+  u.onend = u.onerror = () => { setMode('ready'); if(typeof window._ariaWakeTTSEnd==='function')window._ariaWakeTTSEnd(); startAutoListenWindow(); };
   if (synth.paused) synth.resume();
   synth.speak(u);
   const watchdog = setTimeout(() => {
@@ -919,7 +919,7 @@ function fallbackSpeak(txt) {
       const u2 = new SpeechSynthesisUtterance(txt);
       if (best) u2.voice = best;
       u2.rate = parseFloat(D.spd.value || '1');
-      u2.onend = u2.onerror = () => { setMode('ready'); startAutoListenWindow(); };
+      u2.onend = u2.onerror = () => { setMode('ready'); if(typeof window._ariaWakeTTSEnd==='function')window._ariaWakeTTSEnd(); startAutoListenWindow(); };
       synth.speak(u2);
     }, 100);
   }, 2000);
@@ -2088,6 +2088,8 @@ D.inp.addEventListener('input', () => {
       bgRec.maxAlternatives = 3;
 
       bgRec.onresult = function(ev) {
+        // Never act on audio while ARIA is speaking — prevents TTS echo loop
+        if (_ttsActive || (window.speechSynthesis && window.speechSynthesis.speaking)) return;
         // ev.resultIndex = index of the result that just changed (new or updated)
         var res = ev.results[ev.resultIndex];
         if (!res) return;
@@ -2172,11 +2174,22 @@ D.inp.addEventListener('input', () => {
     _pausingBg = true;
     stopWaitingForCommand();
     bgKill();
-    // Give Chrome ~250ms to fully release the mic from the aborted SR
     await new Promise(function(r){ setTimeout(r, 400); });
-    // Clear the pausing flag later so the watchdog can resume bgCycle
-    // once the main rec finishes (S.listening becomes false).
     setTimeout(function(){ _pausingBg = false; }, 2000);
+  };
+
+  // ── TTS hooks: silence bgRec while ARIA is speaking to prevent echo loop ──
+  var _ttsActive = false;
+  window._ariaWakeTTSStart = function() {
+    _ttsActive = true;
+    stopWaitingForCommand(); // cancel any open command window
+    bgKill();               // silence the recognizer while speaker is active
+  };
+  window._ariaWakeTTSEnd = function() {
+    _ttsActive = false;
+    // Restart bgCycle after a short pause to let the speaker audio dissipate.
+    // If auto-listen fires, its startListen → _ariaWakePause will kill bgCycle first.
+    if (bgEnabled && !_pausingBg) setTimeout(bgCycle, 600);
   };
 
   // ── 3. Wake button ────────────────────────────────────────────────────
