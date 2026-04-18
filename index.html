@@ -529,9 +529,7 @@ select.minp option{background:#0a0c10;}
 
 <script>
 const W='https://ariaproxy.nihharksonee.workers.dev';
-const BELLA='EXAVITQu4vr4xnSDxMaL';
-// ElevenLabs direct key — set here OR store via: localStorage.setItem('el_key','sk_...')
-const EL_KEY = localStorage.getItem('el_key') || '';
+// No ElevenLabs — browser SpeechSynthesis only
 const APPS={
   gmail:    {name:'Gmail',          icon:'📧',auth:'google',   prompt:null},
   calendar: {name:'Calendar',       icon:'📅',auth:'google',   prompt:null},
@@ -548,7 +546,7 @@ const S={msgs:[],listening:false,autoListening:false,persona:'general',msgN:0,au
 // CONFIG
 // CONFIG
 const C={
-  get voice(){return localStorage.getItem('aria_voice')||sessionStorage.getItem('aria_voice')||BELLA;},
+  get voice(){return localStorage.getItem('aria_voice')||sessionStorage.getItem('aria_voice')||'';},
   get speed(){return parseFloat(localStorage.getItem('aria_speed')||'1');},
   get apps(){
     try{
@@ -604,8 +602,8 @@ const D={
 window.addEventListener('load', async ()=>{
   // Step 1: Set voice preference
   if(!localStorage.getItem('aria_voice')||localStorage.getItem('aria_voice')==='21m00Tcm4TlvDq8ikWAM'){
-    localStorage.setItem('aria_voice', BELLA);
-    sessionStorage.setItem('aria_voice', BELLA);
+    localStorage.setItem('aria_voice', '');
+    sessionStorage.setItem('aria_voice', '');
   }
   D.vSel.value = $('modalVoice').value = C.voice;
   D.spd.value  = $('modalSpd').value   = C.speed;
@@ -671,7 +669,7 @@ function enc(s){ return encodeURIComponent(s||''); }
 async function checkWorker(){
   try{
     const r=await fetch(`${W}/health`);const d=await r.json();
-    $('workerStatus').textContent=`✓ ${d.status||'Connected'} · ElevenLabs: ${d.elevenlabs?'✓':'✗'}`;
+    $('workerStatus').textContent=`✓ ARIA v14.0 · Worker connected`;
     $('workerStatus').style.color='#5de6d8';
   }catch(e){
     $('workerStatus').textContent='✗ Cannot reach Worker — check Cloudflare deployment';
@@ -707,31 +705,21 @@ $('saveVoiceSidebar').addEventListener('click',()=>{
   setTimeout(()=>{btn.textContent='Save Voice as Default';btn.style.color='';btn.style.borderColor='';$('sidebarVoiceSaved').style.display='none';},2500);
 });
 
-// LIVE VOICE SWITCH
-function setVoice(v){
-  C.setVoice(v);D.vSel.value=$('modalVoice').value=v;
+// LIVE VOICE SWITCH — browser voice name ('' = auto-select best)
+function setVoice(name){
+  C.setVoice(name);
   // Sync both custom dropdown UIs (sidebar + modal)
   ['voiceSelDrop','modalVoiceDrop'].forEach(dropId=>{
     const drop=document.getElementById(dropId);
     if(!drop)return;
     const labelId=dropId==='voiceSelDrop'?'voiceSelLabel':'modalVoiceLabel';
     drop.querySelectorAll('.cs-opt').forEach(o=>{
-      const sel=o.dataset.val===v;
-      o.classList.toggle('cs-sel',sel);
-      // Re-apply forced dark bg/color since CSS cs-sel can't override inline !important
-      o.style.setProperty('background-color', sel?'rgba(0,229,255,0.08)':'#04050a', 'important');
-      o.style.setProperty('color', sel?'#00E5FF':'rgba(255,255,255,0.78)', 'important');
-      if(sel){const lbl=document.getElementById(labelId);if(lbl)lbl.textContent=o.textContent;}
+      o.classList.toggle('cs-sel',o.dataset.val===name);
+      if(o.dataset.val===name){const lbl=document.getElementById(labelId);if(lbl)lbl.textContent=o.textContent;}
     });
   });
-  if(S.audio||window.speechSynthesis.speaking){
-    if(S.audio){S.audio.pause();S.audio=null;}
-    window.speechSynthesis.cancel();setMode('ready');
-    if(S.lastText)setTimeout(()=>speakEL(S.lastText),150);
-  }
+  if(window.speechSynthesis.speaking){window.speechSynthesis.cancel();setMode('ready');}
 }
-D.vSel.addEventListener('change',()=>setVoice(D.vSel.value));
-$('modalVoice').addEventListener('change',()=>setVoice($('modalVoice').value));
 
 // CUSTOM VOICE DROPDOWNS (sidebar + Settings modal)
 // Drops are appended to document.body with position:fixed so they are NEVER
@@ -813,38 +801,9 @@ setInterval(()=>{sec++;D.nTime.textContent=sec<60?`${sec}s`:`${Math.floor(sec/60
 // ── VOICE ENGINE ─────────────────────────────────────────────
 const synth = window.speechSynthesis;
 let bVoices  = [];
-let elFails  = 0;           // count consecutive EL failures — reset on success
-const EL_MAX_FAILS = 999;   // ARIA v3: never permanently lock out ElevenLabs
+// Browser TTS — no AudioContext needed
+function unlockAudio() {} // kept as no-op; called from mic/wake click handlers
 
-// ── AudioContext (permanent autoplay bypass) ──────────────
-// Chrome blocks audio.play() until user interacts. AudioContext, once resumed
-// during a user gesture, stays unlocked forever for that tab session.
-let _audioCtx = null;
-let _userGestured = false; // true after first mic/send/wake click
-function _getAudioCtx() {
-  if (!_audioCtx) _audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-  return _audioCtx;
-}
-function unlockAudio() {
-  _userGestured = true;
-  const ctx = _getAudioCtx();
-  if (ctx.state === 'suspended') ctx.resume().catch(() => {});
-}
-
-// Brief toast shown when ElevenLabs falls back to browser TTS
-function _showElFallbackToast(reason) {
-  let el = document.getElementById('_elToast');
-  if (!el) {
-    el = document.createElement('div');
-    el.id = '_elToast';
-    el.style.cssText = 'position:fixed;bottom:80px;left:50%;transform:translateX(-50%);background:rgba(30,10,10,0.92);border:1px solid rgba(255,80,80,0.4);color:rgba(255,180,180,0.9);font-size:11px;padding:6px 14px;border-radius:8px;z-index:99999;pointer-events:none;transition:opacity 0.4s;font-family:Manrope,sans-serif;';
-    document.body.appendChild(el);
-  }
-  el.textContent = '\u26a0 ElevenLabs unavailable \u2014 using browser voice' + (reason ? ' (' + reason + ')' : '');
-  el.style.opacity = '1';
-  clearTimeout(el._t);
-  el._t = setTimeout(() => { el.style.opacity = '0'; }, 4000);
-}
 
 function loadBV() {
   const all = synth.getVoices().filter(v => v.lang.startsWith('en'));
@@ -901,56 +860,50 @@ function stopSpeaking() {
 
 function fallbackSpeak(txt) {
   synth.cancel();
-  // Always get voices fresh — they load async and may not be in bVoices yet
   let voices = synth.getVoices();
   if (!voices.length) voices = bVoices;
-  if (!voices.length) {
-    // Voices still loading — retry after short delay
-    setTimeout(() => fallbackSpeak(txt), 400);
-    return;
-  }
-  // Score: prefer female/named voices, prefer Google > Microsoft, exclude robotic males
+  if (!voices.length) { setTimeout(() => fallbackSpeak(txt), 400); return; }
+
+  // Use user-selected voice if set, else auto-pick best
+  const storedName = C.voice;
   const BAD = /david|mark|richard|george|james|ravi|jorge/i;
-  const scored = voices
-    .filter(v => !BAD.test(v.name))
-    .map(v => {
-      let s = 0;
-      if (/zira|aria|jenny|hazel|susan|karen|samantha|female|woman|alice|moira|tessa|fiona/i.test(v.name)) s += 6;
-      if (/google/i.test(v.name)) s += 4;
-      if (/microsoft/i.test(v.name)) s += 2;
-      if (v.lang && v.lang.startsWith('en')) s += 1;
-      return { v, s };
-    })
-    .sort((a, b) => b.s - a.s);
-  const best = (scored[0] || { v: voices[0] }).v;
-  console.log('Fallback voice:', best?.name || 'default');
+  let best = storedName ? voices.find(v => v.name === storedName) : null;
+  if (!best) {
+    const scored = voices
+      .filter(v => !BAD.test(v.name))
+      .map(v => {
+        let s = 0;
+        if (/zira|aria|jenny|hazel|susan|karen|samantha|female|woman|alice|moira|tessa|fiona/i.test(v.name)) s += 6;
+        if (/natural|neural/i.test(v.name)) s += 3;
+        if (/google/i.test(v.name)) s += 4;
+        if (/microsoft/i.test(v.name)) s += 2;
+        if (v.lang && v.lang.startsWith('en')) s += 1;
+        return { v, s };
+      })
+      .sort((a, b) => b.s - a.s);
+    best = (scored[0] || { v: voices[0] }).v;
+  }
+  console.log('Speaking with:', best?.name || 'default');
   const u = new SpeechSynthesisUtterance(txt);
   if (best) u.voice = best;
-  u.rate  = parseFloat(D.spd.value);
+  u.rate  = parseFloat(D.spd.value || '1');
   u.pitch = 1;
-  u.onstart = () => setMode('speaking');
-  u.onend = u.onerror = () => {
-    setMode('ready');
-    startAutoListenWindow();
-  };
-  // iOS Safari: resume if paused before speaking
+  u.onstart = () => { clearTimeout(watchdog); setMode('speaking'); };
+  u.onend = u.onerror = () => { setMode('ready'); startAutoListenWindow(); };
   if (synth.paused) synth.resume();
   synth.speak(u);
-  // iOS stuck-speaking watchdog: if synthesis never fires onstart within 2s, retry
   const watchdog = setTimeout(() => {
-    if (synth.speaking && !synth.paused) return; // fine
-    console.warn('SpeechSynthesis stuck — retrying');
+    if (synth.speaking && !synth.paused) return;
     synth.cancel();
     setTimeout(() => {
       if (synth.paused) synth.resume();
       const u2 = new SpeechSynthesisUtterance(txt);
       if (best) u2.voice = best;
-      u2.rate = parseFloat(D.spd.value);
+      u2.rate = parseFloat(D.spd.value || '1');
       u2.onend = u2.onerror = () => { setMode('ready'); startAutoListenWindow(); };
       synth.speak(u2);
     }, 100);
   }, 2000);
-  u.onstart = () => { clearTimeout(watchdog); setMode('speaking'); };
 }
 
 async function speakEL(txt, _retry=0) {
