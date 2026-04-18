@@ -1942,12 +1942,12 @@ D.inp.addEventListener('input', () => {
   // ── 1. sendMsg hook: strip "Hey ARIA" prefix from typed/dictated text ─
   function patchSendMsg() {
     if (typeof sendMsg === 'undefined') { setTimeout(patchSendMsg, 500); return; }
-    var WAKE_RE = /^\s*(hey\s+|hi\s+|hello\s+|okay\s+|ok\s+)?(aria|area|arya|eria)\s*[,.]?\s*/i;
+    var STRIP = /^\s*(hey\s+|hi\s+|hello\s+|okay\s+|ok\s+)?(aria|area|arya|eria)\s*[,.]?\s*/i;
     var _orig = window.sendMsg;
     window.sendMsg = async function _wakeAwareSend() {
       var inp = document.getElementById('inp') || document.querySelector('textarea,input[type=text]');
-      if (inp && WAKE_RE.test(inp.value)) {
-        var cmd = inp.value.replace(WAKE_RE, '').trim();
+      if (inp && STRIP.test(inp.value)) {
+        var cmd = inp.value.replace(STRIP, '').trim();
         if (!cmd) { inp.value = ''; if (typeof autoResize === 'function') autoResize(); return; }
         inp.value = cmd;
         if (typeof autoResize === 'function') autoResize();
@@ -1957,14 +1957,15 @@ D.inp.addEventListener('input', () => {
   }
   patchSendMsg();
 
-  // ── 2. Background SR — cycles continuously, detects wake phrase ──────
   var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
   if (!SR) return;
 
   var bgRec = null, bgEnabled = false, bgCooldown = false, wakeBtn = null;
+  var _waitingForCmd = false, _waitDeadline = 0, _waitCountT = null;
+  var _pausingBg = false;
   var WAKE_RE = /\b(hey|hi|hello|ok|okay)\s+(aria|area|arya|eria|areia|aerya|arria)\b/i;
+  var BARE_WAKE_RE = /^\s*(hey\s+|hi\s+|hello\s+|ok\s+|okay\s+)?(aria|area|arya|eria|areia|aerya|arria)\s*[,.!?]?\s*$/i;
 
-  // Kill any existing bgRec with no callbacks (prevents ghost events)
   function bgKill() {
     if (!bgRec) return;
     var r = bgRec; bgRec = null;
@@ -1972,72 +1973,145 @@ D.inp.addEventListener('input', () => {
     try { r.abort(); } catch(e) {}
   }
 
-  // Start one recognition cycle. Reschedules itself on end/error.
-  // continuous:true so Chrome waits for a natural pause before emitting a final result —
-  // this means we capture the FULL phrase ("hey aria what's the weather") in one event,
-  // instead of firing prematurely on the interim "hey aria".
-  function bgCycle() {
-    if (!bgEnabled) return;
-    if (window.S && window.S.listening) {
-      // Main mic active — wait and retry
-      setTimeout(bgCycle, 400);
-      return;
+  function playBeep() {
+    try {
+      var AC = window.AudioContext || window.webkitAudioContext;
+      if (!AC) return;
+      var ctx = new AC();
+      if (ctx.state === 'suspended') ctx.resume();
+      var osc = ctx.createOscillator(), gn = ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.value = 880;
+      gn.gain.setValueAtTime(0.0001, ctx.currentTime);
+      gn.gain.exponentialRampToValueAtTime(0.12, ctx.currentTime + 0.02);
+      gn.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.14);
+      osc.connect(gn); gn.connect(ctx.destination);
+      osc.start(); osc.stop(ctx.currentTime + 0.16);
+      setTimeout(function(){ try { ctx.close(); } catch(e){} }, 400);
+    } catch(e) {}
+  }
+
+  function _uiShow(secs) {
+    var tag = document.getElementById('liveTag');
+    var inner = document.querySelector('#liveBar .live-inner');
+    var lb = document.getElementById('liveBar');
+    if (lb) lb.style.display = 'flex';
+    if (tag) { tag.textContent = secs + 's'; tag.classList.add('counting'); tag.classList.remove('expiring'); }
+    if (inner) inner.classList.add('counting');
+  }
+  function _uiUpdate(secs) {
+    var tag = document.getElementById('liveTag');
+    var inner = document.querySelector('#liveBar .live-inner');
+    if (tag) {
+      if (secs <= 0) { tag.textContent = 'LIVE'; tag.classList.remove('counting','expiring'); }
+      else { tag.textContent = secs + 's'; if (secs <= 3) tag.classList.add('expiring'); else tag.classList.remove('expiring'); }
     }
+    if (inner && secs <= 0) inner.classList.remove('counting');
+  }
+  function _uiHide() {
+    var tag = document.getElementById('liveTag');
+    var inner = document.querySelector('#liveBar .live-inner');
+    var lb = document.getElementById('liveBar');
+    if (tag) { tag.textContent = 'LIVE'; tag.classList.remove('counting','expiring'); }
+    if (inner) inner.classList.remove('counting');
+    if (lb && !(window.S && window.S.listening)) lb.style.display = 'none';
+  }
+
+  function startWaitingForCommand() {
+    _waitingForCmd = true;
+    _waitDeadline = Date.now() + 10000;
+    if (_waitCountT) clearInterval(_waitCountT);
+    var secs = 10; _uiShow(secs);
+    _waitCountT = setInterval(function() {
+      secs--; _uiUpdate(secs);
+      if (secs <= 0) {
+        clearInterval(_waitCountT); _waitCountT = null;
+        _waitingForCmd = false; _uiHide();
+      }
+    }, 1000);
+  }
+  function stopWaitingForCommand() {
+    _waitingForCmd = false;
+    if (_waitCountT) { clearInterval(_waitCountT); _waitCountT = null; }
+    _uiHide();
+  }
+
+  function sendCmd(cmd) {
+    var inp = document.getElementById('inp');
+    if (inp) { inp.value = cmd; if (typeof autoResize === 'function') autoResize(); }
+    setTimeout(function() { if (typeof sendMsg === 'function') sendMsg(); }, 120);
+  }
+
+  // ── Single recognizer: wake detection AND command capture in ONE SR ──
+  function bgCycle() {
+    if (!bgEnabled || _pausingBg) return;
+    if (window.S && window.S.listening) { setTimeout(bgCycle, 500); return; }
     bgKill();
     try {
       bgRec = new SR();
       bgRec.continuous = true;
-      bgRec.interimResults = true; // peek at partials for tooltip, but only ACT on finals
+      bgRec.interimResults = true;
       bgRec.lang = 'en-US';
-      bgRec.maxAlternatives = 3;   // more alternatives = better chance of "aria" vs "area"
+      bgRec.maxAlternatives = 3;
 
-      var _wakeHandled = false;
+      var _handled = false;
       bgRec.onresult = function(ev) {
-        if (_wakeHandled) return;
-        // Walk results in reverse to find the newest final (or newest interim for tooltip)
         for (var i = ev.results.length - 1; i >= 0; i--) {
           var res = ev.results[i];
-          // Check all alternatives for wake phrase (handles "aria" vs "area" vs "arya")
-          var matched = false, matchedTxt = '', matchedCmd = '';
+          var t0 = (res[0] && res[0].transcript || '').trim();
+          if (wakeBtn && t0) { wakeBtn.title = (res.isFinal ? 'Heard: "' : 'Hearing: "') + t0 + '"'; }
+          if (!res.isFinal) return;
+          if (!t0) return;
+
+          // Check all alternatives for wake phrase
+          var wakeMatch = false, wakeCmd = '';
           for (var a = 0; a < res.length; a++) {
-            var t = (res[a].transcript || '').trim();
-            if (a === 0 && wakeBtn) { wakeBtn.title = (res.isFinal ? 'Heard: "' : 'Hearing: "') + t + '"'; }
-            if (!res.isFinal) continue;  // only act on FINAL results — prevents premature fire
-            if (WAKE_RE.test(t)) {
-              matched = true;
-              matchedTxt = t;
-              matchedCmd = t.replace(WAKE_RE, '').replace(/^[\s,.\-]+/, '').trim();
+            var alt = (res[a].transcript || '').trim();
+            if (WAKE_RE.test(alt)) {
+              wakeMatch = true;
+              wakeCmd = alt.replace(WAKE_RE, '').replace(/^[\s,.\-]+/, '').trim();
               break;
             }
           }
-          if (matched && !bgCooldown && bgEnabled) {
-            _wakeHandled = true;
+
+          if (wakeMatch) {
+            if (bgCooldown) return;
             bgCooldown = true;
-            setTimeout(function() { bgCooldown = false; }, 3000);
-            bgKill();
-            onWake(matchedCmd);
+            setTimeout(function() { bgCooldown = false; }, 2000);
+            if (wakeCmd) {
+              stopWaitingForCommand();
+              if (typeof unlockAudio === 'function') unlockAudio();
+              sendCmd(wakeCmd);
+            } else {
+              if (typeof unlockAudio === 'function') unlockAudio();
+              playBeep();
+              startWaitingForCommand();
+            }
             return;
           }
-          if (res.isFinal) break;  // stop after the newest final we inspected
+
+          // Not a wake phrase — if waiting for a command, this IS the command
+          if (_waitingForCmd && Date.now() < _waitDeadline) {
+            if (BARE_WAKE_RE.test(t0)) return; // ignore bare "aria" echo
+            stopWaitingForCommand();
+            sendCmd(t0);
+            return;
+          }
+          return;
         }
       };
 
       bgRec.onerror = function(e) {
+        _handled = true;
         if (e.error === 'not-allowed') {
           bgEnabled = false; updateBtn();
-          console.warn('[ARIA wake] Mic blocked — allow mic permission then try again');
+          console.warn('[ARIA wake] Mic blocked');
           return;
         }
-        // no-speech / network / aborted — restart quickly
-        if (bgEnabled && !_wakeHandled) setTimeout(bgCycle, 250);
+        if (bgEnabled && !_pausingBg && !(window.S && window.S.listening)) setTimeout(bgCycle, 300);
       };
-
       bgRec.onend = function() {
-        // continuous:true normally only fires onend on explicit stop/error/Chrome kill.
-        // Restart unless a wake was handled (onWake manages restart itself).
-        if (bgEnabled && !_wakeHandled && !(window.S && window.S.listening)) {
-          setTimeout(bgCycle, 150);
-        }
+        if (bgEnabled && !_pausingBg && !(window.S && window.S.listening)) setTimeout(bgCycle, 150);
       };
 
       bgRec.start();
@@ -2047,84 +2121,34 @@ D.inp.addEventListener('input', () => {
     }
   }
 
-  // Called when wake phrase detected. cmd = text after the wake phrase (may be empty).
-  function onWake(cmd) {
-    if (typeof unlockAudio === 'function') unlockAudio();
-
-    if (cmd) {
-      // Inline command: fill input and send directly
-      var inp = document.getElementById('inp');
-      if (inp) { inp.value = cmd; if (typeof autoResize === 'function') autoResize(); }
-      setTimeout(function() {
-        if (typeof sendMsg === 'function') sendMsg();
-        // Restart bg listening after send completes (give AI time to respond)
-        setTimeout(bgCycle, 4000);
-      }, 150);
-      return;
+  // Watchdog: if wake is on but bgRec died silently, restart
+  setInterval(function() {
+    if (bgEnabled && !bgRec && !_pausingBg && !(window.S && window.S.listening)) {
+      bgCycle();
     }
+  }, 2000);
 
-    // No inline command: beep (audio cue) + open main mic for 10 seconds
-    try {
-      var AC = window.AudioContext || window.webkitAudioContext;
-      if (AC) {
-        var ctx = new AC();
-        if (ctx.state === 'suspended') ctx.resume();
-        var osc = ctx.createOscillator(), gn = ctx.createGain();
-        osc.type = 'sine';
-        osc.frequency.value = 880; gn.gain.value = 0.08;
-        osc.connect(gn); gn.connect(ctx.destination);
-        osc.start();
-        osc.stop(ctx.currentTime + 0.12);
-        setTimeout(function(){ try { ctx.close(); } catch(e){} }, 300);
+  // ── Patch startListen so the manual mic pauses wake recognizer first ──
+  function patchStartListen() {
+    if (typeof window.startListen !== 'function') { setTimeout(patchStartListen, 500); return; }
+    var _orig = window.startListen;
+    window.startListen = async function _wakeAwareStart() {
+      if (bgRec || bgEnabled) {
+        _pausingBg = true;
+        bgKill();
+        await new Promise(function(r){ setTimeout(r, 220); });
       }
-    } catch(e) {}
-
-    setTimeout(function() {
-      openWakeListenWindow(10);
-    }, 250);
+      try {
+        var result = await _orig.apply(this, arguments);
+        setTimeout(function(){ _pausingBg = false; }, 1500);
+        return result;
+      } catch(e) {
+        _pausingBg = false;
+        throw e;
+      }
+    };
   }
-
-  // Open main mic for `maxSecs` seconds after wake phrase detected.
-  // Calls clearAutoListenTimer() to cancel any running auto-listen interval (which uses a
-  // let-scoped _autoListenT in the main script — only that function can clear it).
-  // Uses a separate window._wakeCountT to avoid naming collision.
-  function openWakeListenWindow(maxSecs) {
-    if (typeof startListen !== 'function') { setTimeout(bgCycle, 1000); return; }
-
-    // Cancel any running auto-listen window first (clears main script's _autoListenT)
-    if (typeof clearAutoListenTimer === 'function') clearAutoListenTimer();
-    // Also clear any previous wake countdown
-    if (window._wakeCountT) { clearInterval(window._wakeCountT); window._wakeCountT = null; }
-
-    window._wakeListenActive = true; // suppress echo check for this window
-    if (window.S) { window.S.autoListening = true; }
-
-    var secs = maxSecs;
-    var tag = document.getElementById('liveTag'), inner = document.querySelector('#liveBar .live-inner');
-    if (tag) { tag.textContent = secs + 's'; tag.classList.add('counting'); tag.classList.remove('expiring'); }
-    if (inner) inner.classList.add('counting');
-
-    window._wakeCountT = setInterval(function() {
-      secs--;
-      if (tag) {
-        if (secs <= 0) { tag.textContent = 'LIVE'; tag.classList.remove('counting','expiring'); }
-        else { tag.textContent = secs + 's'; if (secs <= 3) tag.classList.add('expiring'); else tag.classList.remove('expiring'); }
-      }
-      if (inner && secs <= 0) inner.classList.remove('counting');
-      if (secs <= 0) {
-        clearInterval(window._wakeCountT); window._wakeCountT = null;
-        window._wakeListenActive = false;
-        if (window.S) window.S.autoListening = false;
-        if (window.S && window.S.listening && typeof stopListen === 'function') stopListen();
-        // Resume background wake detection after main mic closes
-        setTimeout(bgCycle, 500);
-      }
-    }, 1000);
-
-    // Delay startListen 450ms: allows bgRec.abort() to fully resolve before Chrome
-    // permits a new SpeechRecognition instance (Chrome allows only one active at a time)
-    setTimeout(function() { startListen(); }, 450);
-  }
+  patchStartListen();
 
   // ── 3. Wake button ────────────────────────────────────────────────────
   function updateBtn() {
@@ -2148,15 +2172,19 @@ D.inp.addEventListener('input', () => {
     if (!bgEnabled) {
       try { await navigator.mediaDevices.getUserMedia({ audio: true }); }
       catch(e) { alert('Microphone permission required for wake word.'); return; }
-      bgEnabled = true; bgCycle();
+      bgEnabled = true;
+      _pausingBg = false;
+      bgCycle();
     } else {
-      bgEnabled = false; bgKill();
+      bgEnabled = false;
+      bgKill();
+      stopWaitingForCommand();
     }
     updateBtn();
   });
 
   document.body.appendChild(wakeBtn);
-  console.log('[ARIA wake v7] loaded — bgCycle model, no monkey-patching');
+  console.log('[ARIA wake v8] single-recognizer model — no SR handoff');
 })();
 </script>
 
