@@ -989,6 +989,10 @@ function buildRec(){
   };
   rec.onerror=e=>{
     S.listening=false;
+    // Chrome fires onerror → then fires onend automatically.
+    // Null onend NOW so the auto-fired onend can't see S.listening=true
+    // after a new rec.start() and reset it to false (race condition).
+    rec.onend=null;
     const _activeWindow=_autoListenT||window._wakeListenActive;
     // Auto-listen / wake window: restart silently on no-speech or aborted
     if(S.autoListening&&_activeWindow&&(e.error==='no-speech'||e.error==='aborted')){
@@ -997,9 +1001,11 @@ function buildRec(){
       },300);
       return;
     }
-    // Manual mic: restart on no-speech so a brief pause doesn't kill the session
+    // Manual mic: restart on no-speech/aborted so brief pauses or
+    // late mic-release don't kill the session. Small delay lets Chrome
+    // fully release before we re-acquire.
     if(!S.autoListening&&(e.error==='no-speech'||e.error==='aborted')){
-      buildRec();try{rec.start();S.listening=true;}catch(x){setMode('ready');}
+      setTimeout(()=>{buildRec();try{rec.start();S.listening=true;}catch(x){setMode('ready');}},150);
       return;
     }
     setMode('ready');
@@ -2190,8 +2196,8 @@ D.inp.addEventListener('input', () => {
     _pausingBg = true;
     stopWaitingForCommand();
     bgKill();
-    await new Promise(function(r){ setTimeout(r, 400); });
-    setTimeout(function(){ _pausingBg = false; }, 2000);
+    await new Promise(function(r){ setTimeout(r, 600); });
+    setTimeout(function(){ _pausingBg = false; }, 2500);
   };
 
   // ── TTS hooks: silence bgRec while ARIA is speaking to prevent echo loop ──
