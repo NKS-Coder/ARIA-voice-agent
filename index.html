@@ -2021,12 +2021,27 @@ D.inp.addEventListener('input', () => {
     _waitingForCmd = true;
     _waitDeadline = Date.now() + 10000;
     if (_waitCountT) clearInterval(_waitCountT);
+    // Wake button visual cue
+    if (wakeBtn) { wakeBtn.textContent = '🎤 Speak now...'; wakeBtn.style.color = '#ffd700'; wakeBtn.style.borderColor = '#ffd700'; }
+    // Show liveBar with countdown + "Listening..." text
+    var lb = document.getElementById('liveBar');
+    var lt = document.getElementById('liveTxt');
+    var oi = document.getElementById('orbIcon');
+    var or2 = document.getElementById('orbRing');
+    if (lb) lb.style.display = 'flex';
+    if (lt) lt.textContent = 'Speak your command...';
+    if (oi) { oi.textContent = 'mic'; oi.style.color = '#ffd700'; }
+    if (or2) or2.style.opacity = '1';
     var secs = 10; _uiShow(secs);
     _waitCountT = setInterval(function() {
       secs--; _uiUpdate(secs);
       if (secs <= 0) {
         clearInterval(_waitCountT); _waitCountT = null;
         _waitingForCmd = false; _uiHide();
+        if (lt) lt.textContent = '';
+        if (oi) oi.style.color = '';
+        if (or2) or2.style.opacity = '0';
+        updateBtn();
       }
     }, 1000);
   }
@@ -2034,6 +2049,13 @@ D.inp.addEventListener('input', () => {
     _waitingForCmd = false;
     if (_waitCountT) { clearInterval(_waitCountT); _waitCountT = null; }
     _uiHide();
+    var lt = document.getElementById('liveTxt');
+    var oi = document.getElementById('orbIcon');
+    var or2 = document.getElementById('orbRing');
+    if (lt) lt.textContent = '';
+    if (oi) oi.style.color = '';
+    if (or2) or2.style.opacity = '0';
+    updateBtn();
   }
 
   function sendCmd(cmd) {
@@ -2054,64 +2076,68 @@ D.inp.addEventListener('input', () => {
       bgRec.lang = 'en-US';
       bgRec.maxAlternatives = 3;
 
-      var _handled = false;
       bgRec.onresult = function(ev) {
-        for (var i = ev.results.length - 1; i >= 0; i--) {
-          var res = ev.results[i];
-          var t0 = (res[0] && res[0].transcript || '').trim();
-          if (wakeBtn && t0) { wakeBtn.title = (res.isFinal ? 'Heard: "' : 'Hearing: "') + t0 + '"'; }
-          if (!res.isFinal) return;
-          if (!t0) return;
+        // ev.resultIndex = index of the result that just changed (new or updated)
+        var res = ev.results[ev.resultIndex];
+        if (!res) return;
+        var t0 = (res[0] && res[0].transcript || '').trim();
+        if (wakeBtn && t0) { wakeBtn.title = (res.isFinal ? '✓ "' : '… "') + t0 + '"'; }
+        if (!res.isFinal) return; // only act on final results
+        if (!t0) return;
+        console.log('[wake] final:', JSON.stringify(t0), 'waiting:', _waitingForCmd);
 
-          // Check all alternatives for wake phrase
-          var wakeMatch = false, wakeCmd = '';
-          for (var a = 0; a < res.length; a++) {
-            var alt = (res[a].transcript || '').trim();
-            if (WAKE_RE.test(alt)) {
-              wakeMatch = true;
-              wakeCmd = alt.replace(WAKE_RE, '').replace(/^[\s,.\-]+/, '').trim();
-              break;
-            }
+        // Check all recognition alternatives for the wake phrase
+        var wakeMatch = false, wakeCmd = '';
+        for (var a = 0; a < res.length; a++) {
+          var alt = (res[a].transcript || '').trim();
+          if (WAKE_RE.test(alt)) {
+            wakeMatch = true;
+            wakeCmd = alt.replace(WAKE_RE, '').replace(/^[\s,.\-]+/, '').trim();
+            break;
           }
+        }
 
-          if (wakeMatch) {
-            if (bgCooldown) return;
-            bgCooldown = true;
-            setTimeout(function() { bgCooldown = false; }, 2000);
-            if (wakeCmd) {
-              stopWaitingForCommand();
-              if (typeof unlockAudio === 'function') unlockAudio();
-              sendCmd(wakeCmd);
-            } else {
-              if (typeof unlockAudio === 'function') unlockAudio();
-              playBeep();
-              startWaitingForCommand();
-            }
-            return;
-          }
-
-          // Not a wake phrase — if waiting for a command, this IS the command
-          if (_waitingForCmd && Date.now() < _waitDeadline) {
-            if (BARE_WAKE_RE.test(t0)) return; // ignore bare "aria" echo
+        if (wakeMatch) {
+          if (bgCooldown) return;
+          bgCooldown = true;
+          setTimeout(function() { bgCooldown = false; }, 3000);
+          if (wakeCmd) {
             stopWaitingForCommand();
-            sendCmd(t0);
-            return;
+            if (typeof unlockAudio === 'function') unlockAudio();
+            sendCmd(wakeCmd);
+          } else {
+            if (typeof unlockAudio === 'function') unlockAudio();
+            playBeep();
+            startWaitingForCommand();
           }
           return;
+        }
+
+        // Not a wake phrase — if the command window is open, this IS the command
+        if (_waitingForCmd && Date.now() < _waitDeadline) {
+          if (BARE_WAKE_RE.test(t0)) return; // ignore accidental bare "aria" echo
+          stopWaitingForCommand();
+          sendCmd(t0);
         }
       };
 
       bgRec.onerror = function(e) {
-        _handled = true;
         if (e.error === 'not-allowed') {
           bgEnabled = false; updateBtn();
           console.warn('[ARIA wake] Mic blocked');
           return;
         }
-        if (bgEnabled && !_pausingBg && !(window.S && window.S.listening)) setTimeout(bgCycle, 300);
+        console.log('[wake] onerror:', e.error, 'waiting:', _waitingForCmd);
+        if (bgEnabled && !_pausingBg && !(window.S && window.S.listening)) {
+          setTimeout(bgCycle, _waitingForCmd ? 80 : 300);
+        }
       };
       bgRec.onend = function() {
-        if (bgEnabled && !_pausingBg && !(window.S && window.S.listening)) setTimeout(bgCycle, 150);
+        console.log('[wake] onend, waiting:', _waitingForCmd);
+        if (bgEnabled && !_pausingBg && !(window.S && window.S.listening)) {
+          // Restart faster when we're waiting for a command so the gap is minimal
+          setTimeout(bgCycle, _waitingForCmd ? 80 : 150);
+        }
       };
 
       bgRec.start();
