@@ -374,28 +374,16 @@ select.minp option{background:#0a0c10;}
     <!-- Voice engine -->
     <section>
       <h3 style="font-size:8px;text-transform:uppercase;letter-spacing:0.3em;font-weight:700;color:#374151;margin-bottom:12px;">Voice Engine</h3>
-      <!-- Hidden native select — keeps D.vSel.value working -->
-      <select id="voiceSel" style="display:none;">
-        <option value="21m00Tcm4TlvDq8ikWAM">Rachel — warm natural female</option>
-        <option value="AZnzlk1XvdvUeBnXmlld">Domi — confident female</option>
-        <option value="EXAVITQu4vr4xnSDxMaL" selected>Bella — soft female</option>
-        <option value="ErXwobaYiN019PkySvjV">Antoni — well-rounded male</option>
-        <option value="pNInz6obpgDQGcFmaJgB">Adam — deep male</option>
-        <option value="VR6AewLTigWG4xSOukaG">Arnold — crisp male</option>
-      </select>
-      <!-- Custom dark dropdown -->
+      <!-- Hidden native select for voice name storage -->
+      <select id="voiceSel" style="display:none;"><option value="">Auto — best voice</option></select>
+      <!-- Custom dark dropdown — populated dynamically from browser voices -->
       <div class="cs-wrap" id="voiceSelWrap">
         <button type="button" class="cs-trigger" id="voiceSelTrigger">
-          <span id="voiceSelLabel">Bella — soft female</span>
+          <span id="voiceSelLabel">Auto — best voice</span>
           <span class="cs-arrow material-symbols-outlined">expand_more</span>
         </button>
         <div class="cs-drop" id="voiceSelDrop" style="background:#04050a;background-color:#04050a;">
-          <div class="cs-opt" data-val="21m00Tcm4TlvDq8ikWAM">Rachel — warm natural female</div>
-          <div class="cs-opt" data-val="AZnzlk1XvdvUeBnXmlld">Domi — confident female</div>
-          <div class="cs-opt cs-sel" data-val="EXAVITQu4vr4xnSDxMaL">Bella — soft female</div>
-          <div class="cs-opt" data-val="ErXwobaYiN019PkySvjV">Antoni — well-rounded male</div>
-          <div class="cs-opt" data-val="pNInz6obpgDQGcFmaJgB">Adam — deep male</div>
-          <div class="cs-opt" data-val="VR6AewLTigWG4xSOukaG">Arnold — crisp male</div>
+          <div class="cs-opt cs-sel" data-val="" style="background-color:#04050a;">Auto — best voice</div>
         </div>
       </div>
       <input id="spd" type="range" min="0.6" max="1.8" step="0.1" value="1" style="width:100%;accent-color:#007BFF;margin-bottom:6px;"/>
@@ -467,30 +455,18 @@ select.minp option{background:#0a0c10;}
       <div class="acard" id="card-airtable"><div class="acl"><div class="acico">&#128450;</div><div><div class="acname">Airtable</div><div class="acdesc" id="desc-airtable">Log data</div></div></div><button class="abtn connect" id="btn-airtable" onclick="connectApp('airtable')">Connect</button></div>
     </div>
     <div class="tpanel" id="tab-voice">
-      <div class="mnote">ElevenLabs API key is encrypted in Cloudflare &mdash; no setup needed.</div>
+      <div class="mnote">Voice is powered by your browser&rsquo;s built-in speech engine &mdash; no API key needed.</div>
       <div class="mfld"><div class="mlbl">Voice Character</div>
-        <!-- Hidden native select — keeps modalVoice.value API working -->
-        <select id="modalVoice" style="display:none;">
-          <option value="21m00Tcm4TlvDq8ikWAM">Rachel &mdash; warm natural female</option>
-          <option value="AZnzlk1XvdvUeBnXmlld">Domi &mdash; confident female</option>
-          <option value="EXAVITQu4vr4xnSDxMaL" selected>Bella &mdash; soft female</option>
-          <option value="ErXwobaYiN019PkySvjV">Antoni &mdash; well-rounded male</option>
-          <option value="pNInz6obpgDQGcFmaJgB">Adam &mdash; deep male</option>
-          <option value="VR6AewLTigWG4xSOukaG">Arnold &mdash; crisp male</option>
-        </select>
-        <!-- Custom dark dropdown (matches sidebar) -->
+        <!-- Hidden native select for voice name storage -->
+        <select id="modalVoice" style="display:none;"><option value="">Auto — best voice</option></select>
+        <!-- Custom dark dropdown — populated dynamically from browser voices -->
         <div class="cs-wrap" id="modalVoiceWrap">
           <button type="button" class="cs-trigger" id="modalVoiceTrigger">
-            <span id="modalVoiceLabel">Bella &mdash; soft female</span>
+            <span id="modalVoiceLabel">Auto — best voice</span>
             <span class="cs-arrow material-symbols-outlined">expand_more</span>
           </button>
           <div class="cs-drop" id="modalVoiceDrop" style="background:#04050a;background-color:#04050a;">
-            <div class="cs-opt" data-val="21m00Tcm4TlvDq8ikWAM">Rachel &mdash; warm natural female</div>
-            <div class="cs-opt" data-val="AZnzlk1XvdvUeBnXmlld">Domi &mdash; confident female</div>
-            <div class="cs-opt cs-sel" data-val="EXAVITQu4vr4xnSDxMaL">Bella &mdash; soft female</div>
-            <div class="cs-opt" data-val="ErXwobaYiN019PkySvjV">Antoni &mdash; well-rounded male</div>
-            <div class="cs-opt" data-val="pNInz6obpgDQGcFmaJgB">Adam &mdash; deep male</div>
-            <div class="cs-opt" data-val="VR6AewLTigWG4xSOukaG">Arnold &mdash; crisp male</div>
+            <div class="cs-opt cs-sel" data-val="" style="background-color:#04050a;">Auto — best voice</div>
           </div>
         </div>
       </div>
@@ -502,7 +478,7 @@ select.minp option{background:#0a0c10;}
       <div class="msaved" id="voiceSaved">&#10003; Voice settings saved</div>
     </div>
     <div class="tpanel" id="tab-about">
-      <div class="mnote"><strong>ARIA v10</strong> &mdash; Built by Nihhar K Sonee (NKS-Coder)<br>Groq Llama 3.3 70B &middot; ElevenLabs &middot; Cloudflare Workers &middot; Supabase<br><br>All API keys are encrypted server-side in Cloudflare.</div>
+      <div class="mnote"><strong>ARIA v10</strong> &mdash; Built by Nihhar K Sonee (NKS-Coder)<br>Groq Llama 3.3 70B &middot; Browser TTS &middot; Cloudflare Workers &middot; Supabase<br><br>All API keys are encrypted server-side in Cloudflare.</div>
       <div class="mfld"><div class="mlbl">Worker Status</div><div id="workerStatus-about" class="minp" style="color:rgba(255,255,255,0.3);font-size:0.6rem;">Checking...</div></div>
     </div>
   </div>
@@ -789,7 +765,7 @@ function setVoice(name){
   // Close any open dropdown on outside click
   document.addEventListener('click',()=>document.querySelectorAll('.cs-drop.cs-open').forEach(d=>{d.classList.remove('cs-open');document.querySelectorAll('.cs-wrap.open').forEach(w=>w.classList.remove('open'));}));
   // Sync label when voice is loaded from storage on init
-  setTimeout(()=>{const v=D.vSel.value||BELLA;setVoice(v);},250);
+  setTimeout(()=>{ populateVoiceDropdown(); setVoice(C.voice||''); },500);
 })();
 D.spd.addEventListener('input',()=>{C.setSpeed(D.spd.value);if(S.audio)S.audio.playbackRate=parseFloat(D.spd.value);});
 
@@ -849,8 +825,51 @@ function loadBV() {
 
   console.log('Best fallback voice:', bVoices[0]?.name || 'none found');
 }
-if (synth.onvoiceschanged !== undefined) synth.onvoiceschanged = loadBV;
+if (synth.onvoiceschanged !== undefined) synth.onvoiceschanged = () => { loadBV(); populateVoiceDropdown(); };
 loadBV(); setTimeout(loadBV, 300); setTimeout(loadBV, 1000);
+setTimeout(populateVoiceDropdown, 800);
+
+// Dynamically populate voice dropdowns with available browser voices
+function populateVoiceDropdown() {
+  const all = synth.getVoices().filter(v => v.lang.startsWith('en'));
+  if (!all.length) return;
+  const BAD = /david|mark|richard|george|james|ravi|jorge/i;
+  const scored = all.filter(v => !BAD.test(v.name)).map(v => {
+    let s = 0;
+    if (/zira|aria|jenny|hazel|susan|karen|samantha|female|woman|alice|moira|tessa|fiona/i.test(v.name)) s += 6;
+    if (/natural|neural/i.test(v.name)) s += 3;
+    if (/google/i.test(v.name)) s += 4;
+    if (/microsoft/i.test(v.name)) s += 2;
+    return { v, s };
+  }).sort((a,b)=>b.s-a.s).slice(0,10);
+
+  const currentVoice = C.voice || '';
+  ['voiceSelDrop','modalVoiceDrop'].forEach((dropId, di) => {
+    const drop = document.getElementById(dropId);
+    if (!drop) return;
+    const labelId = di===0 ? 'voiceSelLabel' : 'modalVoiceLabel';
+    drop.innerHTML = '';
+    const mkOpt = (val, label) => {
+      const o = document.createElement('div');
+      o.className = 'cs-opt' + (val===currentVoice?' cs-sel':'');
+      o.dataset.val = val;
+      o.style.backgroundColor = '#04050a';
+      o.textContent = label;
+      return o;
+    };
+    drop.appendChild(mkOpt('','Auto — best voice'));
+    scored.forEach(({v}) => {
+      const label = v.name.replace(/\s*-\s*English\s*(\([^)]+\))?/i,'').replace(/Microsoft |Google /i,'').trim();
+      drop.appendChild(mkOpt(v.name, label));
+    });
+    // Update label to match current selection
+    const sel = drop.querySelector('.cs-sel');
+    const lbl = document.getElementById(labelId);
+    if (sel && lbl) lbl.textContent = sel.textContent;
+    // Re-attach background to all opts (wire() may have run before voices loaded)
+    drop.querySelectorAll('.cs-opt').forEach(o => { o.style.backgroundColor='#04050a'; });
+  });
+}
 
 function stopSpeaking() {
   synth.cancel();
@@ -906,122 +925,6 @@ function fallbackSpeak(txt) {
   }, 2000);
 }
 
-async function speakEL(txt, _retry=0) {
-  if (location.protocol === 'file:') { fallbackSpeak(txt); return; }
-  // Skip ElevenLabs for page-load welcome message — AudioContext suspended until
-  // user gesture. Queued audio plays unpredictably and conflicts with later TTS.
-  if (!_userGestured) { fallbackSpeak(txt); return; }
-  if (_retry === 0) elFails = 0;
-
-  try {
-    setMode('generating');
-    S.lastText = txt;
-
-    // Guard: ensure voiceId is a valid ElevenLabs ID (not empty or a label)
-    let voiceId = D.vSel.value;
-    if (!voiceId || voiceId.length < 15 || /\s/.test(voiceId)) voiceId = BELLA;
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 25000); // 25s — ElevenLabs can be slow
-
-    // Prefer direct EL API (avoids Worker IP flags); fall back to Worker
-    let res;
-    if (EL_KEY) {
-      res = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voiceId}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'xi-api-key': EL_KEY },
-        body: JSON.stringify({ text: txt, model_id: 'eleven_turbo_v2_5', voice_settings: { stability: 0.4, similarity_boost: 0.8 } }),
-        signal: controller.signal,
-      });
-    } else {
-      res = await fetch(`${W}/tts`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text: txt, voice_id: voiceId }),
-        signal: controller.signal,
-      });
-    }
-    clearTimeout(timeout);
-
-    if (!res.ok) {
-      const errText = await res.text().catch(() => '');
-      console.warn('ElevenLabs failed:', res.status, errText);
-      if (_retry < 3) {
-        console.log(`Retrying ElevenLabs (${_retry+1}/3)...`);
-        await new Promise(r => setTimeout(r, 800 * (_retry + 1)));
-        return speakEL(txt, _retry + 1);
-      }
-      elFails++; _showElFallbackToast('HTTP ' + res.status); fallbackSpeak(txt); return;
-    }
-    const ct = res.headers.get('Content-Type') || '';
-    // Accept audio/*, application/octet-stream (some proxies omit type), or empty
-    const ctOk = !ct || ct.includes('audio') || ct.includes('octet-stream');
-    if (!ctOk) {
-      console.warn('ElevenLabs non-audio response:', ct);
-      if (_retry < 3) {
-        await new Promise(r => setTimeout(r, 800 * (_retry + 1)));
-        return speakEL(txt, _retry + 1);
-      }
-      elFails++; _showElFallbackToast('bad content-type'); fallbackSpeak(txt); return;
-    }
-
-    elFails = 0;
-    const blob = await res.blob();
-    const arrayBuffer = await blob.arrayBuffer();
-
-    // Use AudioContext so playback works regardless of autoplay policy.
-    // AudioContext stays unlocked after any user gesture — no timing issues.
-    try {
-      const ctx = _getAudioCtx();
-      if (ctx.state === 'suspended') await ctx.resume();
-      if (ctx.state === 'suspended') {
-        // Still suspended — AudioContext couldn't resume (no user gesture path?)
-        // Fall back to browser TTS immediately rather than hanging
-        throw new Error('AudioContext suspended');
-      }
-      const audioBuf = await ctx.decodeAudioData(arrayBuffer.slice(0));
-      const src = ctx.createBufferSource();
-      src.buffer = audioBuf;
-      src.playbackRate.value = parseFloat(D.spd.value || '1');
-      src.connect(ctx.destination);
-
-      let _played = false;
-      const _cleanup = (triggerAutoListen) => {
-        if (_played) return; _played = true;
-        setMode('ready'); S.audio = null;
-        if (triggerAutoListen) startAutoListenWindow();
-      };
-      src.onended = () => _cleanup(true);
-      S.audio = {
-        pause()  { try { src.stop(0); } catch(e) {} _cleanup(false); },
-        set playbackRate(v) { src.playbackRate.value = v; },
-        get playbackRate()  { return src.playbackRate.value; },
-      };
-      setMode('speaking');
-      src.start(0);
-      console.log('✅ ElevenLabs playing via AudioContext, voice:', voiceId);
-      return; // success — skip outer catch
-    } catch(audioErr) {
-      console.warn('AudioContext playback failed, using browser TTS:', audioErr.message);
-      setMode('ready');
-      fallbackSpeak(txt);
-      return;
-    }
-
-  } catch(e) {
-    const isAbort = e.name === 'AbortError';
-    const label = isAbort ? 'timeout' : (e.name || e.message || 'error');
-    console.warn('ElevenLabs error:', label, e.message || '');
-    if (_retry < 3) {
-      // First retry is immediate; subsequent retries add a short delay
-      if (_retry > 0) await new Promise(r => setTimeout(r, 600 * _retry));
-      return speakEL(txt, _retry + 1);
-    }
-    elFails++;
-    _showElFallbackToast(label);
-    fallbackSpeak(txt);
-  }
-}
-
 function speak(txt) {
   if (!$('voiceOn').checked) return;
   // For email responses — only speak the first 2 sentences, not the full list
@@ -1049,7 +952,7 @@ function speak(txt) {
   }
   S.lastText = spokenTxt;
   stopSpeaking();
-  speakEL(spokenTxt);
+  fallbackSpeak(spokenTxt);
 }
 
 // MICROPHONE
@@ -2107,8 +2010,7 @@ D.inp.addEventListener('input', () => {
       bgRec.onerror = function(e) {
         if (e.error === 'not-allowed') {
           bgEnabled = false; updateBtn();
-          if (typeof _showElFallbackToast === 'function')
-            _showElFallbackToast('\u26a0 Mic blocked — allow mic permission then try again');
+          console.warn('Mic blocked — allow mic permission then try again');
           return;
         }
         // no-speech / network / aborted — restart quickly
