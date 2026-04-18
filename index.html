@@ -2223,6 +2223,22 @@ D.inp.addEventListener('input', () => {
     wakeBtn.style.background = bgEnabled ? 'rgba(93,230,216,.1)' : 'rgba(4,5,10,.85)';
   }
 
+  // ── Top stop button ───────────────────────────────────────────────────
+  var topStopBtn = document.createElement('button');
+  topStopBtn.id = 'ariaTopStopBtn';
+  topStopBtn.title = 'Stop listening / speaking';
+  topStopBtn.innerHTML = '&#9632; Stop';
+  var _mobS = window.innerWidth <= 768;
+  topStopBtn.style.cssText = 'position:fixed;top:11px;right:' + (_mobS ? '210px' : '175px') + ';z-index:99999;background:rgba(245,80,80,.15);border:1px solid rgba(245,101,101,.45);border-radius:8px;padding:4px 11px;color:#fc8181;cursor:pointer;font-size:11px;font-family:inherit;backdrop-filter:blur(10px);transition:all .2s;-webkit-tap-highlight-color:transparent;';
+  topStopBtn.addEventListener('click', function() {
+    if (typeof stopListen === 'function' && window.S && window.S.listening) stopListen();
+    if (typeof stopSpeaking === 'function') stopSpeaking();
+    stopWaitingForCommand();
+    if (typeof clearAutoListenTimer === 'function') clearAutoListenTimer();
+  });
+  window.addEventListener('resize', function(){ topStopBtn.style.right = window.innerWidth <= 768 ? '210px' : '175px'; });
+  document.body.appendChild(topStopBtn);
+
   wakeBtn = document.createElement('button');
   wakeBtn.id = 'ariaWakeBtn';
   wakeBtn.textContent = 'Wake: OFF';
