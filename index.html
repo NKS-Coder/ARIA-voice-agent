@@ -184,7 +184,7 @@ select.minp option{background:#0a0c10;}
 #sidebarOverlay{display:none;position:fixed;inset:0;z-index:400;background:rgba(0,0,0,0.7);backdrop-filter:blur(6px);}
 #sidebarOverlay.open{display:block;}
 /* Stop button */
-#stopBtn{align-items:center;gap:4px;padding:4px 10px;border-radius:8px;border:1px solid rgba(245,101,101,0.3);background:rgba(245,101,101,0.08);color:#fc8181;font-size:0.65rem;cursor:pointer;font-family:inherit;}
+#stopBtn{position:fixed;top:11px;right:284px;z-index:99999;align-items:center;gap:4px;padding:4px 10px;border-radius:8px;border:1px solid rgba(245,101,101,0.3);background:rgba(245,101,101,0.08);color:#fc8181;font-size:0.65rem;cursor:pointer;font-family:inherit;backdrop-filter:blur(6px);}
 /* Responsive */
 @media(max-width:768px){
   /* Use dynamic viewport height to exclude Safari chrome */
@@ -196,6 +196,7 @@ select.minp option{background:#0a0c10;}
   .right.open{right:0!important;box-shadow:-20px 0 60px rgba(0,0,0,0.8);}
   /* Show hamburger toggles */
   #menuToggle,#rightToggle{display:flex!important;}
+  #stopBtn{right:166px!important;}
   /* Hero compact on phone */
   #heroWrap{padding:14px 16px 12px!important;}
   #heroWrap .orb-main{width:54px!important;height:54px!important;}
@@ -595,6 +596,7 @@ window.addEventListener('load', async ()=>{
 
   // Step 4: Welcome
   addMsg('assistant', "Hello. I'm ARIA. Click the mic and speak, or type below.");
+  window._ariaSkipNextAutoListen = true; // don't auto-listen after welcome — prevents echo loop
   speak("Hello. I'm ARIA. How can I help you today?");
 });
 
@@ -1099,6 +1101,7 @@ function clearAutoListenTimer(){
 }
 function startAutoListenWindow(){
   if(!$('autoOn').checked)return;
+  if(window._ariaSkipNextAutoListen){window._ariaSkipNextAutoListen=false;return;}
   // 1500ms delay: lets speaker audio fully dissipate + echo cancellation warm-up
   setTimeout(()=>{
     S.autoListening=true;
@@ -2312,6 +2315,7 @@ window.addEventListener('load', function(){
     // 4. Re-speak welcome on iOS (original call fired before any touch)
     if (/iPhone|iPad|iPod/i.test(navigator.userAgent)) {
       setTimeout(function(){
+        window._ariaSkipNextAutoListen = true;
         if(typeof speak==='function') speak("Hello. I'm ARIA. How can I help you today?");
       }, 600);
     }
