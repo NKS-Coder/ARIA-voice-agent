@@ -2117,29 +2117,38 @@ D.inp.addEventListener('input', () => {
   }
 
   // Start one recognition cycle. Reschedules itself on end/error.
+  // Uses continuous:true so Chrome doesn't cut off before the full phrase is heard.
   function bgCycle() {
     if (!bgEnabled) return;
     if (window.S && window.S.listening) {
-      // Main mic active — wait 600ms then check again
-      setTimeout(bgCycle, 600);
+      // Main mic active — wait and retry
+      setTimeout(bgCycle, 400);
       return;
     }
     bgKill();
     try {
       bgRec = new SR();
-      bgRec.continuous = false;
-      bgRec.interimResults = false;
+      bgRec.continuous = true;   // keep open so short pauses don't cut off the phrase
+      bgRec.interimResults = true; // check interim so we catch phrase as it forms
       bgRec.lang = 'en-US';
+      bgRec.maxAlternatives = 1;
 
+      var _wakeHandled = false;
       bgRec.onresult = function(ev) {
-        var t = ev.results[ev.results.length - 1][0].transcript.trim();
-        if (wakeBtn) { wakeBtn.title = 'Heard: "' + t + '"'; }
-        if (!bgEnabled || bgCooldown || !WAKE_RE.test(t)) return;
-        bgCooldown = true;
-        setTimeout(function() { bgCooldown = false; }, 4000);
-        var cmd = t.replace(WAKE_RE, '').replace(/^[\s,.-]+/, '').trim();
-        bgKill(); // stop listening — about to hand off to main mic
-        onWake(cmd);
+        if (_wakeHandled) return;
+        // Check all results — both interim and final — for wake phrase
+        for (var i = 0; i < ev.results.length; i++) {
+          var t = ev.results[i][0].transcript.trim();
+          if (wakeBtn) { wakeBtn.title = 'Heard: "' + t + '"'; }
+          if (!bgEnabled || bgCooldown || !WAKE_RE.test(t)) continue;
+          _wakeHandled = true;
+          bgCooldown = true;
+          setTimeout(function() { bgCooldown = false; }, 3000);
+          var cmd = t.replace(WAKE_RE, '').replace(/^[\s,.-]+/, '').trim();
+          bgKill();
+          onWake(cmd);
+          return;
+        }
       };
 
       bgRec.onerror = function(e) {
@@ -2149,18 +2158,20 @@ D.inp.addEventListener('input', () => {
             _showElFallbackToast('\u26a0 Mic blocked — allow mic permission then try again');
           return;
         }
-        // no-speech / network / aborted — just cycle again
-        if (bgEnabled) setTimeout(bgCycle, 300);
+        // no-speech / network / aborted — restart quickly
+        if (bgEnabled) setTimeout(bgCycle, 200);
       };
 
       bgRec.onend = function() {
-        if (bgEnabled && !(window.S && window.S.listening)) setTimeout(bgCycle, 150);
+        // continuous:true only fires onend when explicitly stopped or on error,
+        // so if it fires unexpectedly (Chrome killed it), restart immediately.
+        if (bgEnabled && !(window.S && window.S.listening)) setTimeout(bgCycle, 100);
       };
 
       bgRec.start();
     } catch(e) {
       console.warn('[ARIA wake]', e.message);
-      if (bgEnabled) setTimeout(bgCycle, 600);
+      if (bgEnabled) setTimeout(bgCycle, 500);
     }
   }
 
