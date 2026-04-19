@@ -1193,13 +1193,21 @@ function addMsg(role, txt, err=false) {
   d.className = `msg ${err?'err':role}`;
 
   // For assistant messages check if structured JSON (email cards)
-  if (role === 'assistant' && !err && txt.trim().startsWith('{')) {
+  // Also handles JSON wrapped in markdown code blocks
+  if (role === 'assistant' && !err) {
+    let _jsonStr = txt.trim().startsWith('{') ? txt.trim() : null;
+    if (!_jsonStr) {
+      const _m = txt.match(/```(?:json)?\s*(\{[\s\S]*?\})\s*```/) ||
+                 txt.match(/(\{"type"\s*:\s*"(?:email_list|inbox_stats|email_detail)"[\s\S]*?\})/);
+      if (_m) _jsonStr = _m[1];
+    }
+  if (_jsonStr) {
     const av   = document.createElement('div'); av.className = 'av'; av.textContent = 'A';
     av.style.marginTop = '8px'; // align avatar with top of card
     const wrap = document.createElement('div');
     wrap.style.cssText = 'flex:1;min-width:0;width:100%;overflow:visible;';
     const timeEl = document.createElement('div'); timeEl.className = 'msg-time'; timeEl.textContent = now;
-    const rendered = renderEmailResponse(txt.trim(), wrap);
+    const rendered = renderEmailResponse(_jsonStr, wrap);
     if (rendered) {
       wrap.appendChild(timeEl);
       d.style.cssText = 'display:flex;gap:8px;align-items:flex-start;animation:msg-in 0.3s cubic-bezier(0.16,1,0.3,1);overflow:visible;';
@@ -1208,6 +1216,7 @@ function addMsg(role, txt, err=false) {
       return;
     }
   }
+  } // end role==='assistant' JSON check
 
   // For assistant messages that look like email analysis — wrap in Gmail card
   if (role === 'assistant' && !err && _ariaIsEmailMsg(txt)) {
@@ -1233,10 +1242,11 @@ async function callWorker(txt){
     .filter(([,v])=>v&&v.connected).map(([k])=>k);
   const capNote = connectedApps.length
     ? `[SYSTEM: You have live integrations active: ${connectedApps.join(', ')}. ` +
-      `You CAN send emails, read inbox, star/label messages via Gmail. ` +
-      `Always confirm actions you actually perform rather than saying you cannot. ` +
-      `CRITICAL: When the user asks to list, read, or show emails/inbox messages, you MUST respond with ONLY a raw JSON object (no markdown, no text before or after) in this exact format: {"type":"email_list","title":"Unread Emails","emails":[{"id":"<id>","from":"Sender Name","email":"sender@example.com","subject":"Subject line","date":"Jan 1","snippet":"Preview text...","unread":true}]}. ` +
-      `Include up to 5 emails. For all other requests respond normally as text.]`
+      `CRITICAL RULES — follow these exactly: ` +
+      `(1) NEVER call send_email unless the user explicitly says the word "send" AND provides both a recipient AND message body. Words like "show", "read", "view", "display", "open" are READ-ONLY — never trigger send. ` +
+      `(2) NEVER invent or hallucinate email addresses. Only use addresses the user explicitly states. ` +
+      `(3) When the user asks to LIST, READ, or SHOW emails/inbox, respond with ONLY a raw JSON object (no markdown, no surrounding text) in this exact format: {"type":"email_list","title":"Unread Emails","emails":[{"id":"<id>","from":"Sender Name","email":"actual@email.com","subject":"Subject","date":"Jan 1","snippet":"preview...","unread":true}]} — up to 5 emails. ` +
+      `(4) For all other requests respond normally as text.]`
     : '';
   const msgs = S.msgs.slice(-12);
   // Prepend the capability note to the last user message (non-destructively)
@@ -1257,6 +1267,16 @@ async function callWorker(txt){
 // SEND
 async function sendMsg(){
   const txt=D.inp.value.trim();if(!txt||D.send.disabled)return;
+
+  // Gate: require confirmation before any email send reaches the Worker
+  if (/\bsend\b[\s\S]{0,30}\bemail\b|\bemail\b[\s\S]{0,30}\bsend\b|^send email to\s/i.test(txt)) {
+    const _to      = txt.match(/\bto\s+([\w.+%-]+@[\w.-]+\.\w+|[\w][\w\s]*?)(?:\s+with\s+subject|\s+about|\s+saying|$)/i)?.[1]?.trim() || '(recipient)';
+    const _subject = txt.match(/\bsubject\s+"([^"]+)"/i)?.[1] || txt.match(/\bsubject\s+([^"]+?)(?:\s+saying|$)/i)?.[1]?.trim() || '(see message)';
+    const _body    = txt.match(/\bsaying\s*:?\s*([\s\S]+)/i)?.[1]?.trim() || txt;
+    const _ok = await _showEmailConfirm(_to, _subject, _body);
+    if (!_ok) return;
+  }
+
   D.inp.value='';D.inp.style.height='auto';autoResize();
   // On mobile, dismiss keyboard so the input visually clears
   if(window.innerWidth<=768)D.inp.blur();
@@ -1837,15 +1857,40 @@ function sendMsg_quick(txt) {
   sendMsg();
 }
 
-// Send reply directly
-function sendEmailReply(to, subject, body) {
-  const decoded = {
-    to:      decodeURIComponent(to),
-    subject: 'Re: ' + decodeURIComponent(subject),
-    body:    decodeURIComponent(body),
-  };
-  const cmd = `Send email to ${decoded.to} with subject "${decoded.subject}" saying: ${decoded.body}`;
-  sendMsg_quick(cmd);
+// Confirmation dialog before any email send
+function _showEmailConfirm(to, subject, body) {
+  return new Promise(function(resolve) {
+    const old = document.getElementById('_ariaEmailConfirmModal');
+    if (old) old.remove();
+    const ov = document.createElement('div');
+    ov.id = '_ariaEmailConfirmModal';
+    ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.75);z-index:999999;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(4px);';
+    const esc = function(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); };
+    ov.innerHTML = '<div style="background:#0d1117;border:1px solid rgba(255,255,255,0.1);border-radius:16px;padding:24px;max-width:420px;width:90%;box-shadow:0 8px 40px rgba(0,0,0,0.7);font-family:inherit;">' +
+      '<div style="font-size:0.78rem;font-weight:700;color:#fc8181;text-transform:uppercase;letter-spacing:0.1em;margin-bottom:16px;">⚠ Confirm Email Send</div>' +
+      '<div style="font-size:0.68rem;color:rgba(255,255,255,0.4);margin-bottom:3px;">To</div>' +
+      '<div style="font-size:0.84rem;color:#fff;font-weight:600;background:rgba(255,255,255,0.06);border-radius:8px;padding:8px 12px;margin-bottom:12px;word-break:break-all;">' + esc(to) + '</div>' +
+      '<div style="font-size:0.68rem;color:rgba(255,255,255,0.4);margin-bottom:3px;">Subject</div>' +
+      '<div style="font-size:0.8rem;color:rgba(255,255,255,0.85);background:rgba(255,255,255,0.06);border-radius:8px;padding:8px 12px;margin-bottom:12px;">' + esc(subject) + '</div>' +
+      '<div style="font-size:0.68rem;color:rgba(255,255,255,0.4);margin-bottom:3px;">Message</div>' +
+      '<div style="font-size:0.76rem;color:rgba(255,255,255,0.7);background:rgba(255,255,255,0.06);border-radius:8px;padding:10px 12px;margin-bottom:20px;max-height:100px;overflow-y:auto;line-height:1.6;">' + esc(body) + '</div>' +
+      '<div style="display:flex;gap:10px;">' +
+      '<button id="_ariaEmailCancel" style="flex:1;padding:10px;border-radius:10px;border:1px solid rgba(255,255,255,0.12);background:none;color:rgba(255,255,255,0.6);cursor:pointer;font-size:0.8rem;font-family:inherit;">Cancel</button>' +
+      '<button id="_ariaEmailSend" style="flex:1;padding:10px;border-radius:10px;border:none;background:#1a73e8;color:#fff;cursor:pointer;font-size:0.8rem;font-weight:600;font-family:inherit;">Send Email</button>' +
+      '</div></div>';
+    document.body.appendChild(ov);
+    document.getElementById('_ariaEmailSend').onclick   = function(){ ov.remove(); resolve(true); };
+    document.getElementById('_ariaEmailCancel').onclick = function(){ ov.remove(); resolve(false); };
+    ov.addEventListener('click', function(e){ if(e.target===ov){ ov.remove(); resolve(false); } });
+  });
+}
+
+// Send reply directly — always shows confirmation first
+async function sendEmailReply(to, subject, body) {
+  const dec = { to: decodeURIComponent(to), subject: 'Re: '+decodeURIComponent(subject), body: decodeURIComponent(body) };
+  const ok = await _showEmailConfirm(dec.to, dec.subject, dec.body);
+  if (!ok) return;
+  sendMsg_quick(`Send email to ${dec.to} with subject "${dec.subject}" saying: ${dec.body}`);
 }
 
 // ── GMAIL PANEL ───────────────────────────────────────────────
