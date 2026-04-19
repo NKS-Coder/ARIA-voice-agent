@@ -1148,6 +1148,40 @@ function setMode(m){
 
 // MESSAGES
 
+// ── Email intent + extraction helpers ─────────────────────────────
+// Returns true only for EXPLICIT send intents — not for read/show/list.
+function _ariaIsEmailSendIntent(txt) {
+  if (!txt) return false;
+  // "send/write/compose/draft [an|a|the] [email/mail/message/note/reply] to ..."
+  if (/\b(?:send|write|compose|draft)\s+(?:an?\s+|the\s+|a\s+new\s+)?(?:e-?mail|mail|message|note|reply)\s+to\b/i.test(txt)) return true;
+  // "email/mail <someone> about|saying|regarding|that"
+  if (/\b(?:e-?mail|mail)\s+[\w@.+-]+\s+(?:about|saying|that|regarding|with)\b/i.test(txt)) return true;
+  // "reply to <someone>"
+  if (/\breply\s+to\s+\S+/i.test(txt)) return true;
+  // Programmatic pattern from sendEmailReply button
+  if (/^send email to\s/i.test(txt)) return true;
+  return false;
+}
+
+// Parse AI text response into structured email objects when it describes an inbox.
+// Handles patterns like: "1. From John Doe with subject 'Meeting'" or "1. John Doe - Subject".
+function _ariaExtractEmailsFromText(txt) {
+  const emails = [];
+  if (!txt) return emails;
+  const patA = /(\d+)\s*[\.\)]\s*(?:An?\s+)?(?:email\s+)?(?:From\s+|from\s+)?([A-Z][^.\n]{1,50}?)\s+with\s+(?:the\s+)?subject\s+["“']?([^"”'\n]{2,120}?)["”']?(?=\s*\d+\s*[\.\)]|$)/g;
+  let m;
+  while ((m = patA.exec(txt)) !== null) {
+    emails.push({ id:'parsed-'+m[1], from:m[2].trim(), email:'', subject:m[3].trim(), date:'', snippet:'', unread:true });
+  }
+  if (emails.length >= 2) return emails;
+  emails.length = 0;
+  const patB = /(\d+)\s*[\.\)]\s*([A-Z][\w\s.'-]{1,40}?)\s*[-–:]\s*["“']?([^"”'\n]{2,120}?)["”']?(?=\s*\d+\s*[\.\)]|$)/g;
+  while ((m = patB.exec(txt)) !== null) {
+    emails.push({ id:'parsed-'+m[1], from:m[2].trim(), email:'', subject:m[3].trim(), date:'', snippet:'', unread:true });
+  }
+  return emails;
+}
+
 // ── Email plain-text card helpers ─────────────────────────────────
 function _ariaIsEmailMsg(txt) {
   if (!txt || txt.length < 60 || txt.trim().startsWith('{')) return false;
@@ -1223,8 +1257,14 @@ function addMsg(role, txt, err=false) {
     const av   = document.createElement('div'); av.className = 'av'; av.textContent = 'A'; av.style.marginTop = '8px';
     const wrap = document.createElement('div'); wrap.style.cssText = 'flex:1;min-width:0;width:100%;';
     const timeEl = document.createElement('div'); timeEl.className = 'msg-time'; timeEl.textContent = now;
-    const card = _ariaBuildEmailSummaryCard(txt);
-    wrap.appendChild(card); wrap.appendChild(timeEl);
+    // First, try to extract individual emails from the text and render as list cards
+    const _extracted = _ariaExtractEmailsFromText(txt);
+    if (_extracted.length >= 2) {
+      renderEmailList({ type:'email_list', title:'Your Emails', emails:_extracted }, wrap);
+    } else {
+      wrap.appendChild(_ariaBuildEmailSummaryCard(txt));
+    }
+    wrap.appendChild(timeEl);
     d.style.cssText = 'display:flex;gap:8px;align-items:flex-start;animation:msg-in 0.3s cubic-bezier(0.16,1,0.3,1);overflow:visible;';
     d.appendChild(av); d.appendChild(wrap);
     D.msgs.appendChild(d); D.msgs.scrollTop = D.msgs.scrollHeight;
@@ -1268,13 +1308,15 @@ async function callWorker(txt){
 async function sendMsg(){
   const txt=D.inp.value.trim();if(!txt||D.send.disabled)return;
 
-  // Gate: require confirmation before any email send reaches the Worker
-  if (/\bsend\b[\s\S]{0,30}\bemail\b|\bemail\b[\s\S]{0,30}\bsend\b|^send email to\s/i.test(txt)) {
-    const _to      = txt.match(/\bto\s+([\w.+%-]+@[\w.-]+\.\w+|[\w][\w\s]*?)(?:\s+with\s+subject|\s+about|\s+saying|$)/i)?.[1]?.trim() || '(recipient)';
-    const _subject = txt.match(/\bsubject\s+"([^"]+)"/i)?.[1] || txt.match(/\bsubject\s+([^"]+?)(?:\s+saying|$)/i)?.[1]?.trim() || '(see message)';
-    const _body    = txt.match(/\bsaying\s*:?\s*([\s\S]+)/i)?.[1]?.trim() || txt;
+  // Gate: require confirmation for ANY explicit email-send intent.
+  // Must match send/write/compose/draft/reply + (email|mail|message) + to — avoids
+  // false-positive on innocent reads like "send me the emails" or "show my mail".
+  if (_ariaIsEmailSendIntent(txt)) {
+    const _to      = txt.match(/\bto\s+([\w.+%-]+@[\w.-]+\.\w+|[A-Z][\w\s.'-]*?)(?=\s+(?:with|about|saying|regarding|and|,)|$)/i)?.[1]?.trim() || '(recipient — unclear)';
+    const _subject = txt.match(/\bsubject\s+["“]([^"”]+)["”]/i)?.[1] || txt.match(/\bsubject\s+([^"”\n]+?)(?=\s+saying|\s+and\s+say|$)/i)?.[1]?.trim() || '(see message)';
+    const _body    = txt.match(/\b(?:saying|body|content|message)\s*:?\s*([\s\S]+)$/i)?.[1]?.trim() || txt;
     const _ok = await _showEmailConfirm(_to, _subject, _body);
-    if (!_ok) return;
+    if (!_ok) { D.inp.focus && D.inp.focus(); return; }
   }
 
   D.inp.value='';D.inp.style.height='auto';autoResize();
