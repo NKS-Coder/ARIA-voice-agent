@@ -1298,12 +1298,10 @@ async function callWorker(txt){
   const connectedApps = Object.entries(C.apps||{})
     .filter(([,v])=>v&&v.connected).map(([k])=>k);
   const capNote = connectedApps.length
-    ? `[SYSTEM: You have live integrations active: ${connectedApps.join(', ')}. ` +
-      `CRITICAL RULES — follow these exactly: ` +
-      `(1) NEVER call send_email unless the user explicitly says the word "send" AND provides both a recipient AND message body. Words like "show", "read", "view", "display", "open" are READ-ONLY — never trigger send. ` +
-      `(2) NEVER invent or hallucinate email addresses. Only use addresses the user explicitly states. ` +
-      `(3) When the user asks to LIST, READ, or SHOW emails/inbox, respond with ONLY a raw JSON object (no markdown, no surrounding text) in this exact format: {"type":"email_list","title":"Unread Emails","emails":[{"id":"<id>","from":"Sender Name","email":"actual@email.com","subject":"Subject","date":"Jan 1","snippet":"preview...","unread":true}]} — up to 5 emails. ` +
-      `(4) For all other requests respond normally as text.]`
+    ? `[SYSTEM: Active integrations: ${connectedApps.join(', ')}. ` +
+      `RULES: (1) To transmit a message to a contact, the user must say "send" AND give a recipient AND body — never trigger a transmission for read-only words. ` +
+      `(2) Never fabricate contact addresses. Only use addresses the user explicitly states. ` +
+      `(3) Respond normally as text for all conversational messages.]`
     : '';
   const msgs = S.msgs.slice(-12);
   // Prepend the capability note to the last user message (non-destructively)
