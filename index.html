@@ -639,7 +639,7 @@ function enc(s){ return encodeURIComponent(s||''); }
 async function checkWorker(){
   try{
     const r=await fetch(`${W}/health`);const d=await r.json();
-    $('workerStatus').textContent=`✓ ARIA v14.4 · Worker connected`;
+    $('workerStatus').textContent=`✓ ARIA v14.6 · Mic + iOS TTS fixes`;
     $('workerStatus').style.color='#5de6d8';
   }catch(e){
     $('workerStatus').textContent='✗ Cannot reach Worker — check Cloudflare deployment';
