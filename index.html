@@ -377,14 +377,14 @@ select.minp option{background:#0a0c10;}
       <h3 style="font-size:8px;text-transform:uppercase;letter-spacing:0.3em;font-weight:700;color:#374151;margin-bottom:12px;">Voice Engine</h3>
       <!-- Hidden native select for voice name storage -->
       <select id="voiceSel" style="display:none;"><option value="">Auto — best voice</option></select>
-      <!-- Custom dark dropdown — populated dynamically from browser voices -->
+      <!-- Custom dark dropdown — populated with ElevenLabs voices -->
       <div class="cs-wrap" id="voiceSelWrap">
         <button type="button" class="cs-trigger" id="voiceSelTrigger">
-          <span id="voiceSelLabel">Auto — best voice</span>
+          <span id="voiceSelLabel">Bella — Warm · Feminine</span>
           <span class="cs-arrow material-symbols-outlined">expand_more</span>
         </button>
         <div class="cs-drop" id="voiceSelDrop" style="background:#04050a;background-color:#04050a;">
-          <div class="cs-opt cs-sel" data-val="" style="background-color:#04050a;">Auto — best voice</div>
+          <div class="cs-opt cs-sel" data-val="EXAVITQu4vr4xnSDxMaL" style="background-color:#04050a;">Bella — Warm · Feminine</div>
         </div>
       </div>
       <input id="spd" type="range" min="0.6" max="1.8" step="0.1" value="1" style="width:100%;accent-color:#007BFF;margin-bottom:6px;"/>
@@ -456,18 +456,18 @@ select.minp option{background:#0a0c10;}
       <div class="acard" id="card-airtable"><div class="acl"><div class="acico">&#128450;</div><div><div class="acname">Airtable</div><div class="acdesc" id="desc-airtable">Log data</div></div></div><button class="abtn connect" id="btn-airtable" onclick="connectApp('airtable')">Connect</button></div>
     </div>
     <div class="tpanel" id="tab-voice">
-      <div class="mnote">Voice is powered by your browser&rsquo;s built-in speech engine &mdash; no API key needed.</div>
+      <div class="mnote">Voice is powered by ElevenLabs neural TTS &mdash; select a character below.</div>
       <div class="mfld"><div class="mlbl">Voice Character</div>
         <!-- Hidden native select for voice name storage -->
         <select id="modalVoice" style="display:none;"><option value="">Auto — best voice</option></select>
-        <!-- Custom dark dropdown — populated dynamically from browser voices -->
+        <!-- Custom dark dropdown — populated with ElevenLabs voices -->
         <div class="cs-wrap" id="modalVoiceWrap">
           <button type="button" class="cs-trigger" id="modalVoiceTrigger">
-            <span id="modalVoiceLabel">Auto — best voice</span>
+            <span id="modalVoiceLabel">Bella — Warm · Feminine</span>
             <span class="cs-arrow material-symbols-outlined">expand_more</span>
           </button>
           <div class="cs-drop" id="modalVoiceDrop" style="background:#04050a;background-color:#04050a;">
-            <div class="cs-opt cs-sel" data-val="" style="background-color:#04050a;">Auto — best voice</div>
+            <div class="cs-opt cs-sel" data-val="EXAVITQu4vr4xnSDxMaL" style="background-color:#04050a;">Bella — Warm · Feminine</div>
           </div>
         </div>
       </div>
@@ -508,7 +508,19 @@ select.minp option{background:#0a0c10;}
 const W='https://ariaproxy.nihharksonee.workers.dev';
 // ElevenLabs direct — paste your xi-api-key here
 const ELEVEN_KEY='e258ace41f6ee0a780d5df09e745ed088726fc43fd87ef9d7e95fd5c742317ab';
-const ELEVEN_VOICE='EXAVITQu4vr4xnSDxMaL'; // Bella
+const ELEVEN_VOICE='EXAVITQu4vr4xnSDxMaL'; // Bella (default)
+const ELEVEN_VOICES=[
+  {id:'EXAVITQu4vr4xnSDxMaL',name:'Bella',desc:'Warm · Feminine'},
+  {id:'21m00Tcm4TlvDq8ikWAM',name:'Rachel',desc:'Calm · Professional'},
+  {id:'AZnzlk1XvdvUeBnXmlld',name:'Domi',desc:'Bold · Confident'},
+  {id:'MF3mGyEYCl7XYWbV9V6O',name:'Elli',desc:'Young · Expressive'},
+  {id:'XB0fDUnXU5powFXDhCwa',name:'Charlotte',desc:'Elegant · Feminine'},
+  {id:'TxGEqnHWrfWFTfGW9XjX',name:'Josh',desc:'Deep · Male'},
+  {id:'VR6AewLTigWG4xSOukaG',name:'Arnold',desc:'Strong · Male'},
+  {id:'pNInz6obpgDQGcFmaJgB',name:'Adam',desc:'Authoritative · Male'},
+  {id:'onwK4e9ZLuTAKqWW03F9',name:'Daniel',desc:'News presenter · Male'},
+  {id:'yoZ06aMxZJJ28mfd3POQ',name:'Sam',desc:'Raspy · Male'},
+];
 // No ElevenLabs — browser SpeechSynthesis only
 const APPS={
   gmail:    {name:'Gmail',          icon:'📧',auth:'google',   prompt:null},
@@ -614,12 +626,23 @@ async function loadFromSupabase() {
     const appsData = await appsRes.json();
 
     if(appsData.apps && Object.keys(appsData.apps).length > 0) {
-      // Save to localStorage so rest of app can use them
-      const s = JSON.stringify(appsData.apps);
+      // Merge with any existing localStorage connections — never drop a working connection
+      // due to a transient Supabase miss.
+      let merged = {};
+      try { merged = JSON.parse(localStorage.getItem('aria_apps')||'{}'); } catch(e) {}
+      Object.entries(appsData.apps).forEach(([k,v]) => {
+        if(v && v.connected) merged[k] = v;          // Supabase has it — use it
+        else if(!merged[k]?.connected) merged[k] = v; // neither has it — accept Supabase value
+        // if localStorage has connected=true but Supabase doesn't, keep localStorage
+      });
+      const s = JSON.stringify(merged);
       localStorage.setItem('aria_apps', s);
       sessionStorage.setItem('aria_apps', s);
       syncApps();
-      console.log('✅ Restored apps:', Object.keys(appsData.apps));
+      console.log('✅ Restored apps:', Object.keys(merged));
+    } else {
+      // Supabase returned empty — keep whatever localStorage has
+      syncApps();
     }
   } catch(e) {
     console.warn('Could not load apps from Supabase:', e.message);
@@ -770,7 +793,7 @@ function setVoice(name){
   // Close any open dropdown on outside click
   document.addEventListener('click',()=>document.querySelectorAll('.cs-drop.cs-open').forEach(d=>{d.classList.remove('cs-open');document.querySelectorAll('.cs-wrap.open').forEach(w=>w.classList.remove('open'));}));
   // Sync label when voice is loaded from storage on init
-  setTimeout(()=>{ populateVoiceDropdown(); setVoice(C.voice||''); },500);
+  setTimeout(()=>{ populateVoiceDropdown(); setVoice(C.voice||ELEVEN_VOICE); },500);
 })();
 D.spd.addEventListener('input',()=>{C.setSpeed(D.spd.value);if(S.audio)S.audio.playbackRate=parseFloat(D.spd.value);});
 
@@ -830,25 +853,12 @@ function loadBV() {
 
   console.log('Best fallback voice:', bVoices[0]?.name || 'none found');
 }
-if (synth.onvoiceschanged !== undefined) synth.onvoiceschanged = () => { loadBV(); populateVoiceDropdown(); };
+if (synth.onvoiceschanged !== undefined) synth.onvoiceschanged = () => { loadBV(); };
 loadBV(); setTimeout(loadBV, 300); setTimeout(loadBV, 1000);
-setTimeout(populateVoiceDropdown, 800);
 
-// Dynamically populate voice dropdowns with available browser voices
+// Populate voice dropdowns with ElevenLabs voice options
 function populateVoiceDropdown() {
-  const all = synth.getVoices().filter(v => v.lang.startsWith('en'));
-  if (!all.length) return;
-  const BAD = /david|mark|richard|george|james|ravi|jorge/i;
-  const scored = all.filter(v => !BAD.test(v.name)).map(v => {
-    let s = 0;
-    if (/zira|aria|jenny|hazel|susan|karen|samantha|female|woman|alice|moira|tessa|fiona/i.test(v.name)) s += 6;
-    if (/natural|neural/i.test(v.name)) s += 3;
-    if (/google/i.test(v.name)) s += 4;
-    if (/microsoft/i.test(v.name)) s += 2;
-    return { v, s };
-  }).sort((a,b)=>b.s-a.s).slice(0,10);
-
-  const currentVoice = C.voice || '';
+  const currentVoice = C.voice || ELEVEN_VOICE;
   ['voiceSelDrop','modalVoiceDrop'].forEach((dropId, di) => {
     const drop = document.getElementById(dropId);
     if (!drop) return;
@@ -862,16 +872,11 @@ function populateVoiceDropdown() {
       o.textContent = label;
       return o;
     };
-    drop.appendChild(mkOpt('','Auto — best voice'));
-    scored.forEach(({v}) => {
-      const label = v.name.replace(/\s*-\s*English\s*(\([^)]+\))?/i,'').replace(/Microsoft |Google /i,'').trim();
-      drop.appendChild(mkOpt(v.name, label));
-    });
-    // Update label to match current selection
+    ELEVEN_VOICES.forEach(v => drop.appendChild(mkOpt(v.id, `${v.name} — ${v.desc}`)));
     const sel = drop.querySelector('.cs-sel');
     const lbl = document.getElementById(labelId);
     if (sel && lbl) lbl.textContent = sel.textContent;
-    // Re-attach background to all opts (wire() may have run before voices loaded)
+    else if (lbl) lbl.textContent = 'Bella — Warm · Feminine';
     drop.querySelectorAll('.cs-opt').forEach(o => { o.style.backgroundColor='#04050a'; });
   });
 }
@@ -897,7 +902,8 @@ async function fallbackSpeak(txt) {
     try {
       setMode('speaking');
       if(typeof window._ariaWakeTTSStart==='function') window._ariaWakeTTSStart();
-      const res = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${ELEVEN_VOICE}`, {
+      const voiceId = C.voice || ELEVEN_VOICE;
+      const res = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voiceId}`, {
         method: 'POST',
         headers: {'Accept':'audio/mpeg','Content-Type':'application/json','xi-api-key':ELEVEN_KEY},
         body: JSON.stringify({
