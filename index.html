@@ -506,8 +506,7 @@ select.minp option{background:#0a0c10;}
 
 <script>
 const W='https://ariaproxy.nihharksonee.workers.dev';
-// ElevenLabs direct — paste your xi-api-key here
-const ELEVEN_KEY='sk_631e8b870e6dbb810924063e374d18f8214e376926232b48';
+// ElevenLabs runs server-side through the Cloudflare Worker — no key in the browser.
 const ELEVEN_VOICE='EXAVITQu4vr4xnSDxMaL'; // Bella (default)
 const ELEVEN_VOICES=[
   {id:'EXAVITQu4vr4xnSDxMaL',name:'Bella',desc:'Warm · Feminine'},
@@ -521,7 +520,6 @@ const ELEVEN_VOICES=[
   {id:'onwK4e9ZLuTAKqWW03F9',name:'Daniel',desc:'News presenter · Male'},
   {id:'yoZ06aMxZJJ28mfd3POQ',name:'Sam',desc:'Raspy · Male'},
 ];
-// No ElevenLabs — browser SpeechSynthesis only
 const APPS={
   gmail:    {name:'Gmail',          icon:'📧',auth:'google',   prompt:null},
   calendar: {name:'Calendar',       icon:'📅',auth:'google',   prompt:null},
@@ -673,29 +671,25 @@ function enc(s){ return encodeURIComponent(s||''); }
 async function checkWorker(){
   try{
     const r=await fetch(`${W}/health`);const d=await r.json();
-    // Validate ElevenLabs subscription status in parallel — surfaces the real
-    // reason if Bella silently stops working (bad key, quota, etc).
+    // Ask the Worker for ElevenLabs quota so the xi-api-key stays server-side.
+    // Worker should expose GET /tts/quota → { remaining, limit } (optional).
     let elBadge = '';
     try {
-      const elRes = await fetch('https://api.elevenlabs.io/v1/user/subscription', {
-        headers:{'xi-api-key':ELEVEN_KEY}
-      });
-      if(elRes.ok){
-        const sub = await elRes.json();
-        const used = sub.character_count || 0;
-        const lim  = sub.character_limit || 0;
-        const remaining = lim - used;
-        if(remaining <= 0){
+      const q = await fetch(`${W}/tts/quota`);
+      if(q.ok){
+        const sub = await q.json();
+        const remaining = (sub.remaining != null) ? sub.remaining
+                        : (sub.character_limit||0) - (sub.character_count||0);
+        const lim = sub.limit || sub.character_limit || 0;
+        if(remaining <= 0 && lim){
           elBadge = ` · ⚠️ ElevenLabs quota 0/${lim}`;
           $('workerStatus').style.color='#ffb347';
-        } else {
-          elBadge = ` · ElevenLabs ${remaining.toLocaleString()} chars left`;
+        } else if(remaining != null){
+          elBadge = ` · ElevenLabs ${Number(remaining).toLocaleString()} chars left`;
         }
-      } else {
-        elBadge = ` · ⚠️ ElevenLabs ${elRes.status}`;
       }
-    } catch(e){ elBadge = ' · ⚠️ ElevenLabs unreachable'; }
-    $('workerStatus').textContent=`✓ ARIA v14.9${elBadge}`;
+    } catch(e){ /* quota endpoint optional — stay quiet */ }
+    $('workerStatus').textContent=`✓ ARIA v15.0${elBadge}`;
     if(!$('workerStatus').style.color) $('workerStatus').style.color='#5de6d8';
   }catch(e){
     $('workerStatus').textContent='✗ Cannot reach Worker — check Cloudflare deployment';
@@ -922,18 +916,17 @@ async function fallbackSpeak(txt, _voiceRetry) {
 
   const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
 
-  // Try ElevenLabs directly if key is configured. One retry on network/5xx
-  // failure so we don't silently slip into browser TTS on transient errors.
-  if(ELEVEN_KEY && ELEVEN_KEY !== 'PASTE_YOUR_ELEVENLABS_KEY_HERE') {
+  // Route ElevenLabs through the Cloudflare Worker so the xi-api-key never
+  // ships to the browser. Worker endpoint: POST /tts with {text, voice_id}.
+  {
     const voiceId = C.voice || ELEVEN_VOICE;
     const body = JSON.stringify({
       text: txt.slice(0,2500),
-      model_id: 'eleven_turbo_v2_5',
-      voice_settings: {stability:0.4,similarity_boost:0.8,style:0.1,use_speaker_boost:true}
+      voice_id: voiceId
     });
-    const hitEleven = () => fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voiceId}`, {
+    const hitEleven = () => fetch(`${W}/tts`, {
       method:'POST',
-      headers:{'Accept':'audio/mpeg','Content-Type':'application/json','xi-api-key':ELEVEN_KEY},
+      headers:{'Accept':'audio/mpeg','Content-Type':'application/json'},
       body
     });
     try {
