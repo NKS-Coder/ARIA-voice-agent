@@ -2167,8 +2167,31 @@ function renderEmailList(data, container) {
 }
 
 function renderEmailDetail(data, container) {
-  const { email, detail } = data;
+  const { email } = data;
+  // Accept either nested ({ detail: {...} }) or flat ({ summary, key_points, ... }) shape
+  let detail = data.detail;
+  if (!detail && (data.summary || data.key_points || data.suggested_reply)) {
+    detail = {
+      summary:         data.summary         || '',
+      key_points:      data.key_points      || [],
+      suggested_reply: data.suggested_reply || '',
+      sentiment:       data.sentiment       || 'neutral',
+      action_required: !!data.action_required
+    };
+  }
   if (!detail) return;
+
+  // If worker embedded raw LLM output (backticks / malformed JSON) as summary, re-parse it.
+  if (detail.summary && (/```/.test(detail.summary) || /^\s*\{[\s\S]*"summary"\s*:/.test(detail.summary))) {
+    const reparsed = _ariaParseEmailDetail(detail.summary);
+    detail = {
+      summary:          reparsed.summary         || detail.summary,
+      key_points:       (reparsed.key_points && reparsed.key_points.length) ? reparsed.key_points : (detail.key_points || []),
+      suggested_reply:  reparsed.suggested_reply || detail.suggested_reply || '',
+      sentiment:        reparsed.sentiment       || detail.sentiment       || 'neutral',
+      action_required:  typeof detail.action_required === 'boolean' ? detail.action_required : reparsed.action_required
+    };
+  }
 
   const fromName = (email?.from || '').replace(/<[^>]+>/,'').replace(/"/g,'').trim();
   const dateStr  = email?.date ? new Date(email.date).toLocaleDateString('en-US',{weekday:'short',month:'short',day:'numeric',hour:'numeric',minute:'2-digit'}) : '';
