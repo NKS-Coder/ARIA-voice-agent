@@ -590,12 +590,8 @@ const D={
 
 // INIT
 window.addEventListener('load', async ()=>{
-  // Step 1: Set voice preference
-  if(!localStorage.getItem('aria_voice')||localStorage.getItem('aria_voice')==='21m00Tcm4TlvDq8ikWAM'){
-    localStorage.setItem('aria_voice', '');
-    sessionStorage.setItem('aria_voice', '');
-  }
-  D.vSel.value = $('modalVoice').value = C.voice;
+  // Step 1: Speed preference only — voice preference is respected as-is so
+  // whatever the user explicitly picks in the dropdown survives reloads.
   D.spd.value  = $('modalSpd').value   = C.speed;
 
   // Step 2: Setup UI
@@ -608,9 +604,22 @@ window.addEventListener('load', async ()=>{
   await loadFromSupabase();
 
   // Step 4: Welcome
+  // Show the greeting text immediately, but defer the TTS until the first user
+  // gesture. Chrome/Safari block Audio.play() and AudioContext before any click
+  // or keypress, which is why the console logged "Audio.play() blocked" and the
+  // first greeting was silent. Once the user clicks/taps/types anywhere, the
+  // spoken greeting fires exactly once.
   addMsg('assistant', "Hello. I'm ARIA. Click the mic and speak, or type below.");
   window._ariaSkipNextAutoListen = true; // don't auto-listen after welcome — prevents echo loop
-  speak("Hello. I'm ARIA. How can I help you today?");
+  const greet = () => {
+    if(window._ariaGreeted) return;
+    window._ariaGreeted = true;
+    ['pointerdown','keydown','touchstart'].forEach(ev =>
+      document.removeEventListener(ev, greet, true));
+    speak("Hello. I'm ARIA. How can I help you today?");
+  };
+  ['pointerdown','keydown','touchstart'].forEach(ev =>
+    document.addEventListener(ev, greet, { capture:true, once:false }));
 });
 
 // Load all state from Supabase — the single source of truth
@@ -689,7 +698,7 @@ async function checkWorker(){
         }
       }
     } catch(e){ /* quota endpoint optional — stay quiet */ }
-    $('workerStatus').textContent=`✓ ARIA v15.0${elBadge}`;
+    $('workerStatus').textContent=`✓ ARIA v15.1${elBadge}`;
     if(!$('workerStatus').style.color) $('workerStatus').style.color='#5de6d8';
   }catch(e){
     $('workerStatus').textContent='✗ Cannot reach Worker — check Cloudflare deployment';
@@ -708,17 +717,20 @@ function switchTab(n){
   document.querySelectorAll('.tpanel').forEach(p=>p.classList.toggle('on',p.id==='tab-'+n));
 }
 
-// VOICE SAVE
+// VOICE SAVE — the custom dropdown already persists on click via setVoice().
+// These Save buttons now just confirm the currently-stored choice + save speed.
+// Reading from the hidden <select> stubs (#modalVoice / #voiceSel) was the old
+// bug: those only have one "" option, so they clobbered the real voice ID back
+// to empty and ARIA silently reverted to Bella.
 $('saveVoice').addEventListener('click',()=>{
-  C.setVoice($('modalVoice').value);C.setSpeed($('modalSpd').value);
-  D.vSel.value=$('modalVoice').value;D.spd.value=$('modalSpd').value;
+  C.setSpeed($('modalSpd').value);
+  D.spd.value=$('modalSpd').value;
   $('voiceSaved').style.display='block';
   setTimeout(()=>$('voiceSaved').style.display='none',2500);
 });
 
 $('saveVoiceSidebar').addEventListener('click',()=>{
-  C.setVoice(D.vSel.value);C.setSpeed(D.spd.value);
-  $('modalVoice').value=D.vSel.value;
+  C.setSpeed(D.spd.value);
   const btn=$('saveVoiceSidebar');
   btn.textContent='✓ Saved';btn.style.color='var(--cyan)';btn.style.borderColor='rgba(93,230,216,0.3)';
   $('sidebarVoiceSaved').style.display='block';
@@ -1595,7 +1607,6 @@ function startNewConv(announce=true){
   D.nMsgs.textContent='0';D.msgs.innerHTML='';
   D.convLabel.textContent='New Conversation';
   D.think.classList.add('hidden');D.send.disabled=false;
-  D.vSel.value=$('modalVoice').value=C.voice; // restore saved voice
   setMode('ready');renderHist();
   if(announce){addMsg('assistant','New conversation started. What can I help you with?');speak('New conversation started. What can I help you with?');}
 }
