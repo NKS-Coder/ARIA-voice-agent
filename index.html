@@ -1213,6 +1213,23 @@ function _ariaSanitizeForMemory(reply) {
   return reply;
 }
 
+// Detects email-READ intent: any phrasing that clearly asks to see/check/display emails.
+// When true, callWorker prepends a canonical verb so the Worker's detectIntent regex
+// always routes to read_emails (never to Groq chat).
+function _ariaIsEmailReadIntent(txt) {
+  if (!txt) return false;
+  if (_ariaIsEmailSendIntent(txt)) return false;
+  const t = txt.toLowerCase();
+  // Verb phrasings: show/list/read/check/view/get/find/fetch/display/see/pull/open/any/latest + email|mail|inbox
+  if (/\b(?:show|list|read|check|view|get|find|fetch|display|see|pull|open|give|tell|bring|pop)\w*\s+(?:me\s+|up\s+|out\s+)?(?:my\s+|the\s+|all\s+|recent\s+|latest\s+|unread\s+|new\s+)?(?:e-?mail|mail|inbox|message)s?\b/.test(t)) return true;
+  // "any|what|how many emails", "my emails from X", "emails from X", "latest emails"
+  if (/\b(?:any|what|how\s+many|latest|recent|unread|new|my)\s+(?:e-?mail|mail|inbox|message)s?\b/.test(t)) return true;
+  if (/\b(?:e-?mail|mail|inbox|message)s?\s+(?:from|about|regarding|with|in)\b/.test(t)) return true;
+  if (/\binbox\b/.test(t)) return true;
+  // "display them over here", "show them to me" — only when the conversation is clearly email-ish
+  return false;
+}
+
 // Returns true only for EXPLICIT send intents — not for read/show/list.
 function _ariaIsEmailSendIntent(txt) {
   if (!txt) return false;
@@ -1351,12 +1368,20 @@ async function callWorker(txt){
       `(3) Respond normally as text for all conversational messages.]`
     : '';
   const msgs = S.msgs.slice(-12);
+  // If the last user message is clearly an email-read request but the phrasing
+  // doesn't start with a canonical verb (show/list/read/etc.), prepend "Show me"
+  // so the Worker's detectIntent regex catches it instead of routing to chat.
+  const _last = msgs[msgs.length-1];
+  const _rawTxt = _last && _last.role==='user' ? _last.content : '';
+  const _isRead = _ariaIsEmailReadIntent(_rawTxt);
+  const _startsCanonical = /^\s*(?:show|list|read|check|view|get|find|fetch|display|see|pull|open)\b/i.test(_rawTxt);
+  const _rewritten = (_isRead && !_startsCanonical) ? `Show me ${_rawTxt}` : _rawTxt;
   // Prepend the capability note to the last user message (non-destructively)
-  const augmented = msgs.map((m,i)=>
-    i===msgs.length-1 && m.role==='user' && capNote
-      ? {...m, content: capNote+'\n'+m.content}
-      : m
-  );
+  const augmented = msgs.map((m,i)=>{
+    if (i !== msgs.length-1 || m.role !== 'user') return m;
+    const base = _rewritten;
+    return { ...m, content: (capNote ? capNote+'\n' : '') + base };
+  });
   const res=await fetch(W,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({
     messages:   augmented,
     persona:    S.persona,
