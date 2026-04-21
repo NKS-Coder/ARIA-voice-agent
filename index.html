@@ -1952,45 +1952,88 @@ async function showEmailDetail(email) {
 function _ariaParseEmailDetail(reply) {
   const fallback = { summary: '', key_points: [], suggested_reply: '', sentiment: 'neutral', action_required: false };
   if (!reply) return { ...fallback, summary: 'Could not summarize.' };
-  let raw = String(reply).replace(/^```(?:json)?\s*/im, '').replace(/\s*```\s*$/m, '').trim();
+
+  // Strip markdown fences (```json ... ```)
+  let raw = String(reply)
+    .replace(/^```(?:json)?\s*/im, '')
+    .replace(/\s*```\s*$/m, '')
+    .trim();
+
+  // Narrow to the outermost { ... }
   const objMatch = raw.match(/\{[\s\S]*\}/);
   if (objMatch) raw = objMatch[0];
+
+  // Fast path: valid JSON
   try {
-    const parsed = JSON.parse(raw);
+    const p = JSON.parse(raw);
     return {
-      summary: parsed.summary || '',
-      key_points: Array.isArray(parsed.key_points) ? parsed.key_points : [],
-      suggested_reply: parsed.suggested_reply || '',
-      sentiment: parsed.sentiment || 'neutral',
-      action_required: !!parsed.action_required
+      summary:          p.summary          || '',
+      key_points:       Array.isArray(p.key_points) ? p.key_points : [],
+      suggested_reply:  p.suggested_reply  || '',
+      sentiment:        p.sentiment        || 'neutral',
+      action_required:  !!p.action_required
     };
   } catch(e) {}
-  // Malformed JSON — extract fields with regex instead of dumping raw string
-  const pick = (key) => {
-    const re = new RegExp('"' + key + '"\\s*:\\s*"((?:[^"\\\\]|\\\\.)*)"', 'i');
-    const m = raw.match(re);
-    if (m) return m[1].replace(/\\"/g, '"').replace(/\\n/g, '\n');
-    const re2 = new RegExp('"' + key + '"\\s*:\\s*([^,\\n}]+?)(?=\\s*[,\\n}]|\\s*"[a-z_]+"\\s*:)', 'i');
-    const m2 = raw.match(re2);
-    return m2 ? m2[1].trim().replace(/^["']|["']$/g, '') : '';
-  };
-  const kpMatch = raw.match(/"key_points"\s*:\s*\[([\s\S]*?)\]/i);
-  let keyPoints = [];
-  if (kpMatch) {
-    keyPoints = [...kpMatch[1].matchAll(/"((?:[^"\\]|\\.)*)"/g)].map(m => m[1]);
+
+  // Slow path: malformed JSON (model omitted quotes around string values).
+  // Extract each field by finding its key position and reading until the next key.
+
+  // Returns text between "key": and the position of the next known key (or end of object).
+  function extractStr(text, key, nextKey) {
+    const kPat = '"' + key + '"';
+    const ki = text.search(new RegExp(kPat + '\\s*:', 'i'));
+    if (ki === -1) return '';
+    const ci = text.indexOf(':', ki + kPat.length);
+    if (ci === -1) return '';
+    const rest = text.slice(ci + 1).trimStart();
+    if (rest[0] === '"') {
+      // Quoted value — grab everything inside the outer quotes
+      const qm = rest.match(/^"((?:[^"\\]|\\.)*)"(?:\s*,)?/);
+      return qm ? qm[1].replace(/\\n/g, '\n').replace(/\\"/g, '"') : '';
+    }
+    if (rest[0] === '[' || rest[0] === '{') return '';
+    // Unquoted value — read from colon+1 until the next JSON key or closing brace
+    const valStart = ci + 1 + (text.slice(ci + 1).length - rest.length);
+    let endIdx = text.lastIndexOf('}');
+    if (nextKey) {
+      const nki = text.search(new RegExp('"' + nextKey + '"\\s*:', 'i'));
+      if (nki > ci) endIdx = nki;
+    }
+    return text.slice(valStart, endIdx).trim().replace(/,\s*$/, '').trim();
   }
-  const summary = pick('summary');
-  const suggestedReply = pick('suggested_reply');
+
+  function extractArr(text, key) {
+    const ki = text.search(new RegExp('"' + key + '"\\s*:', 'i'));
+    if (ki === -1) return [];
+    const bi = text.indexOf('[', ki);
+    if (bi === -1) return [];
+    let depth = 0, ei = -1;
+    for (let i = bi; i < text.length; i++) {
+      if (text[i] === '[') depth++;
+      else if (text[i] === ']') { if (--depth === 0) { ei = i; break; } }
+    }
+    if (ei === -1) return [];
+    return [...text.slice(bi, ei + 1).matchAll(/"((?:[^"\\]|\\.)*)"/g)].map(m => m[1]);
+  }
+
+  const summary         = extractStr(raw, 'summary',          'key_points');
+  const keyPoints       = extractArr(raw, 'key_points');
+  const suggestedReply  = extractStr(raw, 'suggested_reply',  'sentiment') ||
+                          extractStr(raw, 'suggested_reply',   null);
+  const sentiment       = extractStr(raw, 'sentiment',         'action_required') || 'neutral';
+  const actionRequired  = /true/i.test(extractStr(raw, 'action_required', null));
+
   if (!summary && !suggestedReply && keyPoints.length === 0) {
-    // Not JSON-like at all — use the raw text as summary
+    // Not JSON-like at all — show cleaned raw text as summary
     return { ...fallback, summary: String(reply).replace(/```(?:json)?/gi, '').trim() || 'Could not summarize.' };
   }
+
   return {
-    summary: summary || 'Could not extract summary.',
-    key_points: keyPoints,
+    summary:         summary || 'Could not extract summary.',
+    key_points:      keyPoints,
     suggested_reply: suggestedReply,
-    sentiment: pick('sentiment') || 'neutral',
-    action_required: /true/i.test(pick('action_required'))
+    sentiment,
+    action_required: actionRequired
   };
 }
 
