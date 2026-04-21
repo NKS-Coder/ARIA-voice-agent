@@ -639,7 +639,7 @@ function enc(s){ return encodeURIComponent(s||''); }
 async function checkWorker(){
   try{
     const r=await fetch(`${W}/health`);const d=await r.json();
-    $('workerStatus').textContent=`✓ ARIA v14.3 · Worker connected`;
+    $('workerStatus').textContent=`✓ ARIA v14.4 · Worker connected`;
     $('workerStatus').style.color='#5de6d8';
   }catch(e){
     $('workerStatus').textContent='✗ Cannot reach Worker — check Cloudflare deployment';
@@ -1260,7 +1260,10 @@ async function callWorker(txt){
       `(1) NEVER call send_email unless the user explicitly says the word "send" AND provides both a recipient AND message body. Words like "show", "read", "view", "display", "open" are READ-ONLY — never trigger send. ` +
       `(2) NEVER invent or hallucinate email addresses. Only use addresses the user explicitly states. ` +
       `(3) When the user asks to LIST, READ, or SHOW emails/inbox, respond with ONLY a raw JSON object (no markdown, no surrounding text) in this exact format: {"type":"email_list","title":"Unread Emails","emails":[{"id":"<id>","from":"Sender Name","email":"actual@email.com","subject":"Subject","date":"Jan 1","snippet":"preview...","unread":true}]} — up to 5 emails. ` +
-      `(4) For all other requests respond normally as text.]`
+      `(4) When the user asks for emails from a specific sender (e.g., "emails from dominoes", "show my amazon emails"), call the Gmail search tool with a BROAD query: try multiple spellings and partial matches (e.g., "dominoes" → also try "domino", "domino's", "dominos"). Search across from/subject/snippet, not just the from field. If the first query returns 0 results, retry with a looser query before giving up. Return the results as the email_list JSON above. ` +
+      `(5) NEVER say "No matching emails found" as plain text. If the search returns 0 results after trying looser queries, respond with the email_list JSON with an empty emails array and a helpful title like "No emails from <sender>". ` +
+      `(6) When Gmail is connected and the user says something generic like "read my emails" or "check my inbox", immediately fetch the 5 most recent unread emails and return them — do NOT ask for more context. ` +
+      `(7) For all other requests respond normally as text.]`
     : '';
   const msgs = S.msgs.slice(-12);
   // Prepend the capability note to the last user message (non-destructively)
