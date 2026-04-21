@@ -1619,8 +1619,16 @@ async function restoreConnectionsFromSupabase() {
   try {
     const res  = await fetch(`${W}/auth/status?app=gmail&session=${getSession()}`);
     const data = await res.json();
-    if(data.connected && data.email && !C.apps.gmail?.connected) {
-      const _gex=C.apps.gmail||{};C.saveApp('gmail', { connected: true, email: data.email, access_token:_gex.access_token||'' });
+    if(data.connected && data.email) {
+      const _gex = C.apps.gmail || {};
+      // Merge — always keep the best token we have from any source.
+      // Prefer Supabase tokens (fresher) but never discard a refresh_token we already hold.
+      C.saveApp('gmail', {
+        connected:     true,
+        email:         data.email || _gex.email || '',
+        access_token:  data.access_token  || _gex.access_token  || '',
+        refresh_token: data.refresh_token || _gex.refresh_token || '',
+      });
       syncApps();
       console.log('Restored Gmail connection from Supabase:', data.email);
     }
@@ -1668,7 +1676,7 @@ function checkAppStatus(name){
       console.log('Status response:', JSON.stringify(d));
       if(d.connected){
         const _ex=C.apps[name]||{};
-        C.saveApp(name,{connected:true,email:d.email||'',access_token:_ex.access_token||''});
+        C.saveApp(name,{connected:true,email:d.email||_ex.email||'',access_token:d.access_token||_ex.access_token||'',refresh_token:d.refresh_token||_ex.refresh_token||''});
         syncApps();
         const m=`${APPS[name]?.name} connected${d.email?' as '+d.email:''}! You can now use voice commands.`;
         addMsg('assistant',m);speak(m);
