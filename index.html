@@ -673,8 +673,30 @@ function enc(s){ return encodeURIComponent(s||''); }
 async function checkWorker(){
   try{
     const r=await fetch(`${W}/health`);const d=await r.json();
-    $('workerStatus').textContent=`✓ ARIA v14.7 · iOS + Bella fixes live`;
-    $('workerStatus').style.color='#5de6d8';
+    // Validate ElevenLabs subscription status in parallel — surfaces the real
+    // reason if Bella silently stops working (bad key, quota, etc).
+    let elBadge = '';
+    try {
+      const elRes = await fetch('https://api.elevenlabs.io/v1/user/subscription', {
+        headers:{'xi-api-key':ELEVEN_KEY}
+      });
+      if(elRes.ok){
+        const sub = await elRes.json();
+        const used = sub.character_count || 0;
+        const lim  = sub.character_limit || 0;
+        const remaining = lim - used;
+        if(remaining <= 0){
+          elBadge = ` · ⚠️ ElevenLabs quota 0/${lim}`;
+          $('workerStatus').style.color='#ffb347';
+        } else {
+          elBadge = ` · ElevenLabs ${remaining.toLocaleString()} chars left`;
+        }
+      } else {
+        elBadge = ` · ⚠️ ElevenLabs ${elRes.status}`;
+      }
+    } catch(e){ elBadge = ' · ⚠️ ElevenLabs unreachable'; }
+    $('workerStatus').textContent=`✓ ARIA v14.8${elBadge}`;
+    if(!$('workerStatus').style.color) $('workerStatus').style.color='#5de6d8';
   }catch(e){
     $('workerStatus').textContent='✗ Cannot reach Worker — check Cloudflare deployment';
     $('workerStatus').style.color='var(--rose)';
@@ -918,9 +940,29 @@ async function fallbackSpeak(txt, _voiceRetry) {
       setMode('speaking');
       if(typeof window._ariaWakeTTSStart==='function') window._ariaWakeTTSStart();
       let res = await hitEleven();
+      // Retry on 5xx / 429 / network issues. DO NOT retry on 401/403 (bad key)
+      // or 402 (quota) — those will not resolve by retrying.
       if(!res.ok && (res.status >= 500 || res.status === 429)) {
         await new Promise(r => setTimeout(r, 500));
         res = await hitEleven();
+      }
+      if(!res.ok) {
+        // Read the error body so the user can see exactly why ElevenLabs failed
+        // instead of silently switching to Microsoft TTS.
+        let errBody = '';
+        try { errBody = await res.text(); } catch(e){}
+        console.error('[ElevenLabs] status', res.status, errBody);
+        if(!window._elevenLabsWarned) {
+          window._elevenLabsWarned = true;
+          const reason =
+            res.status === 401 ? 'API key is invalid or has been revoked.' :
+            res.status === 402 ? 'Monthly quota exhausted — top up credits at elevenlabs.io.' :
+            res.status === 403 ? 'API key lacks permission for this voice.' :
+            res.status === 422 ? 'Invalid voice ID or request format.' :
+            res.status === 429 ? 'Rate limit hit — try again in a moment.' :
+            `HTTP ${res.status}. Details logged to browser console.`;
+          addMsg('assistant', `⚠️ ElevenLabs unavailable — using browser voice as fallback. Reason: ${reason}`, true);
+        }
       }
       if(res.ok) {
         const blob = await res.blob();
