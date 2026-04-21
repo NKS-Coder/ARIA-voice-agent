@@ -1182,6 +1182,8 @@ function _ariaExtractEmailsFromText(txt) {
 // ── Email plain-text card helpers ─────────────────────────────────
 function _ariaIsEmailMsg(txt) {
   if (!txt || txt.length < 60 || txt.trim().startsWith('{')) return false;
+  // Don't wrap compose-guidance or capability replies in an email card
+  if (/what should the email say|don.t have a message body|what would you like.*say|please provide|connect.*gmail|connect your gmail/i.test(txt)) return false;
   let score = 0;
   if (/\b(email|e-mail|message|inbox|gmail)\b/i.test(txt)) score += 2;
   if (/\b(subject|from:|sent by|sender|received)\b/i.test(txt)) score += 2;
@@ -1304,9 +1306,23 @@ async function callWorker(txt){
   const data=await res.json();if(data.error)throw new Error(data.error);return data.reply;
 }
 
+// Detect mid-compose context: if last AI asked for email body, expand short reply
+// into a full send command so the Worker's "must say send" gate doesn't block it.
+function _ariaResolveEmailComposeCtx(raw) {
+  if (_ariaIsEmailSendIntent(raw)) return raw;
+  const lastAI = (S.msgs.filter(m=>m.role==='assistant').slice(-1)[0]||{}).content || '';
+  if (!/don.t have a message body|what should the email say|what would you like.*email to say|what.*would you like to say|please.*body|what.*body/i.test(lastAI)) return raw;
+  const m = lastAI.match(/\(([^@\s)]+@[^@\s)]+\.[^@\s)]+)\)/);
+  if (!m) return raw;
+  const subj = raw.split(/[.!?\n]/)[0].slice(0, 60);
+  return `Send email to ${m[1]} with subject "${subj}" saying: ${raw}`;
+}
+
 // SEND
 async function sendMsg(){
-  const txt=D.inp.value.trim();if(!txt||D.send.disabled)return;
+  const rawTxt=D.inp.value.trim();if(!rawTxt||D.send.disabled)return;
+  // Expand multi-turn email compose ("hi" → "Send email to X saying: hi")
+  const txt = _ariaResolveEmailComposeCtx(rawTxt);
 
   // iOS: speechSynthesis.speak() only works when called inside a user-gesture context.
   // Pre-warm TTS here (we ARE in a gesture context — button click / mic result)
@@ -1335,15 +1351,16 @@ async function sendMsg(){
   D.inp.value='';D.inp.style.height='auto';autoResize();
   // On mobile, dismiss keyboard so the input visually clears
   if(window.innerWidth<=768)D.inp.blur();
-  S.msgs.push({role:'user',content:txt});addMsg('user',txt);
+  // Show the user's raw typed text in chat; send expanded cmd to Worker
+  S.msgs.push({role:'user',content:rawTxt});addMsg('user',rawTxt);
   if(S.msgs.length===1){
     // Set raw title immediately
-    const rawTitle = txt.slice(0,36)+(txt.length>36?'…':'');
+    const rawTitle = rawTxt.slice(0,36)+(rawTxt.length>36?'…':'');
     S.convTitle = rawTitle;
     D.convLabel.textContent = rawTitle;
     renderHist();
     // Generate smart AI title in background — only once, no loop
-    const titleMsg = txt;
+    const titleMsg = rawTxt;
     const rawTitleSnapshot = rawTitle;
     setTimeout(() => {
       generateTitle(titleMsg).then(smartTitle => {
@@ -1686,10 +1703,10 @@ async function showEmailDetail(email) {
       ${detail.suggested_reply ? `
       <div style="padding:12px 16px;">
         <div style="font-size:0.55rem;letter-spacing:0.1em;text-transform:uppercase;color:#EA4335;font-weight:600;margin-bottom:6px;">Suggested Reply</div>
-        <textarea id="${replyId}"
-          style="width:100%;box-sizing:border-box;resize:vertical;min-height:80px;border:1px solid #e8eaed;border-left:3px solid #1a73e8;border-radius:4px;padding:10px 12px;font-size:0.74rem;color:#202124;line-height:1.75;font-family:Google Sans,Roboto,Arial,sans-serif;background:#f8f9fa;outline:none;"
-          onfocus="this.style.boxShadow='0 0 0 2px rgba(26,115,232,0.18)'"
-          onblur="this.style.boxShadow='none'"
+        <textarea id="${replyId}" placeholder="Edit your reply…"
+          style="width:100%;box-sizing:border-box;resize:vertical;min-height:80px;border:2px solid #c5cae9;border-left:4px solid #1a73e8;border-radius:4px;padding:10px 12px;font-size:0.74rem;color:#202124;line-height:1.75;font-family:Google Sans,Roboto,Arial,sans-serif;background:#fff;outline:none;cursor:text;"
+          onfocus="this.style.borderColor='#1a73e8';this.style.boxShadow='0 0 0 2px rgba(26,115,232,0.18)'"
+          onblur="this.style.borderColor='#c5cae9';this.style.boxShadow='none'"
         >${htmlEsc1(detail.suggested_reply)}</textarea>
         <button onclick="sendEmailReplyFromEl('${encodeURIComponent(email.from||'')}','${encodeURIComponent(email.subject||'')}','${replyId}')"
           style="margin-top:8px;width:100%;background:#1a73e8;color:#fff;border:none;border-radius:20px;padding:9px;font-family:Google Sans,Arial,sans-serif;font-size:0.76rem;font-weight:500;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:5px;">
@@ -1899,8 +1916,8 @@ function renderEmailDetail(data, container) {
     ${detail.suggested_reply ? `
     <div style="padding:14px 16px;">
       <div style="font-size:0.58rem;letter-spacing:0.1em;text-transform:uppercase;color:#EA4335;font-weight:600;margin-bottom:8px;">Suggested Reply</div>
-      <textarea id="${replyId2}"
-        style="width:100%;box-sizing:border-box;resize:vertical;min-height:88px;border:1px solid #e8eaed;border-left:3px solid #1a73e8;border-radius:4px;padding:12px 14px;font-size:0.76rem;color:#202124;line-height:1.8;font-family:Google Sans,Roboto,Arial,sans-serif;background:#f8f9fa;outline:none;"
+      <textarea id="${replyId2}" placeholder="Edit your reply…"
+        style="width:100%;box-sizing:border-box;resize:vertical;min-height:88px;border:2px solid #c5cae9;border-left:4px solid #1a73e8;border-radius:4px;padding:12px 14px;font-size:0.76rem;color:#202124;line-height:1.8;font-family:Google Sans,Roboto,Arial,sans-serif;background:#fff;outline:none;cursor:text;"
         onfocus="this.style.boxShadow='0 0 0 2px rgba(26,115,232,0.18)'"
         onblur="this.style.boxShadow='none'"
       >${htmlEsc2(detail.suggested_reply)}</textarea>
