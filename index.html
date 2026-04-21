@@ -689,7 +689,7 @@ async function checkWorker(){
         }
       }
     } catch(e){ /* quota endpoint optional — stay quiet */ }
-    $('workerStatus').textContent=`✓ ARIA v15.4${elBadge}`;
+    $('workerStatus').textContent=`✓ ARIA v15.5${elBadge}`;
     if(!$('workerStatus').style.color) $('workerStatus').style.color='#5de6d8';
   }catch(e){
     $('workerStatus').textContent='✗ Cannot reach Worker — check Cloudflare deployment';
@@ -1488,11 +1488,12 @@ async function callWorker(txt){
       `CRITICAL RULES — follow these exactly: ` +
       `(1) NEVER call send_email unless the user explicitly says the word "send" AND provides both a recipient AND message body. Words like "show", "read", "view", "display", "open" are READ-ONLY — never trigger send. ` +
       `(2) NEVER invent or hallucinate email addresses. Only use addresses the user explicitly states. ` +
-      `(3) When the user asks to LIST, READ, or SHOW emails/inbox, respond with ONLY a raw JSON object (no markdown, no surrounding text) in this exact format: {"type":"email_list","title":"Unread Emails","emails":[{"id":"<id>","from":"Sender Name","email":"actual@email.com","subject":"Subject","date":"Jan 1","snippet":"preview...","unread":true}]} — up to 5 emails. ` +
-      `(4) When the user asks for emails from a specific sender (e.g., "emails from dominoes", "show my amazon emails"), call the Gmail search tool with a BROAD query: try multiple spellings and partial matches (e.g., "dominoes" → also try "domino", "domino's", "dominos"). Search across from/subject/snippet, not just the from field. If the first query returns 0 results, retry with a looser query before giving up. Return the results as the email_list JSON above. ` +
+      `(3) When the user asks to LIST, READ, or SHOW emails/inbox, you MUST return the FULL LIST of matching emails (up to 10) as a raw JSON object. DO NOT pick one email to summarize. DO NOT return email_detail. ALWAYS return email_list. Format: {"type":"email_list","title":"Unread Emails","emails":[{"id":"<id>","from":"Sender Name","email":"actual@email.com","subject":"Subject","date":"Jan 1","snippet":"preview...","unread":true}, ...up to 10 items]}. Include every unread email the Gmail tool returned, not just one. ` +
+      `(4) When the user asks for emails from a specific sender (e.g., "emails from dominoes", "show my amazon emails"), call the Gmail search tool with a BROAD query: try multiple spellings and partial matches. Search across from/subject/snippet. If the first query returns 0 results, retry with a looser query before giving up. Return ALL results as the email_list JSON above (up to 10 items). ` +
       `(5) NEVER say "No matching emails found" as plain text. If the search returns 0 results after trying looser queries, respond with the email_list JSON with an empty emails array and a helpful title like "No emails from <sender>". ` +
-      `(6) When Gmail is connected and the user says something generic like "read my emails" or "check my inbox", immediately fetch the 5 most recent unread emails and return them — do NOT ask for more context. ` +
-      `(7) For all other requests respond normally as text.]`
+      `(6) When Gmail is connected and the user says something generic like "read my emails" or "check my inbox", immediately fetch the 10 most recent unread emails and return ALL of them in the email_list JSON — do NOT ask for more context, do NOT summarize only one, do NOT wrap in markdown backticks. ` +
+      `(7) NEVER return type:"email_detail" for a generic read/list/show request. email_detail is only for single-email-focused queries like "summarize this email" or "tell me about the email from X". ` +
+      `(8) For all other requests respond normally as text.]`
     : '';
   const msgs = S.msgs.slice(-12);
   // If the last user message is clearly an email-read request but the phrasing
@@ -1502,7 +1503,12 @@ async function callWorker(txt){
   const _rawTxt = _last && _last.role==='user' ? _last.content : '';
   const _isRead = _ariaIsEmailReadIntent(_rawTxt);
   const _startsCanonical = /^\s*(?:show|list|read|check|view|get|find|fetch|display|see|pull|open)\b/i.test(_rawTxt);
-  const _rewritten = (_isRead && !_startsCanonical) ? `Show me ${_rawTxt}` : _rawTxt;
+  // For list-intent reads, append an explicit instruction so the LLM can't shortcut
+  // into a single-email detail response.
+  let _rewritten = (_isRead && !_startsCanonical) ? `Show me ${_rawTxt}` : _rawTxt;
+  if (_isRead) {
+    _rewritten += ` — return the FULL LIST as an email_list JSON with up to 10 items, not a single email_detail.`;
+  }
   // Prepend the capability note to the last user message (non-destructively)
   const augmented = msgs.map((m,i)=>{
     if (i !== msgs.length-1 || m.role !== 'user') return m;
