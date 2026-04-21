@@ -507,7 +507,7 @@ select.minp option{background:#0a0c10;}
 <script>
 const W='https://ariaproxy.nihharksonee.workers.dev';
 // ElevenLabs direct — paste your xi-api-key here
-const ELEVEN_KEY='e258ace41f6ee0a780d5df09e745ed088726fc43fd87ef9d7e95fd5c742317ab';
+const ELEVEN_KEY='sk_631e8b870e6dbb810924063e374d18f8214e376926232b48';
 const ELEVEN_VOICE='EXAVITQu4vr4xnSDxMaL'; // Bella (default)
 const ELEVEN_VOICES=[
   {id:'EXAVITQu4vr4xnSDxMaL',name:'Bella',desc:'Warm · Feminine'},
@@ -695,7 +695,7 @@ async function checkWorker(){
         elBadge = ` · ⚠️ ElevenLabs ${elRes.status}`;
       }
     } catch(e){ elBadge = ' · ⚠️ ElevenLabs unreachable'; }
-    $('workerStatus').textContent=`✓ ARIA v14.8${elBadge}`;
+    $('workerStatus').textContent=`✓ ARIA v14.9${elBadge}`;
     if(!$('workerStatus').style.color) $('workerStatus').style.color='#5de6d8';
   }catch(e){
     $('workerStatus').textContent='✗ Cannot reach Worker — check Cloudflare deployment';
