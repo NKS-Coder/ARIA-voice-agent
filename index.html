@@ -392,15 +392,7 @@ select.minp option{background:#0a0c10;}
       <button id="saveVoiceSidebar" style="width:100%;padding:8px;border-radius:10px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.07);font-size:10px;font-weight:700;color:rgba(255,255,255,0.35);cursor:pointer;font-family:inherit;text-transform:uppercase;letter-spacing:0.12em;transition:all 0.15s;">Save Voice</button>
       <div id="sidebarVoiceSaved" class="msaved">&#10003; Voice saved</div>
       <div style="margin-top:14px;display:flex;flex-direction:column;gap:10px;">
-        <div style="display:flex;align-items:center;justify-content:space-between;">
-          <span style="font-size:11px;color:rgba(100,116,139,0.9);">Auto-listen</span>
-          <label style="position:relative;display:inline-flex;align-items:center;cursor:pointer;">
-            <input type="checkbox" id="autoOn" checked class="sr-only toggle-checkbox"/>
-            <div class="toggle-label" style="width:32px;height:18px;background:rgba(255,255,255,0.05);border-radius:9999px;position:relative;border:0.5px solid rgba(255,255,255,0.08);">
-              <div class="toggle-dot" style="position:absolute;left:3px;top:3px;background:white;width:11px;height:11px;border-radius:50%;transition:transform 0.2s;"></div>
-            </div>
-          </label>
-        </div>
+        <input type="checkbox" id="autoOn" class="sr-only" style="display:none;"/>
         <div style="display:flex;align-items:center;justify-content:space-between;">
           <span style="font-size:11px;color:rgba(100,116,139,0.9);">Voice responses</span>
           <label style="position:relative;display:inline-flex;align-items:center;cursor:pointer;">
@@ -681,7 +673,6 @@ async function checkWorker(){
   try{
     const r=await fetch(`${W}/health`);const d=await r.json();
     // Ask the Worker for ElevenLabs quota so the xi-api-key stays server-side.
-    // Worker should expose GET /tts/quota → { remaining, limit } (optional).
     let elBadge = '';
     try {
       const q = await fetch(`${W}/tts/quota`);
@@ -698,7 +689,7 @@ async function checkWorker(){
         }
       }
     } catch(e){ /* quota endpoint optional — stay quiet */ }
-    $('workerStatus').textContent=`✓ ARIA v15.1${elBadge}`;
+    $('workerStatus').textContent=`✓ ARIA v15.3${elBadge}`;
     if(!$('workerStatus').style.color) $('workerStatus').style.color='#5de6d8';
   }catch(e){
     $('workerStatus').textContent='✗ Cannot reach Worker — check Cloudflare deployment';
@@ -865,11 +856,11 @@ function loadBV() {
 
   if (chosen) {
     // Put chosen first, then rest excluding David/Mark male voices
-    bVoices = [chosen, ...all.filter(v => v !== chosen && !/(david|mark|richard|george|james|daniel)/i.test(v.name))];
+    bVoices = [chosen, ...all.filter(v => v !== chosen && !/(david|mark|richard|george|james|daniel|neerja|veena|lekha|heera|hemant|kalpana|aditi|mohan|deepa)/i.test(v.name))];
   } else {
     // No preferred found — sort by gender signals, exclude robotic males
     bVoices = all
-      .filter(v => !/(david|mark|richard|george|james)/i.test(v.name))
+      .filter(v => !/(david|mark|richard|george|james|neerja|veena|lekha|heera|hemant|kalpana|aditi|mohan|deepa)/i.test(v.name))
       .sort((a,b) => {
         const s = v =>
           (/zira|aria|jenny|hazel|susan|karen|samantha|female|woman/i.test(v.name) ? 5 : 0) +
@@ -918,8 +909,6 @@ function stopSpeaking() {
 function _onTTSEnd() {
   setMode('ready');
   if(typeof window._ariaWakeTTSEnd==='function') window._ariaWakeTTSEnd();
-  // Auto-listen after TTS removed — it caused the mic to re-open and pick up
-  // ARIA's own voice from the speaker, creating a feedback loop.
 }
 
 async function fallbackSpeak(txt, _voiceRetry) {
@@ -1007,12 +996,16 @@ async function fallbackSpeak(txt, _voiceRetry) {
   if (!voices.length) voices = bVoices;
   if (!voices.length) { setTimeout(() => fallbackSpeak(txt, 0), 400); return; }
   const storedName = C.voice;
-  // Expanded BAD list — blocks common Indian/South-Asian TTS voices so the
-  // Android fallback never switches from Bella to "Neerja" etc.
   const BAD = /david|mark|richard|george|james|ravi|jorge|neerja|veena|lekha|heera|hemant|kalpana|aditi|mohan|deepa/i;
-  // storedName on main is an ElevenLabs voice ID (e.g. 'EXAVITQu4vr4xnSDxMaL'),
-  // which will never match a browser voice name — so always auto-pick below.
   let best = storedName ? voices.find(v => v.name === storedName) : null;
+
+  // Preferred voice not in list yet (voice list still loading on Android/Chrome) —
+  // retry up to 4 times with 300 ms gaps before falling back to auto-pick.
+  if (storedName && !best && (_voiceRetry || 0) < 4) {
+    setTimeout(() => fallbackSpeak(txt, (_voiceRetry || 0) + 1), 300);
+    return;
+  }
+
   if (!best) {
     const scored = voices
       .filter(v => !BAD.test(v.name))
@@ -1034,8 +1027,9 @@ async function fallbackSpeak(txt, _voiceRetry) {
   u.pitch = 1;
   u.onstart = () => { clearTimeout(watchdog); setMode('speaking'); if(typeof window._ariaWakeTTSStart==='function')window._ariaWakeTTSStart(); };
   u.onend = u.onerror = () => _onTTSEnd();
-  if (synth.paused) synth.resume();
-  synth.speak(u);
+  const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
+  const doSpeak = () => { if (synth.paused) synth.resume(); synth.speak(u); };
+  if (isIOS) { setTimeout(doSpeak, 80); } else { doSpeak(); }
   const watchdog = setTimeout(() => {
     if (synth.speaking && !synth.paused) return;
     synth.cancel();
@@ -1047,7 +1041,7 @@ async function fallbackSpeak(txt, _voiceRetry) {
       u2.onend = u2.onerror = () => _onTTSEnd();
       synth.speak(u2);
     }, 100);
-  }, 2000);
+  }, 2500);
 }
 
 function speak(txt) {
@@ -1132,7 +1126,8 @@ function buildRec(){
     // Manual mic: restart on no-speech/aborted ONLY if we were actively listening
     // (wasListening=false means stopListen() explicitly stopped us — don't restart).
     if(!S.autoListening&&wasListening&&(e.error==='no-speech'||e.error==='aborted')){
-      setTimeout(()=>{buildRec();try{rec.start();S.listening=true;}catch(x){setMode('ready');}},150);
+      S.listening=true; // hold bgCycle watchdog off during the restart delay
+      setTimeout(()=>{buildRec();try{rec.start();}catch(x){S.listening=false;setMode('ready');}},150);
       return;
     }
     setMode('ready');
@@ -1167,6 +1162,10 @@ async function startListen(){
     return;
   }
 
+  // Show UI immediately so the user sees the click registered during the pause below.
+  S.listening=true;
+  setMode('listening');
+
   // Pause the background wake recognizer FIRST so Chrome's single-SR-per-tab
   // limit doesn't kill the main rec before it starts. Also set a manual-active
   // flag so the wake watchdog never revives bgRec mid-session.
@@ -1187,6 +1186,7 @@ async function startListen(){
     try{
       await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true,noiseSuppression:true,autoGainControl:true}});
     }catch(err){
+      S.listening=false; setMode('ready');
       addMsg('assistant','🎤 Microphone blocked. Click the 🔒 lock icon in your address bar → Site settings → Microphone → Allow → refresh the page.',true);
       return;
     }
@@ -1197,7 +1197,9 @@ async function startListen(){
   }catch(e){
     if(e.name==='InvalidStateError'){
       buildRec();
-      setTimeout(()=>{try{rec.start();}catch(e2){setMode('ready');}},350);
+      setTimeout(()=>{try{rec.start();}catch(e2){S.listening=false;setMode('ready');}},350);
+    } else {
+      S.listening=false; setMode('ready');
     }
   }
 }
@@ -1227,27 +1229,9 @@ function clearAutoListenTimer(){
   if(inner){inner.classList.remove('counting');}
 }
 function startAutoListenWindow(){
-  if(!$('autoOn').checked)return;
-  if(window._ariaSkipNextAutoListen){window._ariaSkipNextAutoListen=false;return;}
-  // 1500ms delay: lets speaker audio fully dissipate + echo cancellation warm-up
-  setTimeout(()=>{
-    S.autoListening=true;
-    _autoListenStart=Date.now();
-    startListen();
-    let secs=5;
-    const tag=document.getElementById('liveTag'),inner=document.querySelector('#liveBar .live-inner');
-    if(tag){tag.textContent=secs+'s';tag.classList.add('counting');tag.classList.remove('expiring');}
-    if(inner){inner.classList.add('counting');}
-    _autoListenT=setInterval(()=>{
-      secs--;
-      if(tag){
-        if(secs<=0){tag.textContent='LIVE';tag.classList.remove('counting','expiring');}
-        else{tag.textContent=secs+'s';if(secs<=2)tag.classList.add('expiring');else tag.classList.remove('expiring');}
-      }
-      if(inner&&secs<=0){inner.classList.remove('counting');}
-      if(secs<=0){clearInterval(_autoListenT);_autoListenT=null;S.autoListening=false;if(S.listening)stopListen();}
-    },1000);
-  }, 1000);
+  // Permanently disabled — auto-listening after TTS caused the speaker
+  // output to echo back into the mic and blocked new input.
+  return;
 }
 
 // MODE
@@ -1380,6 +1364,8 @@ function _ariaExtractEmailsFromText(txt) {
 // ── Email plain-text card helpers ─────────────────────────────────
 function _ariaIsEmailMsg(txt) {
   if (!txt || txt.length < 60 || txt.trim().startsWith('{')) return false;
+  // Don't wrap compose-guidance or capability replies in an email card
+  if (/what should the email say|don.t have a message body|what would you like.*say|please provide|connect.*gmail|connect your gmail/i.test(txt)) return false;
   let score = 0;
   if (/\b(email|e-mail|message|inbox|gmail)\b/i.test(txt)) score += 2;
   if (/\b(subject|from:|sent by|sender|received)\b/i.test(txt)) score += 2;
@@ -1492,10 +1478,15 @@ async function callWorker(txt){
   const connectedApps = Object.entries(C.apps||{})
     .filter(([,v])=>v&&v.connected).map(([k])=>k);
   const capNote = connectedApps.length
-    ? `[SYSTEM: Active integrations: ${connectedApps.join(', ')}. ` +
-      `RULES: (1) To transmit a message to a contact, the user must say "send" AND give a recipient AND body — never trigger a transmission for read-only words. ` +
-      `(2) Never fabricate contact addresses. Only use addresses the user explicitly states. ` +
-      `(3) Respond normally as text for all conversational messages.]`
+    ? `[SYSTEM: You have live integrations active: ${connectedApps.join(', ')}. ` +
+      `CRITICAL RULES — follow these exactly: ` +
+      `(1) NEVER call send_email unless the user explicitly says the word "send" AND provides both a recipient AND message body. Words like "show", "read", "view", "display", "open" are READ-ONLY — never trigger send. ` +
+      `(2) NEVER invent or hallucinate email addresses. Only use addresses the user explicitly states. ` +
+      `(3) When the user asks to LIST, READ, or SHOW emails/inbox, respond with ONLY a raw JSON object (no markdown, no surrounding text) in this exact format: {"type":"email_list","title":"Unread Emails","emails":[{"id":"<id>","from":"Sender Name","email":"actual@email.com","subject":"Subject","date":"Jan 1","snippet":"preview...","unread":true}]} — up to 5 emails. ` +
+      `(4) When the user asks for emails from a specific sender (e.g., "emails from dominoes", "show my amazon emails"), call the Gmail search tool with a BROAD query: try multiple spellings and partial matches (e.g., "dominoes" → also try "domino", "domino's", "dominos"). Search across from/subject/snippet, not just the from field. If the first query returns 0 results, retry with a looser query before giving up. Return the results as the email_list JSON above. ` +
+      `(5) NEVER say "No matching emails found" as plain text. If the search returns 0 results after trying looser queries, respond with the email_list JSON with an empty emails array and a helpful title like "No emails from <sender>". ` +
+      `(6) When Gmail is connected and the user says something generic like "read my emails" or "check my inbox", immediately fetch the 5 most recent unread emails and return them — do NOT ask for more context. ` +
+      `(7) For all other requests respond normally as text.]`
     : '';
   const msgs = S.msgs.slice(-12);
   // If the last user message is clearly an email-read request but the phrasing
@@ -1521,9 +1512,36 @@ async function callWorker(txt){
   const data=await res.json();if(data.error)throw new Error(data.error);return data.reply;
 }
 
+// Detect mid-compose context: if last AI asked for email body, expand short reply
+// into a full send command so the Worker's "must say send" gate doesn't block it.
+function _ariaResolveEmailComposeCtx(raw) {
+  if (_ariaIsEmailSendIntent(raw)) return raw;
+  const lastAI = (S.msgs.filter(m=>m.role==='assistant').slice(-1)[0]||{}).content || '';
+  if (!/don.t have a message body|what should the email say|what would you like.*email to say|what.*would you like to say|please.*body|what.*body/i.test(lastAI)) return raw;
+  const m = lastAI.match(/\(([^@\s)]+@[^@\s)]+\.[^@\s)]+)\)/);
+  if (!m) return raw;
+  const subj = raw.split(/[.!?\n]/)[0].slice(0, 60);
+  return `Send email to ${m[1]} with subject "${subj}" saying: ${raw}`;
+}
+
 // SEND
 async function sendMsg(){
-  const txt=D.inp.value.trim();if(!txt||D.send.disabled)return;
+  const rawTxt=D.inp.value.trim();if(!rawTxt||D.send.disabled)return;
+  // Expand multi-turn email compose ("hi" → "Send email to X saying: hi")
+  const txt = _ariaResolveEmailComposeCtx(rawTxt);
+
+  // iOS: speechSynthesis.speak() only works when called inside a user-gesture context.
+  // Pre-warm TTS here (we ARE in a gesture context — button click / mic result)
+  // so the async speak() call after fetch resolves will go through.
+  if (/iPhone|iPad|iPod/i.test(navigator.userAgent)) {
+    try {
+      synth.cancel();
+      const prm = new SpeechSynthesisUtterance(' ');
+      prm.rate = 10; prm.volume = 0.001;
+      prm.onend = prm.onerror = function(){};
+      synth.speak(prm);
+    } catch(e){}
+  }
 
   // Gate: require confirmation for ANY explicit email-send intent.
   // Must match send/write/compose/draft/reply + (email|mail|message) + to — avoids
@@ -1539,15 +1557,16 @@ async function sendMsg(){
   D.inp.value='';D.inp.style.height='auto';autoResize();
   // On mobile, dismiss keyboard so the input visually clears
   if(window.innerWidth<=768)D.inp.blur();
-  S.msgs.push({role:'user',content:txt});addMsg('user',txt);
+  // Show the user's raw typed text in chat; send expanded cmd to Worker
+  S.msgs.push({role:'user',content:rawTxt});addMsg('user',rawTxt);
   if(S.msgs.length===1){
     // Set raw title immediately
-    const rawTitle = txt.slice(0,36)+(txt.length>36?'…':'');
+    const rawTitle = rawTxt.slice(0,36)+(rawTxt.length>36?'…':'');
     S.convTitle = rawTitle;
     D.convLabel.textContent = rawTitle;
     renderHist();
     // Generate smart AI title in background — only once, no loop
-    const titleMsg = txt;
+    const titleMsg = rawTxt;
     const rawTitleSnapshot = rawTitle;
     setTimeout(() => {
       generateTitle(titleMsg).then(smartTitle => {
@@ -1848,9 +1867,9 @@ async function showEmailDetail(email) {
     const data = await res.json();
     let detail = null;
 
-    // Try to parse AI response as JSON
+    // Try to parse AI response as JSON (strip markdown fences if model wrapped output)
     try {
-      const raw = data.reply || '';
+      let raw = (data.reply || '').replace(/^```(?:json)?\s*/im, '').replace(/\s*```\s*$/m, '').trim();
       detail = JSON.parse(raw.match(/\{[\s\S]*\}/)?.[0] || raw);
     } catch(e) {
       detail = { summary: data.reply || 'Could not summarize.', key_points: [], suggested_reply: '' };
@@ -1868,7 +1887,8 @@ async function showEmailDetail(email) {
     const card = document.createElement('div');
     card.style.cssText = 'background:#fff;border:1px solid #e0e0e0;border-radius:12px;overflow:hidden;width:100%;margin-top:4px;box-shadow:0 1px 6px rgba(32,33,36,0.15);font-family:Google Sans,Roboto,Arial,sans-serif;';
 
-    const safeReply = (detail.suggested_reply||'').replace(/'/g, ' ').replace(/\n/g,' ');
+    const replyId = 'aria-reply-' + Date.now();
+    const htmlEsc1 = s => String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 
     card.innerHTML = `
       <div style="padding:14px 16px;background:#fff;border-bottom:1px solid #e8eaed;">
@@ -1896,8 +1916,12 @@ async function showEmailDetail(email) {
       ${detail.suggested_reply ? `
       <div style="padding:12px 16px;">
         <div style="font-size:0.55rem;letter-spacing:0.1em;text-transform:uppercase;color:#EA4335;font-weight:600;margin-bottom:6px;">Suggested Reply</div>
-        <div style="background:#f8f9fa;border:1px solid #e8eaed;border-left:3px solid #1a73e8;border-radius:4px;padding:10px 12px;font-size:0.74rem;color:#202124;line-height:1.75;white-space:pre-wrap;">${detail.suggested_reply}</div>
-        <button onclick="sendEmailReply('${encodeURIComponent(email.from||'')}','${encodeURIComponent(email.subject||'')}','${encodeURIComponent(detail.suggested_reply||'')}')"
+        <textarea id="${replyId}" placeholder="Edit your reply…"
+          style="width:100%;box-sizing:border-box;resize:vertical;min-height:80px;border:2px solid #c5cae9;border-left:4px solid #1a73e8;border-radius:4px;padding:10px 12px;font-size:0.74rem;color:#202124;line-height:1.75;font-family:Google Sans,Roboto,Arial,sans-serif;background:#fff;outline:none;cursor:text;"
+          onfocus="this.style.borderColor='#1a73e8';this.style.boxShadow='0 0 0 2px rgba(26,115,232,0.18)'"
+          onblur="this.style.borderColor='#c5cae9';this.style.boxShadow='none'"
+        >${htmlEsc1(detail.suggested_reply)}</textarea>
+        <button onclick="sendEmailReplyFromEl('${encodeURIComponent(email.from||'')}','${encodeURIComponent(email.subject||'')}','${replyId}')"
           style="margin-top:8px;width:100%;background:#1a73e8;color:#fff;border:none;border-radius:20px;padding:9px;font-family:Google Sans,Arial,sans-serif;font-size:0.76rem;font-weight:500;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:5px;">
           ↩ Send This Reply
         </button>
@@ -1928,8 +1952,9 @@ async function showEmailDetail(email) {
 
 function renderEmailResponse(raw, container) {
   try {
-    // Try to parse as structured JSON
-    const data = JSON.parse(raw);
+    // Strip markdown fences before parsing in case model wrapped output
+    const cleaned = raw.replace(/^```(?:json)?\s*/im, '').replace(/\s*```\s*$/m, '').trim();
+    const data = JSON.parse(cleaned);
 
     if (data.type === 'inbox_stats') {
       renderInboxStats(data, container);
@@ -1953,7 +1978,7 @@ function renderInboxStats(data, container) {
   const el = document.createElement('div');
   el.style.cssText = 'background:#fff;border:1px solid #e0e0e0;border-radius:12px;overflow:hidden;width:100%;margin-top:6px;box-shadow:0 1px 6px rgba(32,33,36,0.15);font-family:Google Sans,Roboto,Arial,sans-serif;';
   el.innerHTML = `
-    <div style="display:flex;align-items:center;gap:8px;padding:12px 16px;background:#c5221f;border-bottom:2px solid #a50e0e;">
+    <div style="display:flex;align-items:center;gap:8px;padding:12px 16px;background:#c5221f;border-bottom:2px solid #a50e0e;border-radius:12px 12px 0 0;">
       <svg width="18" height="18" viewBox="0 0 48 48"><path fill="#fff" d="M5.5 40h8V23.1L4 16.2V37.5C4 38.9 4.6 40 5.5 40z"/><path fill="#fff" d="M34.5 40h8c.9 0 1.5-1.1 1.5-2.5V16.2l-9.5 6.9z"/><path fill="#fff" d="M34.5 8h-21L24 17.4z"/><path fill="#ffcdd2" d="M13.5 23.1V8H5.5C4.6 8 4 9.1 4 10.5v5.7l9.5 6.9z"/><path fill="#ffcdd2" d="M44 10.5V16.2L34.5 23.1V8H42.5C43.4 8 44 9.1 44 10.5z"/></svg>
       <span style="font-size:0.78rem;font-weight:600;color:#fff;">Gmail Inbox Overview</span>
     </div>
@@ -2000,11 +2025,11 @@ function renderEmailList(data, container) {
   window._lastEmails = data.emails;
 
   const panel = document.createElement('div');
-  panel.style.cssText = 'background:#fff;border:1px solid #e0e0e0;border-radius:12px;overflow:visible;width:100%;margin-top:4px;box-shadow:0 1px 6px rgba(32,33,36,0.15);font-family:Google Sans,Roboto,Arial,sans-serif;';
+  panel.style.cssText = 'background:#fff;border:1px solid #e0e0e0;border-radius:12px;overflow:hidden;width:100%;margin-top:4px;box-shadow:0 1px 6px rgba(32,33,36,0.15);font-family:Google Sans,Roboto,Arial,sans-serif;';
 
   // Header
   panel.innerHTML = `
-    <div style="display:flex;align-items:center;justify-content:space-between;padding:11px 16px;background:#c5221f;border-bottom:2px solid #a50e0e;">
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:11px 16px;background:#c5221f;border-bottom:2px solid #a50e0e;border-radius:12px 12px 0 0;">
       <div style="display:flex;align-items:center;gap:8px;">
         <svg width="18" height="18" viewBox="0 0 48 48"><rect width="48" height="48" rx="4" fill="none"/><path fill="#fff" d="M5.5 40h8V23.1L4 16.2V37.5C4 38.9 4.6 40 5.5 40z"/><path fill="#fff" d="M34.5 40h8c.9 0 1.5-1.1 1.5-2.5V16.2l-9.5 6.9z"/><path fill="#fff" d="M34.5 8h-21L24 17.4z"/><path fill="#ffcdd2" d="M13.5 23.1V8H5.5C4.6 8 4 9.1 4 10.5v5.7l9.5 6.9z"/><path fill="#ffcdd2" d="M44 10.5V16.2L34.5 23.1V8H42.5C43.4 8 44 9.1 44 10.5z"/></svg>
         <span style="font-size:0.76rem;font-weight:600;color:#fff;letter-spacing:0.02em;">Gmail</span>
@@ -2065,9 +2090,10 @@ function renderEmailDetail(data, container) {
   const el = document.createElement('div');
   el.style.cssText = 'background:#fff;border:1px solid #e0e0e0;border-radius:12px;overflow:hidden;width:100%;margin-top:6px;box-shadow:0 1px 6px rgba(32,33,36,0.15);font-family:Google Sans,Roboto,Arial,sans-serif;';
 
-  const safeReply   = (detail.suggested_reply || '').replace(/'/g, "\'").replace(/\n/g,' ');
-  const safeFrom    = (email?.from || '').replace(/'/g, "\'");
-  const safeSubject = (email?.subject || '').replace(/'/g, "\'");
+  const safeFrom    = encodeURIComponent(email?.from || '');
+  const safeSubject = encodeURIComponent(email?.subject || '');
+  const replyId2    = 'aria-reply-' + Date.now();
+  const htmlEsc2    = s => String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 
   el.innerHTML = `
     <!-- Email header -->
@@ -2104,8 +2130,12 @@ function renderEmailDetail(data, container) {
     ${detail.suggested_reply ? `
     <div style="padding:14px 16px;">
       <div style="font-size:0.58rem;letter-spacing:0.1em;text-transform:uppercase;color:#EA4335;font-weight:600;margin-bottom:8px;">Suggested Reply</div>
-      <div style="background:#f8f9fa;border:1px solid #e8eaed;border-left:3px solid #1a73e8;border-radius:4px;padding:12px 14px;font-size:0.76rem;color:#202124;line-height:1.8;white-space:pre-wrap;">${detail.suggested_reply}</div>
-      <button onclick="sendEmailReply('${safeFrom}','${safeSubject}','${safeReply}')"
+      <textarea id="${replyId2}" placeholder="Edit your reply…"
+        style="width:100%;box-sizing:border-box;resize:vertical;min-height:88px;border:2px solid #c5cae9;border-left:4px solid #1a73e8;border-radius:4px;padding:12px 14px;font-size:0.76rem;color:#202124;line-height:1.8;font-family:Google Sans,Roboto,Arial,sans-serif;background:#fff;outline:none;cursor:text;"
+        onfocus="this.style.boxShadow='0 0 0 2px rgba(26,115,232,0.18)'"
+        onblur="this.style.boxShadow='none'"
+      >${htmlEsc2(detail.suggested_reply)}</textarea>
+      <button onclick="sendEmailReplyFromEl('${safeFrom}','${safeSubject}','${replyId2}')"
         style="margin-top:10px;width:100%;background:#1a73e8;color:#fff;border:none;border-radius:20px;padding:10px;font-family:Google Sans,Arial,sans-serif;font-size:0.78rem;font-weight:500;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;transition:background 0.2s;"
         onmouseover="this.style.background='#1557b0'" onmouseout="this.style.background='#1a73e8'">
         ↩ Send This Reply
@@ -2151,12 +2181,42 @@ function _showEmailConfirm(to, subject, body) {
   });
 }
 
+// Reads live textarea content at click-time, then delegates to sendEmailReply
+function sendEmailReplyFromEl(encodedTo, encodedSubject, textareaId) {
+  const el = document.getElementById(textareaId);
+  const body = el ? encodeURIComponent(el.value) : encodedTo;
+  sendEmailReply(encodedTo, encodedSubject, body);
+}
+
 // Send reply directly — always shows confirmation first
 async function sendEmailReply(to, subject, body) {
   const dec = { to: decodeURIComponent(to), subject: 'Re: '+decodeURIComponent(subject), body: decodeURIComponent(body) };
   const ok = await _showEmailConfirm(dec.to, dec.subject, dec.body);
   if (!ok) return;
-  sendMsg_quick(`Send email to ${dec.to} with subject "${dec.subject}" saying: ${dec.body}`);
+  // Bypass sendMsg() email-intent gate (would trigger a second confirmation).
+  // Inject directly into chat and call the Worker.
+  const cmd = `Send email to ${dec.to} with subject "${dec.subject}" saying: ${dec.body}`;
+  S.msgs.push({ role: 'user', content: cmd });
+  addMsg('user', cmd);
+  D.think.classList.remove('hidden');
+  D.send.disabled = true;
+  setMode('thinking');
+  try {
+    const reply = await callWorker(cmd);
+    S.msgs.push({ role: 'assistant', content: _ariaSanitizeForMemory(reply) });
+    D.think.classList.add('hidden');
+    D.send.disabled = false;
+    addMsg('assistant', reply);
+    speak(reply);
+    saveCurrentConv();
+  } catch (err) {
+    D.think.classList.add('hidden');
+    D.send.disabled = false;
+    setMode('ready');
+    const m = err.message.includes('fetch') ? 'Cannot reach ARIA backend.' : `Error: ${err.message}`;
+    addMsg('assistant', m, true);
+    speak(m);
+  }
 }
 
 // ── GMAIL PANEL ───────────────────────────────────────────────
@@ -2528,9 +2588,10 @@ D.inp.addEventListener('input', () => {
   };
   window._ariaWakeTTSEnd = function() {
     _ttsActive = false;
-    // Restart bgCycle after a short pause to let the speaker audio dissipate.
-    // Never restart during a manual mic session.
-    if (bgEnabled && !_pausingBg && !window._ariaManualActive) setTimeout(bgCycle, 600);
+    if (bgEnabled) {
+      _pausingBg = false;
+      setTimeout(bgCycle, 600);
+    }
   };
 
   // ── 3. Wake button ────────────────────────────────────────────────────
