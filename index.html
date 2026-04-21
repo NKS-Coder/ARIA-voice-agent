@@ -999,7 +999,8 @@ function buildRec(){
     // Manual mic: restart on no-speech/aborted ONLY if we were actively listening
     // (wasListening=false means stopListen() explicitly stopped us — don't restart).
     if(!S.autoListening&&wasListening&&(e.error==='no-speech'||e.error==='aborted')){
-      setTimeout(()=>{buildRec();try{rec.start();S.listening=true;}catch(x){setMode('ready');}},150);
+      S.listening=true; // hold bgCycle watchdog off during the restart delay
+      setTimeout(()=>{buildRec();try{rec.start();}catch(x){S.listening=false;setMode('ready');}},150);
       return;
     }
     setMode('ready');
@@ -1034,6 +1035,10 @@ async function startListen(){
     return;
   }
 
+  // Show UI immediately so the user sees the click registered during the pause below.
+  S.listening=true;
+  setMode('listening');
+
   // Pause the background wake recognizer FIRST so Chrome's single-SR-per-tab
   // limit doesn't kill the main rec before it starts.
   if(typeof window._ariaWakePause==='function'){ try{ await window._ariaWakePause(); }catch(e){} }
@@ -1052,6 +1057,7 @@ async function startListen(){
     try{
       await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true,noiseSuppression:true,autoGainControl:true}});
     }catch(err){
+      S.listening=false; setMode('ready');
       addMsg('assistant','🎤 Microphone blocked. Click the 🔒 lock icon in your address bar → Site settings → Microphone → Allow → refresh the page.',true);
       return;
     }
@@ -1062,7 +1068,9 @@ async function startListen(){
   }catch(e){
     if(e.name==='InvalidStateError'){
       buildRec();
-      setTimeout(()=>{try{rec.start();}catch(e2){setMode('ready');}},350);
+      setTimeout(()=>{try{rec.start();}catch(e2){S.listening=false;setMode('ready');}},350);
+    } else {
+      S.listening=false; setMode('ready');
     }
   }
 }
@@ -2278,9 +2286,12 @@ D.inp.addEventListener('input', () => {
   };
   window._ariaWakeTTSEnd = function() {
     _ttsActive = false;
-    // Restart bgCycle after a short pause to let the speaker audio dissipate.
-    // If auto-listen fires, its startListen → _ariaWakePause will kill bgCycle first.
-    if (bgEnabled && !_pausingBg) setTimeout(bgCycle, 600);
+    if (bgEnabled) {
+      // Clear any leftover pause flag from a manual mic session so wake word reliably resumes.
+      // If the user clicks mic again, _ariaWakePause will immediately re-set _pausingBg.
+      _pausingBg = false;
+      setTimeout(bgCycle, 600);
+    }
   };
 
   // ── 3. Wake button ────────────────────────────────────────────────────
