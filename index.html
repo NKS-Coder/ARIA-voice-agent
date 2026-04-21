@@ -1867,12 +1867,7 @@ async function showEmailDetail(email) {
     let detail = null;
 
     // Try to parse AI response as JSON (strip markdown fences if model wrapped output)
-    try {
-      let raw = (data.reply || '').replace(/^```(?:json)?\s*/im, '').replace(/\s*```\s*$/m, '').trim();
-      detail = JSON.parse(raw.match(/\{[\s\S]*\}/)?.[0] || raw);
-    } catch(e) {
-      detail = { summary: data.reply || 'Could not summarize.', key_points: [], suggested_reply: '' };
-    }
+    detail = _ariaParseEmailDetail(data.reply || '');
 
     // Render detail card directly
     const msgDiv = document.createElement('div');
@@ -1947,6 +1942,56 @@ async function showEmailDetail(email) {
     addMsg('assistant', 'Could not load email details. Please try again.', true);
     console.error('showEmailDetail error:', e);
   }
+}
+
+// Robust parser for email-detail responses. Handles:
+//  - raw JSON
+//  - JSON wrapped in ```json ... ``` fences
+//  - malformed JSON with unquoted values (regex field extraction)
+//  - plain text (falls back to summary only)
+function _ariaParseEmailDetail(reply) {
+  const fallback = { summary: '', key_points: [], suggested_reply: '', sentiment: 'neutral', action_required: false };
+  if (!reply) return { ...fallback, summary: 'Could not summarize.' };
+  let raw = String(reply).replace(/^```(?:json)?\s*/im, '').replace(/\s*```\s*$/m, '').trim();
+  const objMatch = raw.match(/\{[\s\S]*\}/);
+  if (objMatch) raw = objMatch[0];
+  try {
+    const parsed = JSON.parse(raw);
+    return {
+      summary: parsed.summary || '',
+      key_points: Array.isArray(parsed.key_points) ? parsed.key_points : [],
+      suggested_reply: parsed.suggested_reply || '',
+      sentiment: parsed.sentiment || 'neutral',
+      action_required: !!parsed.action_required
+    };
+  } catch(e) {}
+  // Malformed JSON — extract fields with regex instead of dumping raw string
+  const pick = (key) => {
+    const re = new RegExp('"' + key + '"\\s*:\\s*"((?:[^"\\\\]|\\\\.)*)"', 'i');
+    const m = raw.match(re);
+    if (m) return m[1].replace(/\\"/g, '"').replace(/\\n/g, '\n');
+    const re2 = new RegExp('"' + key + '"\\s*:\\s*([^,\\n}]+?)(?=\\s*[,\\n}]|\\s*"[a-z_]+"\\s*:)', 'i');
+    const m2 = raw.match(re2);
+    return m2 ? m2[1].trim().replace(/^["']|["']$/g, '') : '';
+  };
+  const kpMatch = raw.match(/"key_points"\s*:\s*\[([\s\S]*?)\]/i);
+  let keyPoints = [];
+  if (kpMatch) {
+    keyPoints = [...kpMatch[1].matchAll(/"((?:[^"\\]|\\.)*)"/g)].map(m => m[1]);
+  }
+  const summary = pick('summary');
+  const suggestedReply = pick('suggested_reply');
+  if (!summary && !suggestedReply && keyPoints.length === 0) {
+    // Not JSON-like at all — use the raw text as summary
+    return { ...fallback, summary: String(reply).replace(/```(?:json)?/gi, '').trim() || 'Could not summarize.' };
+  }
+  return {
+    summary: summary || 'Could not extract summary.',
+    key_points: keyPoints,
+    suggested_reply: suggestedReply,
+    sentiment: pick('sentiment') || 'neutral',
+    action_required: /true/i.test(pick('action_required'))
+  };
 }
 
 function renderEmailResponse(raw, container) {
