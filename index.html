@@ -1854,9 +1854,9 @@ function renderEmailDetail(data, container) {
   const el = document.createElement('div');
   el.style.cssText = 'background:#fff;border:1px solid #e0e0e0;border-radius:12px;overflow:hidden;width:100%;margin-top:6px;box-shadow:0 1px 6px rgba(32,33,36,0.15);font-family:Google Sans,Roboto,Arial,sans-serif;';
 
-  const safeReply   = (detail.suggested_reply || '').replace(/'/g, "\'").replace(/\n/g,' ');
-  const safeFrom    = (email?.from || '').replace(/'/g, "\'");
-  const safeSubject = (email?.subject || '').replace(/'/g, "\'");
+  const safeReply   = encodeURIComponent(detail.suggested_reply || '');
+  const safeFrom    = encodeURIComponent(email?.from || '');
+  const safeSubject = encodeURIComponent(email?.subject || '');
 
   el.innerHTML = `
     <!-- Email header -->
@@ -1945,7 +1945,30 @@ async function sendEmailReply(to, subject, body) {
   const dec = { to: decodeURIComponent(to), subject: 'Re: '+decodeURIComponent(subject), body: decodeURIComponent(body) };
   const ok = await _showEmailConfirm(dec.to, dec.subject, dec.body);
   if (!ok) return;
-  sendMsg_quick(`Send email to ${dec.to} with subject "${dec.subject}" saying: ${dec.body}`);
+  // Bypass sendMsg() email-intent gate (would trigger a second confirmation).
+  // Inject directly into chat and call the Worker.
+  const cmd = `Send email to ${dec.to} with subject "${dec.subject}" saying: ${dec.body}`;
+  S.msgs.push({ role: 'user', content: cmd });
+  addMsg('user', cmd);
+  D.think.classList.remove('hidden');
+  D.send.disabled = true;
+  setMode('thinking');
+  try {
+    const reply = await callWorker(cmd);
+    S.msgs.push({ role: 'assistant', content: _ariaSanitizeForMemory(reply) });
+    D.think.classList.add('hidden');
+    D.send.disabled = false;
+    addMsg('assistant', reply);
+    speak(reply);
+    saveCurrentConv();
+  } catch (err) {
+    D.think.classList.add('hidden');
+    D.send.disabled = false;
+    setMode('ready');
+    const m = err.message.includes('fetch') ? 'Cannot reach ARIA backend.' : `Error: ${err.message}`;
+    addMsg('assistant', m, true);
+    speak(m);
+  }
 }
 
 // ── GMAIL PANEL ───────────────────────────────────────────────
