@@ -1213,6 +1213,40 @@ function _ariaSanitizeForMemory(reply) {
   return reply;
 }
 
+// Detects OAuth token refresh failure and builds an actionable reconnect card.
+function _ariaIsOAuthRefreshError(txt) {
+  if (!txt || typeof txt !== 'string') return null;
+  const t = txt.toLowerCase();
+  if (/failed to refresh\s+(google|gmail)\s+token/.test(t) || /please reconnect gmail/.test(t)) return 'gmail';
+  if (/failed to refresh\s+(microsoft|outlook)\s+token/.test(t) || /please reconnect outlook/.test(t)) return 'outlook';
+  if (/failed to refresh\s+(google\s+calendar|calendar)\s+token/.test(t) || /please reconnect calendar/.test(t)) return 'calendar';
+  return null;
+}
+
+function _ariaBuildOAuthReconnectCard(appName, originalMsg) {
+  // Auto-mark as disconnected so the UI is honest about the state
+  try { const a = C.apps; if (a[appName]) { a[appName].connected = false; C.saveApp(appName, a[appName]); } } catch(e) {}
+  if (typeof syncApps === 'function') syncApps();
+  const pretty = APPS[appName]?.name || appName;
+  const card = document.createElement('div');
+  card.style.cssText = 'background:#fff3cd;border:1px solid #ffe69c;border-left:4px solid #f0ad4e;border-radius:10px;padding:14px 16px;width:100%;margin-top:4px;font-family:Manrope,Inter,sans-serif;';
+  const title = document.createElement('div');
+  title.style.cssText = 'font-size:.82rem;font-weight:700;color:#664d03;margin-bottom:6px;display:flex;align-items:center;gap:8px;';
+  title.innerHTML = '<span style="font-size:16px;">&#9888;</span> ' + pretty + ' session expired';
+  const body = document.createElement('div');
+  body.style.cssText = 'font-size:.72rem;color:#664d03;line-height:1.55;margin-bottom:10px;';
+  body.textContent = `Your ${pretty} authorization expired (Google refresh tokens expire for apps in testing mode). Click below to re-authorize in one tap — no need to open Settings.`;
+  const btn = document.createElement('button');
+  btn.textContent = `Reconnect ${pretty}`;
+  btn.style.cssText = 'background:#1a73e8;color:#fff;border:none;border-radius:8px;padding:9px 16px;font-family:inherit;font-size:.74rem;font-weight:600;cursor:pointer;';
+  btn.onclick = function() {
+    btn.disabled = true; btn.textContent = 'Opening authorization…';
+    if (typeof connectApp === 'function') connectApp(appName);
+  };
+  card.appendChild(title); card.appendChild(body); card.appendChild(btn);
+  return card;
+}
+
 // Detects email-READ intent: any phrasing that clearly asks to see/check/display emails.
 // When true, callWorker prepends a canonical verb so the Worker's detectIntent regex
 // always routes to read_emails (never to Groq chat).
@@ -1332,6 +1366,22 @@ function addMsg(role, txt, err=false) {
     }
   }
   } // end role==='assistant' JSON check
+
+  // OAuth token refresh failure — show a one-click reconnect card instead of the red email card
+  if (role === 'assistant' && !err) {
+    const _oauthApp = _ariaIsOAuthRefreshError(txt);
+    if (_oauthApp) {
+      const av = document.createElement('div'); av.className = 'av'; av.textContent = 'A'; av.style.marginTop = '8px';
+      const wrap = document.createElement('div'); wrap.style.cssText = 'flex:1;min-width:0;width:100%;';
+      const timeEl = document.createElement('div'); timeEl.className = 'msg-time'; timeEl.textContent = now;
+      wrap.appendChild(_ariaBuildOAuthReconnectCard(_oauthApp, txt));
+      wrap.appendChild(timeEl);
+      d.style.cssText = 'display:flex;gap:8px;align-items:flex-start;animation:msg-in 0.3s cubic-bezier(0.16,1,0.3,1);overflow:visible;';
+      d.appendChild(av); d.appendChild(wrap);
+      D.msgs.appendChild(d); D.msgs.scrollTop = D.msgs.scrollHeight;
+      return;
+    }
+  }
 
   // For assistant messages that look like email analysis — wrap in Gmail card
   if (role === 'assistant' && !err && _ariaIsEmailMsg(txt)) {
