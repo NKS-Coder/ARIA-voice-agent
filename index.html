@@ -1027,7 +1027,6 @@ async function fallbackSpeak(txt, _voiceRetry) {
   u.pitch = 1;
   u.onstart = () => { clearTimeout(watchdog); setMode('speaking'); if(typeof window._ariaWakeTTSStart==='function')window._ariaWakeTTSStart(); };
   u.onend = u.onerror = () => _onTTSEnd();
-  const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
   const doSpeak = () => { if (synth.paused) synth.resume(); synth.speak(u); };
   if (isIOS) { setTimeout(doSpeak, 80); } else { doSpeak(); }
   const watchdog = setTimeout(() => {
