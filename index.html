@@ -673,7 +673,7 @@ function enc(s){ return encodeURIComponent(s||''); }
 async function checkWorker(){
   try{
     const r=await fetch(`${W}/health`);const d=await r.json();
-    $('workerStatus').textContent=`✓ ARIA v14.2 · Worker connected`;
+    $('workerStatus').textContent=`✓ ARIA v14.7 · iOS + Bella fixes live`;
     $('workerStatus').style.color='#5de6d8';
   }catch(e){
     $('workerStatus').textContent='✗ Cannot reach Worker — check Cloudflare deployment';
@@ -890,38 +890,67 @@ function stopSpeaking() {
 function _onTTSEnd() {
   setMode('ready');
   if(typeof window._ariaWakeTTSEnd==='function') window._ariaWakeTTSEnd();
-  startAutoListenWindow();
+  // Auto-listen after TTS removed — it caused the mic to re-open and pick up
+  // ARIA's own voice from the speaker, creating a feedback loop.
 }
 
-async function fallbackSpeak(txt) {
+async function fallbackSpeak(txt, _voiceRetry) {
   synth.cancel();
   if(S.audio){S.audio.pause();S.audio=null;}
 
-  // Try ElevenLabs directly if key is configured
+  const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
+
+  // Try ElevenLabs directly if key is configured. One retry on network/5xx
+  // failure so we don't silently slip into browser TTS on transient errors.
   if(ELEVEN_KEY && ELEVEN_KEY !== 'PASTE_YOUR_ELEVENLABS_KEY_HERE') {
+    const voiceId = C.voice || ELEVEN_VOICE;
+    const body = JSON.stringify({
+      text: txt.slice(0,2500),
+      model_id: 'eleven_turbo_v2_5',
+      voice_settings: {stability:0.4,similarity_boost:0.8,style:0.1,use_speaker_boost:true}
+    });
+    const hitEleven = () => fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voiceId}`, {
+      method:'POST',
+      headers:{'Accept':'audio/mpeg','Content-Type':'application/json','xi-api-key':ELEVEN_KEY},
+      body
+    });
     try {
       setMode('speaking');
       if(typeof window._ariaWakeTTSStart==='function') window._ariaWakeTTSStart();
-      const voiceId = C.voice || ELEVEN_VOICE;
-      const res = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voiceId}`, {
-        method: 'POST',
-        headers: {'Accept':'audio/mpeg','Content-Type':'application/json','xi-api-key':ELEVEN_KEY},
-        body: JSON.stringify({
-          text: txt.slice(0,2500),
-          model_id: 'eleven_turbo_v2_5',
-          voice_settings: {stability:0.4,similarity_boost:0.8,style:0.1,use_speaker_boost:true}
-        })
-      });
+      let res = await hitEleven();
+      if(!res.ok && (res.status >= 500 || res.status === 429)) {
+        await new Promise(r => setTimeout(r, 500));
+        res = await hitEleven();
+      }
       if(res.ok) {
         const blob = await res.blob();
         const url  = URL.createObjectURL(blob);
-        const audio = new Audio(url);
+        // iOS: reuse the Audio element unlocked by iosUnlock — never create a
+        // new one here or .play() will silently fail outside the gesture context.
+        let audio;
+        if(isIOS && window._iosAudio) {
+          audio = window._iosAudio;
+          try { audio.pause(); } catch(e){}
+          audio.src = url;
+          audio.volume = 1.0;
+          audio.onended = null; audio.onerror = null; // clear previous handlers
+        } else {
+          audio = new Audio(url);
+        }
         S.audio = audio;
         audio.playbackRate = parseFloat(D.spd?.value || '1');
         audio.onended = () => { URL.revokeObjectURL(url); S.audio=null; _onTTSEnd(); };
         audio.onerror = () => { URL.revokeObjectURL(url); S.audio=null; _onTTSEnd(); };
-        await audio.play();
+        const playPromise = audio.play();
+        if(playPromise && playPromise.catch) {
+          playPromise.catch(err => {
+            console.warn('Audio.play() blocked:', err.message);
+            URL.revokeObjectURL(url); S.audio=null; _onTTSEnd();
+          });
+        }
         return;
+      } else {
+        console.warn('ElevenLabs returned', res.status, '— falling back to browser TTS');
       }
     } catch(e) { console.warn('ElevenLabs direct failed, falling back to browser TTS:', e.message); }
   }
@@ -929,9 +958,13 @@ async function fallbackSpeak(txt) {
   // Browser TTS fallback
   let voices = synth.getVoices();
   if (!voices.length) voices = bVoices;
-  if (!voices.length) { setTimeout(() => fallbackSpeak(txt), 400); return; }
+  if (!voices.length) { setTimeout(() => fallbackSpeak(txt, 0), 400); return; }
   const storedName = C.voice;
-  const BAD = /david|mark|richard|george|james|ravi|jorge/i;
+  // Expanded BAD list — blocks common Indian/South-Asian TTS voices so the
+  // Android fallback never switches from Bella to "Neerja" etc.
+  const BAD = /david|mark|richard|george|james|ravi|jorge|neerja|veena|lekha|heera|hemant|kalpana|aditi|mohan|deepa/i;
+  // storedName on main is an ElevenLabs voice ID (e.g. 'EXAVITQu4vr4xnSDxMaL'),
+  // which will never match a browser voice name — so always auto-pick below.
   let best = storedName ? voices.find(v => v.name === storedName) : null;
   if (!best) {
     const scored = voices
@@ -2534,18 +2567,19 @@ window.addEventListener('load', function(){
         ctx.resume();
       }
     } catch(e){}
-    // 3. Pre-warm an Audio element so ElevenLabs blob audio plays after async calls
-    // (iOS requires Audio.play() to be initiated in a gesture context at least once)
+    // 3. Pre-warm + KEEP an Audio element. iOS only allows Audio.play() on an
+    // element that was activated during a user gesture — so we reuse the SAME
+    // element for every ElevenLabs playback later by just swapping its .src.
     try {
       var a = new Audio();
-      // Silent 0.1s MP3 data-URI
       a.src = 'data:audio/mpeg;base64,SUQzBAAAAAAAI1RTU0UAAAAPAAADTGF2ZjU4LjI5LjEwMAAAAAAAAAAAAAAA//tQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWGluZwAAAA8AAAACAAABIADAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMD///////////////////////////////////////////8AAAA5TEFNRTMuMTAwAc0AAAAAAAAAABQAJAXUQgAAgAAAASB6DYlGAAAAAAAAAAAAAAAAAAAA//sQZAAP8AAAaQAAAAgAAA0gAAABAAABpAAAACAAADSAAAAETEFNRTMuMTAwVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVU=';
       a.volume = 0.001;
       var p = a.play();
-      if (p && p.then) p.then(function(){ a.pause(); }).catch(function(){});
-      // Store for reuse in speakEL so subsequent plays work
-      if (window.S) window.S._unlockedAudio = new Audio();
-      else setTimeout(function(){ if(window.S) window.S._unlockedAudio = new Audio(); }, 500);
+      if (p && p.then) p.then(function(){ a.pause(); a.volume = 1.0; }).catch(function(){});
+      // This SAME element is reused by fallbackSpeak — do NOT discard it.
+      window._iosAudio = a;
+      if (window.S) window.S._unlockedAudio = a;
+      else setTimeout(function(){ if(window.S) window.S._unlockedAudio = a; }, 500);
     } catch(e){}
     // 4. Re-speak welcome on iOS (original call fired before any touch)
     if (/iPhone|iPad|iPod/i.test(navigator.userAgent)) {
