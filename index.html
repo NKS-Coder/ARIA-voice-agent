@@ -803,11 +803,11 @@ function loadBV() {
 
   if (chosen) {
     // Put chosen first, then rest excluding David/Mark male voices
-    bVoices = [chosen, ...all.filter(v => v !== chosen && !/(david|mark|richard|george|james|daniel)/i.test(v.name))];
+    bVoices = [chosen, ...all.filter(v => v !== chosen && !/(david|mark|richard|george|james|daniel|neerja|veena|lekha|heera|hemant|kalpana|aditi|mohan|deepa)/i.test(v.name))];
   } else {
     // No preferred found — sort by gender signals, exclude robotic males
     bVoices = all
-      .filter(v => !/(david|mark|richard|george|james)/i.test(v.name))
+      .filter(v => !/(david|mark|richard|george|james|neerja|veena|lekha|heera|hemant|kalpana|aditi|mohan|deepa)/i.test(v.name))
       .sort((a,b) => {
         const s = v =>
           (/zira|aria|jenny|hazel|susan|karen|samantha|female|woman/i.test(v.name) ? 5 : 0) +
@@ -827,7 +827,7 @@ setTimeout(populateVoiceDropdown, 800);
 function populateVoiceDropdown() {
   const all = synth.getVoices().filter(v => v.lang.startsWith('en'));
   if (!all.length) return;
-  const BAD = /david|mark|richard|george|james|ravi|jorge/i;
+  const BAD = /david|mark|richard|george|james|ravi|jorge|neerja|veena|lekha|heera|hemant|kalpana|aditi|mohan|deepa/i;
   const scored = all.filter(v => !BAD.test(v.name)).map(v => {
     let s = 0;
     if (/zira|aria|jenny|hazel|susan|karen|samantha|female|woman|alice|moira|tessa|fiona/i.test(v.name)) s += 6;
@@ -871,16 +871,26 @@ function stopSpeaking() {
   setMode('ready');
 }
 
-function fallbackSpeak(txt) {
+function fallbackSpeak(txt, _voiceRetry) {
   synth.cancel();
   let voices = synth.getVoices();
   if (!voices.length) voices = bVoices;
-  if (!voices.length) { setTimeout(() => fallbackSpeak(txt), 400); return; }
+  if (!voices.length) { setTimeout(() => fallbackSpeak(txt, 0), 400); return; }
 
   // Use user-selected voice if set, else auto-pick best
   const storedName = C.voice;
-  const BAD = /david|mark|richard|george|james|ravi|jorge/i;
+  // Extended BAD list — blocks common Indian/South-Asian TTS voices that tend to
+  // appear high in Android's default voice list.
+  const BAD = /david|mark|richard|george|james|ravi|jorge|neerja|veena|lekha|heera|hemant|kalpana|aditi|mohan|deepa/i;
   let best = storedName ? voices.find(v => v.name === storedName) : null;
+
+  // Preferred voice not in list yet (voice list still loading on Android/Chrome) —
+  // retry up to 4 times with 300 ms gaps before falling back to auto-pick.
+  if (storedName && !best && (_voiceRetry || 0) < 4) {
+    setTimeout(() => fallbackSpeak(txt, (_voiceRetry || 0) + 1), 300);
+    return;
+  }
+
   if (!best) {
     const scored = voices
       .filter(v => !BAD.test(v.name))
@@ -903,8 +913,13 @@ function fallbackSpeak(txt) {
   u.pitch = 1;
   u.onstart = () => { clearTimeout(watchdog); setMode('speaking'); if(typeof window._ariaWakeTTSStart==='function')window._ariaWakeTTSStart(); };
   u.onend = u.onerror = () => { setMode('ready'); if(typeof window._ariaWakeTTSEnd==='function')window._ariaWakeTTSEnd(); };
-  if (synth.paused) synth.resume();
-  synth.speak(u);
+
+  const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
+  // iOS: cancel() doesn't flush synchronously — give it a tick before speaking,
+  // otherwise the new utterance gets silently dropped.
+  const doSpeak = () => { if (synth.paused) synth.resume(); synth.speak(u); };
+  if (isIOS) { setTimeout(doSpeak, 80); } else { doSpeak(); }
+
   const watchdog = setTimeout(() => {
     if (synth.speaking && !synth.paused) return;
     synth.cancel();
@@ -916,7 +931,7 @@ function fallbackSpeak(txt) {
       u2.onend = u2.onerror = () => { setMode('ready'); if(typeof window._ariaWakeTTSEnd==='function')window._ariaWakeTTSEnd(); };
       synth.speak(u2);
     }, 100);
-  }, 2000);
+  }, 2500);
 }
 
 function speak(txt) {
@@ -1292,6 +1307,19 @@ async function callWorker(txt){
 // SEND
 async function sendMsg(){
   const txt=D.inp.value.trim();if(!txt||D.send.disabled)return;
+
+  // iOS: speechSynthesis.speak() only works when called inside a user-gesture context.
+  // Pre-warm TTS here (we ARE in a gesture context — button click / mic result)
+  // so the async speak() call after fetch resolves will go through.
+  if (/iPhone|iPad|iPod/i.test(navigator.userAgent)) {
+    try {
+      synth.cancel();
+      const prm = new SpeechSynthesisUtterance(' ');
+      prm.rate = 10; prm.volume = 0.001;
+      prm.onend = prm.onerror = function(){};
+      synth.speak(prm);
+    } catch(e){}
+  }
 
   // Gate: require confirmation for ANY explicit email-send intent.
   // Must match send/write/compose/draft/reply + (email|mail|message) + to — avoids
