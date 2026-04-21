@@ -689,7 +689,7 @@ async function checkWorker(){
         }
       }
     } catch(e){ /* quota endpoint optional — stay quiet */ }
-    $('workerStatus').textContent=`✓ ARIA v15.3${elBadge}`;
+    $('workerStatus').textContent=`✓ ARIA v15.4${elBadge}`;
     if(!$('workerStatus').style.color) $('workerStatus').style.color='#5de6d8';
   }catch(e){
     $('workerStatus').textContent='✗ Cannot reach Worker — check Cloudflare deployment';
@@ -1373,6 +1373,13 @@ function _ariaIsEmailMsg(txt) {
 }
 
 function _ariaBuildEmailSummaryCard(txt) {
+  // If the text looks like unparsed LLM JSON (backticks or inline JSON), clean it.
+  let cleanTxt = String(txt || '');
+  if (/```/.test(cleanTxt) || /^\s*\{[\s\S]*"summary"\s*:/.test(cleanTxt.trim())) {
+    const parsed = (typeof _ariaParseEmailDetail === 'function') ? _ariaParseEmailDetail(cleanTxt) : null;
+    if (parsed && parsed.summary) cleanTxt = parsed.summary;
+    else cleanTxt = cleanTxt.replace(/```(?:json)?/gi, '').replace(/^\s*\{|\}\s*$/g, '').trim();
+  }
   const outer = document.createElement('div');
   outer.style.cssText = 'background:#fff;border:1px solid #e0e0e0;border-radius:12px;overflow:hidden;width:100%;margin-top:4px;box-shadow:0 1px 6px rgba(32,33,36,.15);font-family:Google Sans,Roboto,Arial,sans-serif;';
   const hdr = document.createElement('div');
@@ -1386,7 +1393,7 @@ function _ariaBuildEmailSummaryCard(txt) {
   label.textContent = 'Summary';
   const content = document.createElement('div');
   content.style.cssText = 'font-size:.76rem;color:#202124;line-height:1.75;';
-  content.textContent = txt;
+  content.textContent = cleanTxt;
   body.appendChild(label); body.appendChild(content);
   if (window._lastEmails && window._lastEmails.length) {
     const ob = document.createElement('button');
@@ -2052,6 +2059,17 @@ function renderEmailResponse(raw, container) {
       return true;
     }
     if (data.type === 'email_detail') {
+      // If user asked to READ/LIST emails, downgrade the worker's premature detail
+      // card into a 1-row list so the user clicks to expand into summary/points/reply.
+      const lastUser = (S.msgs.filter(m => m.role === 'user').slice(-1)[0] || {}).content || '';
+      if (_ariaIsEmailReadIntent(lastUser) && data.email) {
+        renderEmailList({
+          type: 'email_list',
+          title: 'Unread Emails',
+          emails: [ data.email ]
+        }, container);
+        return true;
+      }
       renderEmailDetail(data, container);
       return true;
     }
