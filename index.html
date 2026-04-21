@@ -392,15 +392,7 @@ select.minp option{background:#0a0c10;}
       <button id="saveVoiceSidebar" style="width:100%;padding:8px;border-radius:10px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.07);font-size:10px;font-weight:700;color:rgba(255,255,255,0.35);cursor:pointer;font-family:inherit;text-transform:uppercase;letter-spacing:0.12em;transition:all 0.15s;">Save Voice</button>
       <div id="sidebarVoiceSaved" class="msaved">&#10003; Voice saved</div>
       <div style="margin-top:14px;display:flex;flex-direction:column;gap:10px;">
-        <div style="display:flex;align-items:center;justify-content:space-between;">
-          <span style="font-size:11px;color:rgba(100,116,139,0.9);">Auto-listen</span>
-          <label style="position:relative;display:inline-flex;align-items:center;cursor:pointer;">
-            <input type="checkbox" id="autoOn" class="sr-only toggle-checkbox"/>
-            <div class="toggle-label" style="width:32px;height:18px;background:rgba(255,255,255,0.05);border-radius:9999px;position:relative;border:0.5px solid rgba(255,255,255,0.08);">
-              <div class="toggle-dot" style="position:absolute;left:3px;top:3px;background:white;width:11px;height:11px;border-radius:50%;transition:transform 0.2s;"></div>
-            </div>
-          </label>
-        </div>
+        <input type="checkbox" id="autoOn" class="sr-only" style="display:none;"/>
         <div style="display:flex;align-items:center;justify-content:space-between;">
           <span style="font-size:11px;color:rgba(100,116,139,0.9);">Voice responses</span>
           <label style="position:relative;display:inline-flex;align-items:center;cursor:pointer;">
@@ -647,7 +639,7 @@ function enc(s){ return encodeURIComponent(s||''); }
 async function checkWorker(){
   try{
     const r=await fetch(`${W}/health`);const d=await r.json();
-    $('workerStatus').textContent=`✓ ARIA v14.2 · Worker connected`;
+    $('workerStatus').textContent=`✓ ARIA v14.3 · Worker connected`;
     $('workerStatus').style.color='#5de6d8';
   }catch(e){
     $('workerStatus').textContent='✗ Cannot reach Worker — check Cloudflare deployment';
@@ -1100,27 +1092,9 @@ function clearAutoListenTimer(){
   if(inner){inner.classList.remove('counting');}
 }
 function startAutoListenWindow(){
-  if(!$('autoOn').checked)return;
-  if(window._ariaSkipNextAutoListen){window._ariaSkipNextAutoListen=false;return;}
-  // 1500ms delay: lets speaker audio fully dissipate + echo cancellation warm-up
-  setTimeout(()=>{
-    S.autoListening=true;
-    _autoListenStart=Date.now();
-    startListen();
-    let secs=5;
-    const tag=document.getElementById('liveTag'),inner=document.querySelector('#liveBar .live-inner');
-    if(tag){tag.textContent=secs+'s';tag.classList.add('counting');tag.classList.remove('expiring');}
-    if(inner){inner.classList.add('counting');}
-    _autoListenT=setInterval(()=>{
-      secs--;
-      if(tag){
-        if(secs<=0){tag.textContent='LIVE';tag.classList.remove('counting','expiring');}
-        else{tag.textContent=secs+'s';if(secs<=2)tag.classList.add('expiring');else tag.classList.remove('expiring');}
-      }
-      if(inner&&secs<=0){inner.classList.remove('counting');}
-      if(secs<=0){clearInterval(_autoListenT);_autoListenT=null;S.autoListening=false;if(S.listening)stopListen();}
-    },1000);
-  }, 1000);
+  // Permanently disabled — auto-listening after TTS caused the speaker
+  // output to echo back into the mic and blocked new input.
+  return;
 }
 
 // MODE
