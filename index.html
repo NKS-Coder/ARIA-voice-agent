@@ -395,7 +395,7 @@ select.minp option{background:#0a0c10;}
         <div style="display:flex;align-items:center;justify-content:space-between;">
           <span style="font-size:11px;color:rgba(100,116,139,0.9);">Auto-listen</span>
           <label style="position:relative;display:inline-flex;align-items:center;cursor:pointer;">
-            <input type="checkbox" id="autoOn" checked class="sr-only toggle-checkbox"/>
+            <input type="checkbox" id="autoOn" class="sr-only toggle-checkbox"/>
             <div class="toggle-label" style="width:32px;height:18px;background:rgba(255,255,255,0.05);border-radius:9999px;position:relative;border:0.5px solid rgba(255,255,255,0.08);">
               <div class="toggle-dot" style="position:absolute;left:3px;top:3px;background:white;width:11px;height:11px;border-radius:50%;transition:transform 0.2s;"></div>
             </div>
@@ -647,7 +647,7 @@ function enc(s){ return encodeURIComponent(s||''); }
 async function checkWorker(){
   try{
     const r=await fetch(`${W}/health`);const d=await r.json();
-    $('workerStatus').textContent=`✓ ARIA v14.1 · Worker connected`;
+    $('workerStatus').textContent=`✓ ARIA v14.2 · Worker connected`;
     $('workerStatus').style.color='#5de6d8';
   }catch(e){
     $('workerStatus').textContent='✗ Cannot reach Worker — check Cloudflare deployment';
@@ -910,7 +910,7 @@ function fallbackSpeak(txt) {
   u.rate  = parseFloat(D.spd.value || '1');
   u.pitch = 1;
   u.onstart = () => { clearTimeout(watchdog); setMode('speaking'); if(typeof window._ariaWakeTTSStart==='function')window._ariaWakeTTSStart(); };
-  u.onend = u.onerror = () => { setMode('ready'); if(typeof window._ariaWakeTTSEnd==='function')window._ariaWakeTTSEnd(); startAutoListenWindow(); };
+  u.onend = u.onerror = () => { setMode('ready'); if(typeof window._ariaWakeTTSEnd==='function')window._ariaWakeTTSEnd(); };
   if (synth.paused) synth.resume();
   synth.speak(u);
   const watchdog = setTimeout(() => {
@@ -921,7 +921,7 @@ function fallbackSpeak(txt) {
       const u2 = new SpeechSynthesisUtterance(txt);
       if (best) u2.voice = best;
       u2.rate = parseFloat(D.spd.value || '1');
-      u2.onend = u2.onerror = () => { setMode('ready'); if(typeof window._ariaWakeTTSEnd==='function')window._ariaWakeTTSEnd(); startAutoListenWindow(); };
+      u2.onend = u2.onerror = () => { setMode('ready'); if(typeof window._ariaWakeTTSEnd==='function')window._ariaWakeTTSEnd(); };
       synth.speak(u2);
     }, 100);
   }, 2000);
