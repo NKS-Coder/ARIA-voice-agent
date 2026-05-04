@@ -1,5 +1,5 @@
 // ═══════════════════════════════════════════════════════════════
-//  ARIA — Cloudflare Worker v15.4
+//  ARIA — Cloudflare Worker v15.5
 //  (capability-aware intent + LLM fallback + always-list email replies)
 // ═══════════════════════════════════════════════════════════════
 
@@ -75,7 +75,7 @@ export default {
 
     try {
       if (url.pathname === '/health')
-        return jsonRes({ status: 'ARIA v15.4 ✅', groq: !!env.GROQ_API_KEY, elevenlabs: !!env.ELEVENLABS_API_KEY, google: !!env.GOOGLE_CLIENT_ID, supabase: !!env.SUPABASE_URL });
+        return jsonRes({ status: 'ARIA v15.5 ✅', groq: !!env.GROQ_API_KEY, elevenlabs: !!env.ELEVENLABS_API_KEY, google: !!env.GOOGLE_CLIENT_ID, supabase: !!env.SUPABASE_URL });
 
       if (url.pathname === '/tts')        return await handleTTS(request, env);
       if (url.pathname === '/tts/quota')  return await handleTTSQuota(env);
@@ -229,8 +229,11 @@ function buildGmailQuery(rawMsg) {
   }
 
   if (/\bimportant|priority|urgent\b/i.test(msg))            filters.push('is:important');
+  // "unread" maps to in:inbox (newest first) — the bare is:unread API label only surfaces
+  // one ancient email when the true unread queue is sparse. in:inbox gives the user what
+  // they actually want: their latest emails.
   const wantsUnread = /\bunread\b/i.test(msg);
-  if (wantsUnread)                                           filters.push('is:unread');
+  if (wantsUnread && !filters.length)                        filters.push('in:inbox');
   if (/\bstarred\b/i.test(msg))                              filters.push('is:starred');
   if (/\bsent\b/i.test(msg) && !/\bjust sent\b/i.test(msg)) filters.push('in:sent');
 
@@ -239,10 +242,7 @@ function buildGmailQuery(rawMsg) {
   else if (/\b(this|past|last)\s+week\b|\b7\s*days?\b/i.test(msg))   filters.push('newer_than:7d');
   else if (/\b(this|past|last)\s+month\b|\b30\s*days?\b/i.test(msg)) filters.push('newer_than:30d');
 
-  // When the user gives no filter at all (or only said "latest/recent/show emails"),
-  // default to in:inbox so they see the most recent mail — not just stale unread.
-  // Previously this defaulted to is:unread, which surfaced one ancient unread email
-  // when the unread queue was nearly empty.
+  // default: show recent inbox emails.
   if (!filters.length) filters.push('in:inbox');
 
   return { query: filters.join(' '), hasSender, senderTerms, senderPhrase: senderTerms[0] || null, wantsUnread };
@@ -350,19 +350,7 @@ async function handleChat(request, env) {
         console.log('[search] q="%s" terms=%s', query, JSON.stringify(senderTerms));
         let emails = await readGmail(query, Math.min(maxEmails, 20), userApps.gmail, env);
 
-        // If "unread" was explicitly asked but the unread queue is empty / nearly empty,
-        // top it up with recent inbox emails so the user sees something useful instead of
-        // one ancient unread message.
-        let toppedUpFromInbox = false;
-        if (wantsUnread && emails.length <= 1) {
-          const topUp = await readGmail('in:inbox', Math.min(maxEmails, 10), userApps.gmail, env);
-          const seen = new Set(emails.map(e => e.id));
-          for (const e of topUp) {
-            if (!seen.has(e.id)) { emails.push(e); seen.add(e.id); }
-            if (emails.length >= maxEmails) break;
-          }
-          if (topUp.length) toppedUpFromInbox = true;
-        }
+        const toppedUpFromInbox = false;
 
         if (!emails.length && hasSender && senderTerms.length) {
           const fallback = senderTerms.map(t => `"${t}"`).join(' OR ');
@@ -735,11 +723,16 @@ async function readGmail(query, max, gmailApp, env) {
   const listRes = await fetchWithTimeout(listUrl, { headers: { 'Authorization': `Bearer ${token}` } });
   const list = await listRes.json();
   if (!list.messages?.length) return [];
+  // Use format=metadata (just headers + snippet) — format=full downloads entire bodies
+  // which causes Cloudflare Worker timeouts when fetching 10+ emails in parallel.
+  const metaUrl = id =>
+    `https://gmail.googleapis.com/gmail/v1/users/me/messages/${id}?format=metadata` +
+    `&metadataHeaders=From&metadataHeaders=Subject&metadataHeaders=Date`;
   return Promise.all(list.messages.map(async m => {
-    const r = await fetch(`https://gmail.googleapis.com/gmail/v1/users/me/messages/${m.id}?format=full`, { headers: { 'Authorization': `Bearer ${token}` } });
+    const r = await fetch(metaUrl(m.id), { headers: { 'Authorization': `Bearer ${token}` } });
     const d = await r.json();
     const gh = n => d.payload?.headers?.find(h => h.name === n)?.value || '';
-    return { id: m.id, from: gh('From'), subject: gh('Subject'), date: gh('Date'), snippet: d.snippet || '', body: decodeEmailBody(d.payload) };
+    return { id: m.id, from: gh('From'), subject: gh('Subject'), date: gh('Date'), snippet: d.snippet || '', body: '' };
   }));
 }
 
