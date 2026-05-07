@@ -1,8 +1,10 @@
 // ═══════════════════════════════════════════════════════════════
-//  ARIA — Cloudflare Worker v15.9
-//  (semantic email intent — natural-language queries like "have I got any
-//   assessments from companies" now route to Gmail search even without
-//   explicit "email" keyword in the user's message)
+//  ARIA — Cloudflare Worker v16.0
+//  - multi-turn context: "yes"/"ok" replays the previous user turn
+//  - quantity stopwords ("top","best","most","few"...) no longer mistaken for senders
+//  - bulk organize: "archive/delete/spam all from X" (or all newsletters/promotions)
+//  - semantic email intent for natural-language queries
+//  - deterministic email_list summary
 // ═══════════════════════════════════════════════════════════════
 
 const BELLA = 'EXAVITQu4vr4xnSDxMaL';
@@ -77,7 +79,7 @@ export default {
 
     try {
       if (url.pathname === '/health')
-        return jsonRes({ status: 'ARIA v15.9 ✅', groq: !!env.GROQ_API_KEY, elevenlabs: !!env.ELEVENLABS_API_KEY, google: !!env.GOOGLE_CLIENT_ID, supabase: !!env.SUPABASE_URL });
+        return jsonRes({ status: 'ARIA v16.0 ✅', groq: !!env.GROQ_API_KEY, elevenlabs: !!env.ELEVENLABS_API_KEY, google: !!env.GOOGLE_CLIENT_ID, supabase: !!env.SUPABASE_URL });
 
       if (url.pathname === '/tts')        return await handleTTS(request, env);
       if (url.pathname === '/tts/quota')  return await handleTTSQuota(env);
@@ -164,7 +166,11 @@ const SENDER_STOPWORDS = new Set([
   'bank','pizza','account','service','services','company','inc','llc','corp','corporation',
   'spam','junk','identify','identifies','find','detect','detects','detecting','detected','see','search','filter','sort','organize','organise',
   'can','could','do','does','will','would','should','are','is','am','have','has','had','be','been','being',
-  'how','what','when','why','where','which','who','whom','whose','aria'
+  'how','what','when','why','where','which','who','whom','whose','aria',
+  // quantity / quality modifiers — never valid sender names
+  'top','best','most','few','couple','several','many','more','less','first','main','primary','priority','urgent','priorities',
+  'this','that','these','those','here','there','then','than','today','yesterday','tomorrow','week','month','year','day','days','weeks','months','years',
+  'something','anything','everything','nothing','someone','anyone','everyone','nobody'
 ]);
 
 function cleanSenderPhrase(raw) {
@@ -295,6 +301,21 @@ async function handleChat(request, env) {
   let intent = detectIntent(lastMsg);
   let semanticSearchTerms = null;
 
+  // Multi-turn context: if the user sent a tiny acknowledgement ("yes", "ok",
+  // "sure", "go ahead", "do it", "please"), look back at the previous user
+  // turn — that's almost always what they want to act on now. Without this,
+  // ARIA forgets the BMW/assessment context the moment the user confirms.
+  const isAcknowledgement = /^(yes|yeah|yep|yup|sure|ok|okay|please|do it|go ahead|continue|proceed|alright|fine|sounds good)\b\s*[!.]*\s*$/i.test(lastMsg.trim());
+  let effectiveMsg = lastMsg;
+  if (isAcknowledgement) {
+    const prevUserTurn = (messages || []).slice(0, -1).reverse().find(m => m.role === 'user');
+    if (prevUserTurn) {
+      effectiveMsg = stripSystemPrefix(prevUserTurn.content);
+      console.log('[multi-turn] ack detected, reusing previous turn:', effectiveMsg);
+      intent = detectIntent(effectiveMsg);
+    }
+  }
+
   // Semantic email intent fallback: when the regex says 'chat' but Gmail is
   // connected, ask the LLM whether the user is implicitly asking about emails
   // (e.g. "have I got any assessments from companies?", "any offers from Apple?",
@@ -303,7 +324,7 @@ async function handleChat(request, env) {
   if (intent === 'chat' && userApps.gmail) {
     try {
       const semantic = await extractJSON(
-        lastMsg,
+        effectiveMsg,
         `The user has Gmail connected. Decide if their message is implicitly asking about something that would likely be found in their email inbox (job offers, assessments, interviews, invoices, receipts, deliveries, bank statements, newsletters, updates from a sender, meeting confirmations, etc.).
 EMAIL: "any offers from Apple", "did I get an assessment", "interview schedule", "anything from my bank", "my latest invoice".
 NOT EMAIL: "hi", "how are you", "what's the weather", "tell me a joke", "explain X", general knowledge questions.
@@ -316,6 +337,10 @@ Return ONLY JSON: {"is_email_query": true|false, "search_terms": "1-3 keyword(s)
       }
     } catch (e) { /* fall through to chat */ }
   }
+
+  // From here on, downstream branches use effectiveMsg so multi-turn context flows through
+  // any place that previously read lastMsg directly.
+  lastMsg = effectiveMsg;
 
   let reply = null;
 
@@ -542,6 +567,8 @@ function detectIntent(msg) {
   if (/\breply\s+to\s+\S+\s+(with|saying|about)\b/i.test(m))                                                         return 'send_email';
 
   if (/\barchive\b|\bmove to\b|\blabel\b|\bmark as (read|unread|important)\b|\bstar\b|\bdelete (email|mail)\b/i.test(m)) return 'organize_email';
+  // Bulk variants: "archive all from", "delete all newsletters", "spam all promotions", "star all unread"
+  if (/\b(archive|delete|trash|spam|junk|star|mark\s+(?:as\s+)?read|mark\s+read)\s+all\b/i.test(m)) return 'organize_email';
   if (/\bsort (my )?(inbox|emails)\b|\borganize (my )?(inbox|emails)\b|\bclean(up)? (my )?inbox\b/i.test(m))             return 'sort_inbox';
 
   if (/\breply to\b|\brespond to\b|\bwrite back\b/i.test(m)) return 'reply_email';
@@ -844,6 +871,41 @@ async function summarizeSingleEmail(email, env) {
 async function organizeEmail(command, gmailApp, env) {
   const token = await getGoogleToken(gmailApp, env);
   const m = command.toLowerCase();
+
+  // Detect a bulk action: "archive/delete/spam/star/mark-as-read all from <X>"
+  // or "all <newsletters|promotions|unread>" — operates on up to 50 matches.
+  const bulkActionMatch = m.match(/\b(archive|delete|trash|spam|junk|star|mark\s+(?:as\s+)?read|mark\s+read)\b\s+all/i);
+  if (bulkActionMatch) {
+    const action = bulkActionMatch[1].replace(/\s+/g, ' ').trim();
+    let q = 'in:inbox';
+
+    // "all from <sender>"
+    const fromMatch = command.match(/\ball\s+(?:emails?|mails?|messages?)?\s*from\s+([^.,!?\n]+?)(?:\s+(?:in|today|yesterday|this|last)\b|[.!?,]|$)/i);
+    if (fromMatch) {
+      const sender = fromMatch[1].trim().replace(/[<>"']/g, '');
+      q = /@/.test(sender) ? `from:${sender}` : `(from:${sender} OR from:"${sender}")`;
+    } else if (/\bnewsletters?|promotions?|promotional|marketing\b/i.test(m)) {
+      q = 'category:promotions';
+    } else if (/\bsocial\b/i.test(m)) {
+      q = 'category:social';
+    } else if (/\bunread\b/i.test(m)) {
+      q = 'is:unread';
+    }
+
+    const listRes = await fetch(`https://gmail.googleapis.com/gmail/v1/users/me/messages?q=${encodeURIComponent(q)}&maxResults=50`, { headers: { 'Authorization': `Bearer ${token}` } });
+    const listData = await listRes.json();
+    const ids = (listData.messages || []).map(m => m.id);
+    if (!ids.length) return JSON.stringify({ type: 'email_list', count: 0, title: 'Nothing to act on', summary: `No emails matched "${q}".`, emails: [] });
+
+    let verb;
+    if (/archive/i.test(action))                              { await Promise.all(ids.map(id => gmailModify(token, id, [], ['INBOX']))); verb = 'archived'; }
+    else if (/spam|junk/i.test(action))                       { await Promise.all(ids.map(id => gmailModify(token, id, ['SPAM'], ['INBOX']))); verb = 'moved to spam'; }
+    else if (/delete|trash/i.test(action))                    { await Promise.all(ids.map(id => fetch(`https://gmail.googleapis.com/gmail/v1/users/me/messages/${id}/trash`, { method: 'POST', headers: { 'Authorization': `Bearer ${token}` } }))); verb = 'moved to trash'; }
+    else if (/star/i.test(action))                            { await Promise.all(ids.map(id => gmailModify(token, id, ['STARRED'], []))); verb = 'starred'; }
+    else                                                       { await Promise.all(ids.map(id => gmailModify(token, id, [], ['UNREAD']))); verb = 'marked as read'; }
+    return `Done. ${ids.length} email${ids.length===1?'':'s'} ${verb}.`;
+  }
+
   const listRes = await fetch(`https://gmail.googleapis.com/gmail/v1/users/me/messages?q=is:unread&maxResults=1`, { headers: { 'Authorization': `Bearer ${token}` } });
   const list = await listRes.json();
   if (!list.messages?.length) return "No unread emails to organize.";
@@ -853,12 +915,6 @@ async function organizeEmail(command, gmailApp, env) {
   if (/archive/i.test(m))                   { await gmailModify(token, msgId, [], ['INBOX']); return "Done. Email archived."; }
   if (/spam|junk/i.test(m))                 { await gmailModify(token, msgId, ['SPAM'], ['INBOX']); return "Done. Email moved to spam."; }
   if (/delete|trash/i.test(m)) { await fetch(`https://gmail.googleapis.com/gmail/v1/users/me/messages/${msgId}/trash`, { method: 'POST', headers: { 'Authorization': `Bearer ${token}` } }); return "Done. Email moved to trash."; }
-  if (/all.*read|mark all/i.test(m)) {
-    const allRes = await fetch(`https://gmail.googleapis.com/gmail/v1/users/me/messages?q=is:unread&maxResults=50`, { headers: { 'Authorization': `Bearer ${token}` } });
-    const all = await allRes.json();
-    if (all.messages?.length) { await Promise.all(all.messages.map(msg => gmailModify(token, msg.id, [], ['UNREAD']))); return `Done. Marked ${all.messages.length} emails as read.`; }
-    return "No unread emails to mark.";
-  }
   return "I can archive, star, mark as read, delete, or move to spam. Which would you like?";
 }
 
