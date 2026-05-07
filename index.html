@@ -689,7 +689,7 @@ async function checkWorker(){
         }
       }
     } catch(e){ /* quota endpoint optional — stay quiet */ }
-    $('workerStatus').textContent=`✓ ARIA v15.8${elBadge}`;
+    $('workerStatus').textContent=`✓ ARIA v15.9${elBadge}`;
     if(!$('workerStatus').style.color) $('workerStatus').style.color='#5de6d8';
   }catch(e){
     $('workerStatus').textContent='✗ Cannot reach Worker — check Cloudflare deployment';
@@ -903,10 +903,12 @@ function populateVoiceDropdown() {
 function stopSpeaking() {
   synth.cancel();
   if (S.audio) { S.audio.pause(); S.audio = null; }
+  window._ariaTTSEndTime = Date.now(); // echo blackout starts now
   setMode('ready');
 }
 
 function _onTTSEnd() {
+  window._ariaTTSEndTime = Date.now(); // echo blackout starts now
   setMode('ready');
   if(typeof window._ariaWakeTTSEnd==='function') window._ariaWakeTTSEnd();
 }
@@ -1080,14 +1082,21 @@ function buildRec(){
   rec=new SR();rec.continuous=true;rec.interimResults=true;rec.lang='en-US';
   rec.onstart=()=>{
     S.listening=true;setMode('listening');
-    const lb=document.getElementById('liveBar'),lt=document.getElementById('liveTxt'),oi=document.getElementById('orbIcon'),or2=document.getElementById('orbRing');
-    if(lb){lb.style.display='flex';} if(lt){lt.textContent='Listening...';} if(oi){oi.textContent='mic';oi.style.color='#00E5FF';} if(or2){or2.style.opacity='1';}
+    // Keep liveBar hidden — transcript appears directly in the textarea instead
+    const lb=document.getElementById('liveBar');
+    if(lb){lb.style.display='none';}
+    const oi=document.getElementById('orbIcon'),or2=document.getElementById('orbRing');
+    if(oi){oi.textContent='mic';oi.style.color='#00E5FF';} if(or2){or2.style.opacity='1';}
+    // Clear textarea so user sees their voice transcript appear cleanly
+    D.inp.value=''; autoResize();
+    D.inp.placeholder='Listening...';
   };
   rec.onresult=e=>{
-    // TTS echo guard: never write what ARIA itself is currently saying back into the input.
-    // Without this, the speaker bleed gets transcribed and lands in the prompt bar.
+    // TTS echo guard 1: block while TTS is actively playing
     if(window.speechSynthesis&&window.speechSynthesis.speaking) return;
     if(S.audio&&!S.audio.paused&&!S.audio.ended) return;
+    // TTS echo guard 2: 1.5s blackout after TTS ends to absorb speaker bleed
+    if(window._ariaTTSEndTime && Date.now()-window._ariaTTSEndTime < 1500) return;
     const t=Array.from(e.results).map(r=>r[0].transcript).join('');
     const lt=document.getElementById('liveTxt');
     if(lt){lt.textContent=t||'Listening...';}
@@ -1207,7 +1216,7 @@ async function startListen(){
   }
 }
 
-function stopListen(){clearAutoListenTimer();S.listening=false;setMode('ready');try{rec?.stop();}catch(e){}setTimeout(()=>{window._ariaManualActive=false;},800);}
+function stopListen(){clearAutoListenTimer();S.listening=false;setMode('ready');try{rec?.stop();}catch(e){}D.inp.placeholder='Command ARIA...';setTimeout(()=>{window._ariaManualActive=false;},800);}
 D.mic.addEventListener('click',()=>{unlockAudio();if(S.listening)stopListen();else startListen();});
 
 // AUTO-LISTEN COUNTDOWN (5 seconds after ARIA responds)
