@@ -689,7 +689,7 @@ async function checkWorker(){
         }
       }
     } catch(e){ /* quota endpoint optional — stay quiet */ }
-    $('workerStatus').textContent=`✓ ARIA v15.6${elBadge}`;
+    $('workerStatus').textContent=`✓ ARIA v15.7${elBadge}`;
     if(!$('workerStatus').style.color) $('workerStatus').style.color='#5de6d8';
   }catch(e){
     $('workerStatus').textContent='✗ Cannot reach Worker — check Cloudflare deployment';
@@ -1367,13 +1367,15 @@ function _ariaExtractEmailsFromText(txt) {
 // ── Email plain-text card helpers ─────────────────────────────────
 function _ariaIsEmailMsg(txt) {
   if (!txt || txt.length < 60 || txt.trim().startsWith('{')) return false;
-  // Don't wrap compose-guidance or capability replies in an email card
+  // Exclude capability descriptions, compose guidance, and generic AI intros
   if (/what should the email say|don.t have a message body|what would you like.*say|please provide|connect.*gmail|connect your gmail/i.test(txt)) return false;
+  if (/I can help|I'm able to|I am able to|as your (AI|assistant)|here (are|is) what I can/i.test(txt)) return false;
   let score = 0;
-  if (/\b(email|e-mail|message|inbox|gmail)\b/i.test(txt)) score += 2;
+  // Require specific email-anatomy signals, not generic words like "message" or "read"
+  if (/\b(email|e-mail|inbox|gmail)\b/i.test(txt)) score += 2;
   if (/\b(subject|from:|sent by|sender|received)\b/i.test(txt)) score += 2;
-  if (/\b(summary|key point|suggest|mention|states?|deadline|attached|link|reply|unread|read|starred)\b/i.test(txt)) score += 1;
-  return score >= 3;
+  if (/\b(summary|key point|deadline|attached|unread|starred)\b/i.test(txt)) score += 1;
+  return score >= 4;
 }
 
 function _ariaBuildEmailSummaryCard(txt) {
@@ -1460,7 +1462,12 @@ function addMsg(role, txt, err=false) {
   }
 
   // For assistant messages that look like email analysis — wrap in Gmail card
-  if (role === 'assistant' && !err && _ariaIsEmailMsg(txt)) {
+  // GUARD: only consider this if the user's last message actually asked about emails.
+  // Without this guard, ARIA's own "I can help with your emails" capability text
+  // scores ≥3 and triggers the email card loop for every response.
+  const _lastUserForEmail = (S.msgs.filter(m=>m.role==='user').slice(-1)[0]||{}).content||'';
+  const _userMentionedEmail = /\b(email|e-mail|mail|inbox|gmail)\b/i.test(_lastUserForEmail);
+  if (role === 'assistant' && !err && _userMentionedEmail && _ariaIsEmailMsg(txt)) {
     const av   = document.createElement('div'); av.className = 'av'; av.textContent = 'A'; av.style.marginTop = '8px';
     const wrap = document.createElement('div'); wrap.style.cssText = 'flex:1;min-width:0;width:100%;';
     const timeEl = document.createElement('div'); timeEl.className = 'msg-time'; timeEl.textContent = now;
