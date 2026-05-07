@@ -689,7 +689,7 @@ async function checkWorker(){
         }
       }
     } catch(e){ /* quota endpoint optional — stay quiet */ }
-    $('workerStatus').textContent=`✓ ARIA v15.7${elBadge}`;
+    $('workerStatus').textContent=`✓ ARIA v15.8${elBadge}`;
     if(!$('workerStatus').style.color) $('workerStatus').style.color='#5de6d8';
   }catch(e){
     $('workerStatus').textContent='✗ Cannot reach Worker — check Cloudflare deployment';
@@ -1245,9 +1245,9 @@ function setMode(m){
   const map={
     ready:      ['Click to speak','',         '', false, false],
     listening:  ['Listening...',  'listening','', true, true],
-    thinking:   ['Thinking...',   '',         '', false, false],
+    thinking:   ['Thinking...',   '',         '', true, true],
     speaking:   ['Speaking...',   'speaking', 'on', true, true],
-    generating: ['Generating...', '',         '', false, false],
+    generating: ['Generating...', '',         '', true, true],
   };
   const[lbl,mc,vc,showStop,showInlineStop]=map[m]||map.ready;
   D.micLbl.textContent=lbl;

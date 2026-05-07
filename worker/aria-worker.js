@@ -1,6 +1,7 @@
 // ═══════════════════════════════════════════════════════════════
-//  ARIA — Cloudflare Worker v15.7
-//  (capability-aware intent + LLM fallback + always-list email replies)
+//  ARIA — Cloudflare Worker v15.8
+//  (deterministic summary text — no more LLM-generated clarification questions
+//   leaking into email_list responses)
 // ═══════════════════════════════════════════════════════════════
 
 const BELLA = 'EXAVITQu4vr4xnSDxMaL';
@@ -75,7 +76,7 @@ export default {
 
     try {
       if (url.pathname === '/health')
-        return jsonRes({ status: 'ARIA v15.7 ✅', groq: !!env.GROQ_API_KEY, elevenlabs: !!env.ELEVENLABS_API_KEY, google: !!env.GOOGLE_CLIENT_ID, supabase: !!env.SUPABASE_URL });
+        return jsonRes({ status: 'ARIA v15.8 ✅', groq: !!env.GROQ_API_KEY, elevenlabs: !!env.ELEVENLABS_API_KEY, google: !!env.GOOGLE_CLIENT_ID, supabase: !!env.SUPABASE_URL });
 
       if (url.pathname === '/tts')        return await handleTTS(request, env);
       if (url.pathname === '/tts/quota')  return await handleTTSQuota(env);
@@ -755,28 +756,22 @@ async function summarizeEmails(emails, env, ctx = {}) {
 
   const slim = emails.map(e => ({ id: e.id, from: e.from, subject: e.subject, date: e.date, snippet: e.snippet }));
 
-  // Skip the LLM summarization round-trip for trivially small lists.
+  // Deterministic summary — never depend on the LLM for accuracy of this string.
+  // The LLM was previously summarizing fellback emails as if they matched the query,
+  // and sometimes returning a plain question asking for clarification (which broke
+  // the email_list rendering on the frontend entirely).
   let summary;
-  if (emails.length === 1) {
+  if (ctx.fellBackToRecent && phrase) {
+    summary = `I couldn't find any emails from "${phrase}" in your inbox. Showing your ${emails.length} most recent emails instead.`;
+  } else if (emails.length === 1) {
     summary = ctx.toppedUpFromInbox
       ? `Only 1 unread email — showing it plus your most recent inbox messages below.`
       : `You have 1 ${ctx.hasSender ? 'matching' : 'unread'} email — from ${emails[0].from || 'unknown'}.`;
+  } else if (ctx.hasSender && phrase) {
+    summary = `Found ${emails.length} email${emails.length===1?'':'s'} matching "${phrase}".`;
   } else {
-    const overview = emails.slice(0, 10).map((e, i) => `Email ${i+1}: From: ${e.from} | Subject: ${e.subject} | Preview: ${e.snippet}`).join('\n');
-    const fallbackNote = ctx.fellBackToRecent
-      ? ` Note: The user asked about "${phrase}" but nothing matched, so these are their most recent emails instead — lead with "I couldn't find any emails from ${phrase}, but here are your recent ones."`
-      : ctx.toppedUpFromInbox
-      ? ` Note: The unread queue was nearly empty, so recent inbox emails were added. Mention this briefly.`
-      : '';
-    const res = await groqFetch({
-      max_tokens: 200, temperature: 0.3,
-      messages: [
-        { role: 'system', content: 'Summarize these real emails in 2 sentences max. Mention total count and most important one. Never invent senders or subjects — use only what is given.' + fallbackNote },
-        { role: 'user',   content: overview }
-      ]
-    }, env);
-    const data = await res.json();
-    summary = data.choices?.[0]?.message?.content?.trim() || `Showing ${emails.length} emails.`;
+    const senders = [...new Set(emails.slice(0, 3).map(e => (e.from || '').split('<')[0].trim().split(' ')[0]).filter(Boolean))];
+    summary = `You have ${emails.length} email${emails.length===1?'':'s'}${senders.length ? ` — most recent from ${senders.join(', ')}.` : '.'}`;
   }
 
   const title = ctx.isSpamQuery                ? `Spam emails (${emails.length})`
