@@ -689,7 +689,7 @@ async function checkWorker(){
         }
       }
     } catch(e){ /* quota endpoint optional — stay quiet */ }
-    $('workerStatus').textContent=`✓ ARIA v16.3${elBadge}`;
+    $('workerStatus').textContent=`✓ ARIA v16.4${elBadge}`;
     if(!$('workerStatus').style.color) $('workerStatus').style.color='#5de6d8';
   }catch(e){
     $('workerStatus').textContent='✗ Cannot reach Worker — check Cloudflare deployment';
@@ -1558,9 +1558,10 @@ function _ariaResolveEmailComposeCtx(raw) {
 
 // SEND
 async function sendMsg(){
-  const rawTxt=D.inp.value.trim();if(!rawTxt||D.send.disabled)return;
+  let rawTxt=D.inp.value.trim();if(!rawTxt||D.send.disabled)return;
   // Expand multi-turn email compose ("hi" → "Send email to X saying: hi")
-  const txt = _ariaResolveEmailComposeCtx(rawTxt);
+  // `txt` is reassigned below if the user edits the confirm-send modal.
+  let txt = _ariaResolveEmailComposeCtx(rawTxt);
 
   // iOS: speechSynthesis.speak() only works when called inside a user-gesture context.
   // Pre-warm TTS here (we ARE in a gesture context — button click / mic result)
@@ -1579,11 +1580,15 @@ async function sendMsg(){
   // Must match send/write/compose/draft/reply + (email|mail|message) + to — avoids
   // false-positive on innocent reads like "send me the emails" or "show my mail".
   if (_ariaIsEmailSendIntent(txt)) {
-    const _to      = txt.match(/\bto\s+([\w.+%-]+@[\w.-]+\.\w+|[A-Z][\w\s.'-]*?)(?=\s+(?:with|about|saying|regarding|and|,)|$)/i)?.[1]?.trim() || '(recipient — unclear)';
-    const _subject = txt.match(/\bsubject\s+["“]([^"”]+)["”]/i)?.[1] || txt.match(/\bsubject\s+([^"”\n]+?)(?=\s+saying|\s+and\s+say|$)/i)?.[1]?.trim() || '(see message)';
+    const _to      = txt.match(/\bto\s+([\w.+%-]+@[\w.-]+\.\w+|[A-Z][\w\s.'-]*?)(?=\s+(?:with|about|saying|regarding|and|,)|$)/i)?.[1]?.trim() || '';
+    const _subject = txt.match(/\bsubject\s+["“]([^"”]+)["”]/i)?.[1] || txt.match(/\bsubject\s+([^"”\n]+?)(?=\s+saying|\s+and\s+say|$)/i)?.[1]?.trim() || '';
     const _body    = txt.match(/\b(?:saying|body|content|message)\s*:?\s*([\s\S]+)$/i)?.[1]?.trim() || txt;
-    const _ok = await _showEmailConfirm(_to, _subject, _body);
-    if (!_ok) { D.inp.focus && D.inp.focus(); return; }
+    const _result = await _showEmailConfirm(_to, _subject, _body);
+    if (!_result.ok) { D.inp.focus && D.inp.focus(); return; }
+    // Rewrite the command sent to the Worker with the user's edits so the
+    // backend sees exactly what was confirmed in the modal.
+    txt = `Send email to ${_result.to} with subject "${_result.subject}" saying: ${_result.body}`;
+    rawTxt = txt;
   }
 
   D.inp.value='';D.inp.style.height='auto';autoResize();
@@ -2321,7 +2326,8 @@ function sendMsg_quick(txt) {
   sendMsg();
 }
 
-// Confirmation dialog before any email send
+// Confirmation dialog before any email send — fields are EDITABLE
+// Resolves to {ok:true, to, subject, body} when sent, or {ok:false} when cancelled.
 function _showEmailConfirm(to, subject, body) {
   return new Promise(function(resolve) {
     const old = document.getElementById('_ariaEmailConfirmModal');
@@ -2330,22 +2336,44 @@ function _showEmailConfirm(to, subject, body) {
     ov.id = '_ariaEmailConfirmModal';
     ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.75);z-index:999999;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(4px);';
     const esc = function(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); };
-    ov.innerHTML = '<div style="background:#0d1117;border:1px solid rgba(255,255,255,0.1);border-radius:16px;padding:24px;max-width:420px;width:90%;box-shadow:0 8px 40px rgba(0,0,0,0.7);font-family:inherit;">' +
+    const fieldStyle = 'width:100%;box-sizing:border-box;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.12);border-radius:8px;padding:9px 12px;color:#fff;font-family:inherit;outline:none;transition:border-color 0.15s, box-shadow 0.15s;';
+    ov.innerHTML = '<div style="background:#0d1117;border:1px solid rgba(255,255,255,0.1);border-radius:16px;padding:24px;max-width:460px;width:90%;box-shadow:0 8px 40px rgba(0,0,0,0.7);font-family:inherit;">' +
       '<div style="font-size:0.78rem;font-weight:700;color:#fc8181;text-transform:uppercase;letter-spacing:0.1em;margin-bottom:16px;">⚠ Confirm Email Send</div>' +
       '<div style="font-size:0.68rem;color:rgba(255,255,255,0.4);margin-bottom:3px;">To</div>' +
-      '<div style="font-size:0.84rem;color:#fff;font-weight:600;background:rgba(255,255,255,0.06);border-radius:8px;padding:8px 12px;margin-bottom:12px;word-break:break-all;">' + esc(to) + '</div>' +
+      '<input id="_ariaEmailTo" type="email" value="' + esc(to) + '" style="' + fieldStyle + 'font-size:0.84rem;font-weight:600;margin-bottom:12px;" />' +
       '<div style="font-size:0.68rem;color:rgba(255,255,255,0.4);margin-bottom:3px;">Subject</div>' +
-      '<div style="font-size:0.8rem;color:rgba(255,255,255,0.85);background:rgba(255,255,255,0.06);border-radius:8px;padding:8px 12px;margin-bottom:12px;">' + esc(subject) + '</div>' +
+      '<input id="_ariaEmailSubject" type="text" value="' + esc(subject) + '" style="' + fieldStyle + 'font-size:0.8rem;margin-bottom:12px;" />' +
       '<div style="font-size:0.68rem;color:rgba(255,255,255,0.4);margin-bottom:3px;">Message</div>' +
-      '<div style="font-size:0.76rem;color:rgba(255,255,255,0.7);background:rgba(255,255,255,0.06);border-radius:8px;padding:10px 12px;margin-bottom:20px;max-height:100px;overflow-y:auto;line-height:1.6;">' + esc(body) + '</div>' +
+      '<textarea id="_ariaEmailBody" rows="6" style="' + fieldStyle + 'font-size:0.76rem;line-height:1.55;resize:vertical;min-height:120px;max-height:280px;margin-bottom:18px;">' + esc(body) + '</textarea>' +
       '<div style="display:flex;gap:10px;">' +
       '<button id="_ariaEmailCancel" style="flex:1;padding:10px;border-radius:10px;border:1px solid rgba(255,255,255,0.12);background:none;color:rgba(255,255,255,0.6);cursor:pointer;font-size:0.8rem;font-family:inherit;">Cancel</button>' +
       '<button id="_ariaEmailSend" style="flex:1;padding:10px;border-radius:10px;border:none;background:#1a73e8;color:#fff;cursor:pointer;font-size:0.8rem;font-weight:600;font-family:inherit;">Send Email</button>' +
       '</div></div>';
     document.body.appendChild(ov);
-    document.getElementById('_ariaEmailSend').onclick   = function(){ ov.remove(); resolve(true); };
-    document.getElementById('_ariaEmailCancel').onclick = function(){ ov.remove(); resolve(false); };
-    ov.addEventListener('click', function(e){ if(e.target===ov){ ov.remove(); resolve(false); } });
+    const focusStyle = function(el){
+      el.addEventListener('focus', function(){ el.style.borderColor='#1a73e8'; el.style.boxShadow='0 0 0 2px rgba(26,115,232,0.25)'; });
+      el.addEventListener('blur',  function(){ el.style.borderColor='rgba(255,255,255,0.12)'; el.style.boxShadow='none'; });
+    };
+    ['_ariaEmailTo','_ariaEmailSubject','_ariaEmailBody'].forEach(function(id){ focusStyle(document.getElementById(id)); });
+    const close = function(result){ ov.remove(); resolve(result); };
+    document.getElementById('_ariaEmailSend').onclick = function(){
+      const finalTo      = document.getElementById('_ariaEmailTo').value.trim();
+      const finalSubject = document.getElementById('_ariaEmailSubject').value.trim();
+      const finalBody    = document.getElementById('_ariaEmailBody').value.trim();
+      if (!finalTo || !/^[\w.+%-]+@[\w.-]+\.\w{2,}$/.test(finalTo)) {
+        document.getElementById('_ariaEmailTo').style.borderColor = '#fc8181';
+        document.getElementById('_ariaEmailTo').focus();
+        return;
+      }
+      if (!finalBody) {
+        document.getElementById('_ariaEmailBody').style.borderColor = '#fc8181';
+        document.getElementById('_ariaEmailBody').focus();
+        return;
+      }
+      close({ ok: true, to: finalTo, subject: finalSubject, body: finalBody });
+    };
+    document.getElementById('_ariaEmailCancel').onclick = function(){ close({ ok: false }); };
+    ov.addEventListener('click', function(e){ if(e.target===ov){ close({ ok: false }); } });
   });
 }
 
@@ -2359,11 +2387,13 @@ function sendEmailReplyFromEl(encodedTo, encodedSubject, textareaId) {
 // Send reply directly — always shows confirmation first
 async function sendEmailReply(to, subject, body) {
   const dec = { to: decodeURIComponent(to), subject: 'Re: '+decodeURIComponent(subject), body: decodeURIComponent(body) };
-  const ok = await _showEmailConfirm(dec.to, dec.subject, dec.body);
-  if (!ok) return;
+  const result = await _showEmailConfirm(dec.to, dec.subject, dec.body);
+  if (!result.ok) return;
+  // Use the user's edited values from the modal — they may have changed
+  // the recipient, subject, or message body before clicking Send.
   // Bypass sendMsg() email-intent gate (would trigger a second confirmation).
   // Inject directly into chat and call the Worker.
-  const cmd = `Send email to ${dec.to} with subject "${dec.subject}" saying: ${dec.body}`;
+  const cmd = `Send email to ${result.to} with subject "${result.subject}" saying: ${result.body}`;
   S.msgs.push({ role: 'user', content: cmd });
   addMsg('user', cmd);
   D.think.classList.remove('hidden');
