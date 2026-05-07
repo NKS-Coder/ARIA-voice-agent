@@ -2570,8 +2570,11 @@ D.inp.addEventListener('input', () => {
   var bgRec = null, bgEnabled = false, bgCooldown = false, wakeBtn = null;
   var _waitingForCmd = false, _waitDeadline = 0, _waitCountT = null;
   var _pausingBg = false;
-  var WAKE_RE = /\b(hey|hi|hello|ok|okay)\s+(aria|area|arya|eria|areia|aerya|arria)\b/i;
+  // v16.6: accept BARE "aria"/"area"/"arya" too — most natural voice trigger.
+  // The optional prefix (hey/hi/hello/ok/okay) is still allowed.
+  var WAKE_RE = /\b(?:(?:hey|hi|hello|ok|okay)\s+)?(aria|area|arya|eria|areia|aerya|arria|aria,?)\b/i;
   var BARE_WAKE_RE = /^\s*(hey\s+|hi\s+|hello\s+|ok\s+|okay\s+)?(aria|area|arya|eria|areia|aerya|arria)\s*[,.!?]?\s*$/i;
+  var _ttsLastStart = 0; // for stuck-tts watchdog
 
   function bgKill() {
     if (!bgRec) return;
@@ -2781,6 +2784,7 @@ D.inp.addEventListener('input', () => {
   var _ttsActive = false;
   window._ariaWakeTTSStart = function() {
     _ttsActive = true;
+    _ttsLastStart = Date.now();
     stopWaitingForCommand(); // cancel any open command window
     bgKill();               // silence the recognizer while speaker is active
   };
@@ -2791,14 +2795,47 @@ D.inp.addEventListener('input', () => {
       setTimeout(bgCycle, 600);
     }
   };
+  // Watchdog: if _ttsActive stays true for >30s (a TTS event never fired),
+  // force-reset it so the wake recognizer doesn't stay permanently silenced.
+  setInterval(function() {
+    if (_ttsActive && _ttsLastStart && Date.now() - _ttsLastStart > 30000) {
+      console.warn('[wake] tts-stuck watchdog — force-resetting _ttsActive');
+      _ttsActive = false;
+      if (bgEnabled) { _pausingBg = false; setTimeout(bgCycle, 200); }
+    }
+  }, 5000);
 
   // ── 3. Wake button ────────────────────────────────────────────────────
   function updateBtn() {
     if (!wakeBtn) return;
-    wakeBtn.textContent = bgEnabled ? 'Hey ARIA: ON' : 'Wake: OFF';
-    wakeBtn.style.color = bgEnabled ? '#5de6d8' : '#6b7eaa';
-    wakeBtn.style.borderColor = bgEnabled ? '#5de6d8' : 'rgba(255,255,255,.18)';
-    wakeBtn.style.background = bgEnabled ? 'rgba(93,230,216,.1)' : 'rgba(4,5,10,.85)';
+    if (_waitingForCmd) {
+      wakeBtn.textContent = '🎤 Speak now...';
+      wakeBtn.style.color = '#ffd700';
+      wakeBtn.style.borderColor = '#ffd700';
+      wakeBtn.style.background = 'rgba(255,215,0,.18)';
+      wakeBtn.style.boxShadow = '0 0 12px rgba(255,215,0,.5)';
+    } else if (bgEnabled) {
+      wakeBtn.textContent = '● Hey ARIA: ON';
+      wakeBtn.style.color = '#5de6d8';
+      wakeBtn.style.borderColor = '#5de6d8';
+      wakeBtn.style.background = 'rgba(93,230,216,.15)';
+      wakeBtn.style.boxShadow = '0 0 8px rgba(93,230,216,.35)';
+      wakeBtn.style.animation = 'ariaWakePulse 2s ease-in-out infinite';
+    } else {
+      wakeBtn.textContent = 'Wake: OFF';
+      wakeBtn.style.color = '#6b7eaa';
+      wakeBtn.style.borderColor = 'rgba(255,255,255,.18)';
+      wakeBtn.style.background = 'rgba(4,5,10,.85)';
+      wakeBtn.style.boxShadow = 'none';
+      wakeBtn.style.animation = 'none';
+    }
+  }
+  // Inject the pulse keyframes once
+  if (!document.getElementById('ariaWakeStyle')) {
+    var st = document.createElement('style');
+    st.id = 'ariaWakeStyle';
+    st.textContent = '@keyframes ariaWakePulse{0%,100%{box-shadow:0 0 8px rgba(93,230,216,.35);}50%{box-shadow:0 0 16px rgba(93,230,216,.7);}}';
+    document.head.appendChild(st);
   }
 
   wakeBtn = document.createElement('button');
