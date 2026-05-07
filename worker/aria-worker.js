@@ -1,5 +1,8 @@
 // ═══════════════════════════════════════════════════════════════
-//  ARIA — Cloudflare Worker v16.0
+//  ARIA — Cloudflare Worker v16.1
+//  - SMART IMPORTANCE RANKER: "top 5 important emails this week" runs
+//    parallel category searches (banking, government, job, urgent,
+//    starred, is:important) and ranks by combined score
 //  - multi-turn context: "yes"/"ok" replays the previous user turn
 //  - quantity stopwords ("top","best","most","few"...) no longer mistaken for senders
 //  - bulk organize: "archive/delete/spam all from X" (or all newsletters/promotions)
@@ -79,7 +82,7 @@ export default {
 
     try {
       if (url.pathname === '/health')
-        return jsonRes({ status: 'ARIA v16.0 ✅', groq: !!env.GROQ_API_KEY, elevenlabs: !!env.ELEVENLABS_API_KEY, google: !!env.GOOGLE_CLIENT_ID, supabase: !!env.SUPABASE_URL });
+        return jsonRes({ status: 'ARIA v16.1 ✅', groq: !!env.GROQ_API_KEY, elevenlabs: !!env.ELEVENLABS_API_KEY, google: !!env.GOOGLE_CLIENT_ID, supabase: !!env.SUPABASE_URL });
 
       if (url.pathname === '/tts')        return await handleTTS(request, env);
       if (url.pathname === '/tts/quota')  return await handleTTSQuota(env);
@@ -369,6 +372,46 @@ Return ONLY JSON: {"is_email_query": true|false, "search_terms": "1-3 keyword(s)
     }
   }
 
+  else if (intent === 'important_emails') {
+    if (!userApps.gmail) {
+      reply = "Connect your Gmail in Settings so I can identify your most important emails.";
+    } else {
+      try {
+        // Parse desired count and time window from the user's words.
+        const numMatch  = lastMsg.match(/\b(\d+|three|four|five|six|seven|eight|nine|ten)\b/i);
+        const numMap    = { three:3,four:4,five:5,six:6,seven:7,eight:8,nine:9,ten:10 };
+        const max       = numMatch ? (parseInt(numMatch[1]) || numMap[numMatch[1].toLowerCase()] || 5) : 5;
+        const days      = /\btoday\b/i.test(lastMsg) ? 1
+                        : /\byesterday\b/i.test(lastMsg) ? 2
+                        : /\bmonth\b/i.test(lastMsg) ? 30
+                        : 7; // default: this week
+
+        const ranked = await findImportantEmails(userApps.gmail, env, { days, max });
+
+        if (!ranked.length) {
+          reply = JSON.stringify({
+            type: 'email_list', count: 0,
+            title: 'No important emails',
+            summary: `I couldn't find any high-importance emails in the last ${days} day${days===1?'':'s'}.`,
+            emails: []
+          });
+        } else {
+          const slim = ranked.map(e => ({ id: e.id, from: e.from, subject: e.subject, date: e.date, snippet: e.snippet }));
+          const window = days === 1 ? 'today' : days === 2 ? 'since yesterday' : days === 30 ? 'this month' : 'this week';
+          reply = JSON.stringify({
+            type: 'email_list', count: ranked.length,
+            title: `Top ${ranked.length} important email${ranked.length===1?'':'s'} ${window}`,
+            summary: `Here are your ${ranked.length} most important email${ranked.length===1?'':'s'} ${window}, ranked across financial, government, job, urgent, and starred signals.`,
+            emails: slim
+          });
+        }
+      } catch (e) {
+        console.error('important_emails error:', e.message);
+        reply = `Could not analyze your important emails: ${e.message}.`;
+      }
+    }
+  }
+
   else if (intent === 'read_emails' || intent === 'search_email') {
     if (!userApps.gmail) {
       reply = "Connect your Gmail in Settings to read your emails by voice.";
@@ -569,6 +612,12 @@ function detectIntent(msg) {
   if (/\barchive\b|\bmove to\b|\blabel\b|\bmark as (read|unread|important)\b|\bstar\b|\bdelete (email|mail)\b/i.test(m)) return 'organize_email';
   // Bulk variants: "archive all from", "delete all newsletters", "spam all promotions", "star all unread"
   if (/\b(archive|delete|trash|spam|junk|star|mark\s+(?:as\s+)?read|mark\s+read)\s+all\b/i.test(m)) return 'organize_email';
+
+  // Smart importance ranker: "important emails today/this week", "top 5 most important",
+  // "what's important", "priority emails"
+  if (/\b(important|priority|urgent|critical|matters?|key)\b.*\b(e-?mail|mail|inbox|message)s?\b/i.test(m)) return 'important_emails';
+  if (/\b(top|most)\s+(\d+\s+)?(important|priority|urgent|critical)\b/i.test(m)) return 'important_emails';
+  if (/\bwhat'?s?\s+(important|urgent|priority)\b/i.test(m)) return 'important_emails';
   if (/\bsort (my )?(inbox|emails)\b|\borganize (my )?(inbox|emails)\b|\bclean(up)? (my )?inbox\b/i.test(m))             return 'sort_inbox';
 
   if (/\breply to\b|\brespond to\b|\bwrite back\b/i.test(m)) return 'reply_email';
@@ -787,6 +836,60 @@ function decodeEmailBody(payload) {
   if (payload.body?.data) body = atob(payload.body.data.replace(/-/g, '+').replace(/_/g, '/'));
   else if (payload.parts) payload.parts.forEach(extract);
   return body.slice(0, 3000);
+}
+
+// Smart importance ranker: runs multiple parallel category queries, merges
+// results, and scores each email by how many importance signals it hits.
+// Categories (each contributes to the importance score):
+//   - is:important (Gmail's own importance signal)             +3
+//   - is:starred                                               +2
+//   - banking / financial keywords                             +2
+//   - government / legal / tax keywords                        +2
+//   - job / interview / offer keywords                         +2
+//   - urgent / deadline / action-required keywords             +2
+//   - documents / contracts                                    +1
+async function findImportantEmails(gmailApp, env, opts = {}) {
+  const days = opts.days || 7;
+  const max  = opts.max  || 5;
+  const window = `newer_than:${days}d`;
+
+  const categories = [
+    { weight: 3, q: `is:important ${window}` },
+    { weight: 2, q: `is:starred ${window}` },
+    { weight: 2, q: `(subject:(payment OR invoice OR bill OR statement OR transaction OR balance OR due OR refund OR receipt) OR from:(bank OR billing OR payments OR finance OR chase OR wellsfargo OR amex OR visa OR mastercard OR paypal OR venmo OR stripe)) ${window}` },
+    { weight: 2, q: `(subject:(tax OR irs OR uscis OR dmv OR court OR legal OR government OR official OR notice OR fine OR violation) OR from:(.gov OR irs.gov)) ${window}` },
+    { weight: 2, q: `(subject:(interview OR offer OR application OR hiring OR position OR opportunity OR onsite OR recruiter) OR from:(recruiter OR talent OR careers OR hr OR jobs OR recruiting)) ${window}` },
+    { weight: 2, q: `(subject:(urgent OR deadline OR "action required" OR "expires" OR "expiring" OR "final notice" OR "important" OR "asap" OR "time-sensitive")) ${window}` },
+    { weight: 1, q: `(subject:(contract OR agreement OR document OR signature OR sign OR docusign OR esignature OR adobesign OR form)) ${window}` },
+  ];
+
+  const results = await Promise.all(categories.map(async c => {
+    try {
+      const emails = await readGmail(c.q, 15, gmailApp, env);
+      return emails.map(e => ({ email: e, weight: c.weight }));
+    } catch (e) {
+      console.warn('importance category failed:', c.q, e.message);
+      return [];
+    }
+  }));
+
+  // Score by id — same email matched in multiple categories accrues weight
+  const scored = new Map();
+  for (const arr of results) {
+    for (const { email, weight } of arr) {
+      const cur = scored.get(email.id);
+      if (cur) cur.score += weight;
+      else scored.set(email.id, { ...email, score: weight });
+    }
+  }
+
+  const ranked = [...scored.values()].sort((a, b) => {
+    if (b.score !== a.score) return b.score - a.score;
+    // tiebreak: more recent first
+    return new Date(b.date || 0) - new Date(a.date || 0);
+  }).slice(0, max);
+
+  return ranked;
 }
 
 async function readGmail(query, max, gmailApp, env) {
