@@ -1,13 +1,11 @@
 // ═══════════════════════════════════════════════════════════════
-//  ARIA — Cloudflare Worker v16.1
-//  - SMART IMPORTANCE RANKER: "top 5 important emails this week" runs
-//    parallel category searches (banking, government, job, urgent,
-//    starred, is:important) and ranks by combined score
-//  - multi-turn context: "yes"/"ok" replays the previous user turn
-//  - quantity stopwords ("top","best","most","few"...) no longer mistaken for senders
-//  - bulk organize: "archive/delete/spam all from X" (or all newsletters/promotions)
-//  - semantic email intent for natural-language queries
-//  - deterministic email_list summary
+//  ARIA — Cloudflare Worker v16.2
+//  - More permissive importance regex (catches "summarize the most
+//    important", "give me priority emails", etc.)
+//  - Intent detection logs to Worker tail for debugging
+//  - SMART IMPORTANCE RANKER (v16.1): parallel category searches
+//  - multi-turn context, quantity stopwords, bulk organize,
+//    semantic email intent, deterministic summary
 // ═══════════════════════════════════════════════════════════════
 
 const BELLA = 'EXAVITQu4vr4xnSDxMaL';
@@ -82,7 +80,7 @@ export default {
 
     try {
       if (url.pathname === '/health')
-        return jsonRes({ status: 'ARIA v16.1 ✅', groq: !!env.GROQ_API_KEY, elevenlabs: !!env.ELEVENLABS_API_KEY, google: !!env.GOOGLE_CLIENT_ID, supabase: !!env.SUPABASE_URL });
+        return jsonRes({ status: 'ARIA v16.2 ✅', groq: !!env.GROQ_API_KEY, elevenlabs: !!env.ELEVENLABS_API_KEY, google: !!env.GOOGLE_CLIENT_ID, supabase: !!env.SUPABASE_URL });
 
       if (url.pathname === '/tts')        return await handleTTS(request, env);
       if (url.pathname === '/tts/quota')  return await handleTTSQuota(env);
@@ -302,6 +300,7 @@ async function handleChat(request, env) {
   });
 
   let intent = detectIntent(lastMsg);
+  console.log('[ARIA v16.2] intent="%s" lastMsg="%s"', intent, lastMsg.slice(0, 120));
   let semanticSearchTerms = null;
 
   // Multi-turn context: if the user sent a tiny acknowledgement ("yes", "ok",
@@ -613,11 +612,15 @@ function detectIntent(msg) {
   // Bulk variants: "archive all from", "delete all newsletters", "spam all promotions", "star all unread"
   if (/\b(archive|delete|trash|spam|junk|star|mark\s+(?:as\s+)?read|mark\s+read)\s+all\b/i.test(m)) return 'organize_email';
 
-  // Smart importance ranker: "important emails today/this week", "top 5 most important",
-  // "what's important", "priority emails"
-  if (/\b(important|priority|urgent|critical|matters?|key)\b.*\b(e-?mail|mail|inbox|message)s?\b/i.test(m)) return 'important_emails';
-  if (/\b(top|most)\s+(\d+\s+)?(important|priority|urgent|critical)\b/i.test(m)) return 'important_emails';
+  // Smart importance ranker — catches every phrasing that asks about
+  // important / priority / urgent / critical emails. Order-independent:
+  // "important emails", "emails that are important", "important ones".
+  if (/\b(important|priorit(?:y|ies)|urgent|critical|crucial|essential)\b/i.test(m)
+      && /\b(e-?mail|mail|inbox|message)s?\b/i.test(m)) return 'important_emails';
+  if (/\b(top|most)\s+(\d+\s+)?(important|priorit(?:y|ies)|urgent|critical)\b/i.test(m)) return 'important_emails';
   if (/\bwhat'?s?\s+(important|urgent|priority)\b/i.test(m)) return 'important_emails';
+  // "summarize me the top important emails of today" — even with extra noise
+  if (/\b(summari[sz]e|brief|highlight)\b.*\b(important|priorit(?:y|ies)|urgent|top)\b.*\b(e-?mail|mail|inbox)s?\b/i.test(m)) return 'important_emails';
   if (/\bsort (my )?(inbox|emails)\b|\borganize (my )?(inbox|emails)\b|\bclean(up)? (my )?inbox\b/i.test(m))             return 'sort_inbox';
 
   if (/\breply to\b|\brespond to\b|\bwrite back\b/i.test(m)) return 'reply_email';

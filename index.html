@@ -689,7 +689,7 @@ async function checkWorker(){
         }
       }
     } catch(e){ /* quota endpoint optional — stay quiet */ }
-    $('workerStatus').textContent=`✓ ARIA v16.1${elBadge}`;
+    $('workerStatus').textContent=`✓ ARIA v16.2${elBadge}`;
     if(!$('workerStatus').style.color) $('workerStatus').style.color='#5de6d8';
   }catch(e){
     $('workerStatus').textContent='✗ Cannot reach Worker — check Cloudflare deployment';
