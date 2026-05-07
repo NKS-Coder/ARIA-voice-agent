@@ -1,7 +1,8 @@
 // ═══════════════════════════════════════════════════════════════
-//  ARIA — Cloudflare Worker v15.8
-//  (deterministic summary text — no more LLM-generated clarification questions
-//   leaking into email_list responses)
+//  ARIA — Cloudflare Worker v15.9
+//  (semantic email intent — natural-language queries like "have I got any
+//   assessments from companies" now route to Gmail search even without
+//   explicit "email" keyword in the user's message)
 // ═══════════════════════════════════════════════════════════════
 
 const BELLA = 'EXAVITQu4vr4xnSDxMaL';
@@ -76,7 +77,7 @@ export default {
 
     try {
       if (url.pathname === '/health')
-        return jsonRes({ status: 'ARIA v15.8 ✅', groq: !!env.GROQ_API_KEY, elevenlabs: !!env.ELEVENLABS_API_KEY, google: !!env.GOOGLE_CLIENT_ID, supabase: !!env.SUPABASE_URL });
+        return jsonRes({ status: 'ARIA v15.9 ✅', groq: !!env.GROQ_API_KEY, elevenlabs: !!env.ELEVENLABS_API_KEY, google: !!env.GOOGLE_CLIENT_ID, supabase: !!env.SUPABASE_URL });
 
       if (url.pathname === '/tts')        return await handleTTS(request, env);
       if (url.pathname === '/tts/quota')  return await handleTTSQuota(env);
@@ -291,7 +292,31 @@ async function handleChat(request, env) {
     }
   });
 
-  const intent = detectIntent(lastMsg);
+  let intent = detectIntent(lastMsg);
+  let semanticSearchTerms = null;
+
+  // Semantic email intent fallback: when the regex says 'chat' but Gmail is
+  // connected, ask the LLM whether the user is implicitly asking about emails
+  // (e.g. "have I got any assessments from companies?", "any offers from Apple?",
+  //  "my interview schedule"). If yes, hoist into read_emails with the suggested
+  // keywords so buildGmailQuery picks them up.
+  if (intent === 'chat' && userApps.gmail) {
+    try {
+      const semantic = await extractJSON(
+        lastMsg,
+        `The user has Gmail connected. Decide if their message is implicitly asking about something that would likely be found in their email inbox (job offers, assessments, interviews, invoices, receipts, deliveries, bank statements, newsletters, updates from a sender, meeting confirmations, etc.).
+EMAIL: "any offers from Apple", "did I get an assessment", "interview schedule", "anything from my bank", "my latest invoice".
+NOT EMAIL: "hi", "how are you", "what's the weather", "tell me a joke", "explain X", general knowledge questions.
+Return ONLY JSON: {"is_email_query": true|false, "search_terms": "1-3 keyword(s) to search Gmail for — empty if not an email query"}`,
+        env
+      );
+      if (semantic && semantic.is_email_query === true && semantic.search_terms && semantic.search_terms.trim().length >= 2) {
+        intent = 'read_emails';
+        semanticSearchTerms = semantic.search_terms.trim();
+      }
+    } catch (e) { /* fall through to chat */ }
+  }
+
   let reply = null;
 
   if (intent === 'send_email') {
@@ -329,6 +354,21 @@ async function handleChat(request, env) {
 
         let { query, hasSender, senderTerms, senderPhrase, wantsUnread } = buildGmailQuery(lastMsg);
         const isSpamQuery = /\b(spam|junk)\b/i.test(lastMsg);
+
+        // If the semantic intent layer suggested keywords (e.g. "assessments"
+        // for "have I got any assessments from companies"), use those directly
+        // instead of trying to re-extract from the original message — the
+        // original message has no canonical email keywords for buildGmailQuery
+        // to grab onto.
+        if (semanticSearchTerms && !hasSender) {
+          senderPhrase = semanticSearchTerms;
+          senderTerms  = senderVariants(semanticSearchTerms);
+          if (senderTerms.length) {
+            const ors = senderTerms.flatMap(t => [`from:${t}`, `subject:${t}`, `body:${t}`]).join(' OR ');
+            query = `(${ors})`;
+            hasSender = true;
+          }
+        }
 
         if (!hasSender && !isSpamQuery) {
           const hint = await llmExtractSearch(lastMsg, env);
