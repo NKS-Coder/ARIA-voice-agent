@@ -1,12 +1,16 @@
 // ═══════════════════════════════════════════════════════════════
-//  ARIA — Cloudflare Worker v16.4
-//  - CRITICAL: lastMsg is `let` (was const, threw at every request)
+//  ARIA — Cloudflare Worker v16.5
+//  - CRITICAL: stripSystemPrefix now anchors on `]\n`, not first `]`.
+//    The capNote contains a JSON example with `[`/`]` brackets; the old
+//    non-greedy regex stripped only up to the first `]` inside that JSON,
+//    leaking words like "sender", "email", "mail" into the user message.
+//    That made `hi` route to read_emails with senderPhrase="sender" and
+//    return 4 random emails. Fixed in stripSystemPrefix.
+//  - lastMsg is `let` (v16.3, was const, threw at every request)
 //  - importance intent detected BEFORE semantic LLM fallback
-//  - "email"/"emails"/"specific"/"matching" are sender stopwords
-//  - LLM semantic fallback can no longer hijack important_emails
+//  - LLM semantic fallback rejects junk search_terms
 //  - SMART IMPORTANCE RANKER (v16.1): parallel category searches
-//  - multi-turn context, quantity stopwords, bulk organize,
-//    semantic email intent, deterministic summary
+//  - multi-turn context, quantity stopwords, bulk organize
 // ═══════════════════════════════════════════════════════════════
 
 const BELLA = 'EXAVITQu4vr4xnSDxMaL';
@@ -81,7 +85,7 @@ export default {
 
     try {
       if (url.pathname === '/health')
-        return jsonRes({ status: 'ARIA v16.4 ✅', groq: !!env.GROQ_API_KEY, elevenlabs: !!env.ELEVENLABS_API_KEY, google: !!env.GOOGLE_CLIENT_ID, supabase: !!env.SUPABASE_URL });
+        return jsonRes({ status: 'ARIA v16.5 ✅', groq: !!env.GROQ_API_KEY, elevenlabs: !!env.ELEVENLABS_API_KEY, google: !!env.GOOGLE_CLIENT_ID, supabase: !!env.SUPABASE_URL });
 
       if (url.pathname === '/tts')        return await handleTTS(request, env);
       if (url.pathname === '/tts/quota')  return await handleTTSQuota(env);
@@ -155,7 +159,15 @@ function isValidRecipient(addr) {
 }
 
 function stripSystemPrefix(msg) {
-  return (msg || '').replace(/^\[SYSTEM:[\s\S]*?\]\s*/i, '');
+  // The frontend prepends "[SYSTEM: <capNote>]\n<user message>". The capNote
+  // contains JSON examples with `[`/`]` brackets (the email_list shape). The
+  // old non-greedy /\]/ matched the first `]` inside that JSON, leaking the
+  // rest of the prompt — including the words "sender", "email", "mail",
+  // "specific" — into the user message. That made `hi` route to read_emails
+  // with senderPhrase="sender". Anchoring on `]\s*\n` (the literal newline
+  // that separates the system note from the user text) is unambiguous: no
+  // `]\n` appears inside the JSON example.
+  return (msg || '').replace(/^\[SYSTEM:[\s\S]*?\]\s*\n/i, '');
 }
 
 // "messages" and "msgs" are too generic — match only explicit email nouns.
@@ -308,7 +320,7 @@ async function handleChat(request, env) {
   });
 
   let intent = detectIntent(lastMsg);
-  console.log('[ARIA v16.3] intent="%s" lastMsg="%s"', intent, lastMsg.slice(0, 120));
+  console.log('[ARIA v16.5] intent="%s" lastMsg="%s"', intent, lastMsg.slice(0, 120));
   let semanticSearchTerms = null;
 
   // Multi-turn context: if the user sent a tiny acknowledgement ("yes", "ok",
