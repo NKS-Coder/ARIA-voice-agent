@@ -1,5 +1,5 @@
 // ═══════════════════════════════════════════════════════════════
-//  ARIA — Cloudflare Worker v15.5
+//  ARIA — Cloudflare Worker v15.7
 //  (capability-aware intent + LLM fallback + always-list email replies)
 // ═══════════════════════════════════════════════════════════════
 
@@ -75,7 +75,7 @@ export default {
 
     try {
       if (url.pathname === '/health')
-        return jsonRes({ status: 'ARIA v15.5 ✅', groq: !!env.GROQ_API_KEY, elevenlabs: !!env.ELEVENLABS_API_KEY, google: !!env.GOOGLE_CLIENT_ID, supabase: !!env.SUPABASE_URL });
+        return jsonRes({ status: 'ARIA v15.7 ✅', groq: !!env.GROQ_API_KEY, elevenlabs: !!env.ELEVENLABS_API_KEY, google: !!env.GOOGLE_CLIENT_ID, supabase: !!env.SUPABASE_URL });
 
       if (url.pathname === '/tts')        return await handleTTS(request, env);
       if (url.pathname === '/tts/quota')  return await handleTTSQuota(env);
@@ -152,7 +152,8 @@ function stripSystemPrefix(msg) {
   return (msg || '').replace(/^\[SYSTEM:[\s\S]*?\]\s*/i, '');
 }
 
-const EMAIL_WORD_RE = /\b(e-?mail[sk]?|e-?mials?|e-?mals?|mails?|msgs?|messages?|inbox|gmail|mailbox)\b/i;
+// "messages" and "msgs" are too generic — match only explicit email nouns.
+const EMAIL_WORD_RE = /\b(e-?mail[sk]?|e-?mials?|e-?mals?|mails?|inbox|gmail|mailbox)\b/i;
 
 const SENDER_STOPWORDS = new Set([
   'read','show','check','list','get','fetch','pull','bring','give','tell','display','view','open','summarize','summarise',
@@ -484,6 +485,10 @@ async function handleTitle(request, env) {
 function detectIntent(msg) {
   const m = stripSystemPrefix(msg).toLowerCase().trim();
 
+  // Greetings and acknowledgements always go to chat — never email.
+  if (/^(hi|hello|hey|yo|howdy|sup|greetings|good\s*(morning|afternoon|evening|night)|what'?s up)\b/.test(m)) return 'chat';
+  if (/^(thanks?|thank you|ok|okay|cool|great|awesome|perfect|got it|sure|nice|wow|sounds good|understood)\b/.test(m)) return 'chat';
+  // Questions about ARIA's capabilities go to chat.
   if (/^(do|does|can|could|would|will|are|is)\s+(you|aria|it)\b/.test(m))                     return 'chat';
   if (/^(how|what|when|why|where|which)\s+(do|does|can|could|should|would|are|is)\b/.test(m)) return 'chat';
   if (/\bwhat\s+(can|do)\s+you\s+do\b/.test(m))                                               return 'chat';
