@@ -1,8 +1,9 @@
 // ═══════════════════════════════════════════════════════════════
-//  ARIA — Cloudflare Worker v16.2
-//  - More permissive importance regex (catches "summarize the most
-//    important", "give me priority emails", etc.)
-//  - Intent detection logs to Worker tail for debugging
+//  ARIA — Cloudflare Worker v16.3
+//  - CRITICAL: lastMsg is `let` (was const, threw at every request)
+//  - importance intent detected BEFORE semantic LLM fallback
+//  - "email"/"emails"/"specific"/"matching" are sender stopwords
+//  - LLM semantic fallback can no longer hijack important_emails
 //  - SMART IMPORTANCE RANKER (v16.1): parallel category searches
 //  - multi-turn context, quantity stopwords, bulk organize,
 //    semantic email intent, deterministic summary
@@ -80,7 +81,7 @@ export default {
 
     try {
       if (url.pathname === '/health')
-        return jsonRes({ status: 'ARIA v16.2 ✅', groq: !!env.GROQ_API_KEY, elevenlabs: !!env.ELEVENLABS_API_KEY, google: !!env.GOOGLE_CLIENT_ID, supabase: !!env.SUPABASE_URL });
+        return jsonRes({ status: 'ARIA v16.3 ✅', groq: !!env.GROQ_API_KEY, elevenlabs: !!env.ELEVENLABS_API_KEY, google: !!env.GOOGLE_CLIENT_ID, supabase: !!env.SUPABASE_URL });
 
       if (url.pathname === '/tts')        return await handleTTS(request, env);
       if (url.pathname === '/tts/quota')  return await handleTTSQuota(env);
@@ -171,7 +172,11 @@ const SENDER_STOPWORDS = new Set([
   // quantity / quality modifiers — never valid sender names
   'top','best','most','few','couple','several','many','more','less','first','main','primary','priority','urgent','priorities',
   'this','that','these','those','here','there','then','than','today','yesterday','tomorrow','week','month','year','day','days','weeks','months','years',
-  'something','anything','everything','nothing','someone','anyone','everyone','nobody'
+  'something','anything','everything','nothing','someone','anyone','everyone','nobody',
+  // v16.3: words the LLM hallucinated as "search terms" — never valid sender phrases
+  'email','emails','mail','mails','inbox','message','messages','msg','msgs','gmail','mailbox',
+  'specific','particular','general','various','certain','relevant','related','matching','similar',
+  'critical','crucial','essential','significant','notable','prominent','high','low','medium'
 ]);
 
 function cleanSenderPhrase(raw) {
@@ -279,7 +284,10 @@ async function handleChat(request, env) {
 
   const { messages, persona, session_id, apps: frontendApps = {} } = body;
   const lastMsgRaw = messages?.[messages.length - 1]?.content || '';
-  const lastMsg    = stripSystemPrefix(lastMsgRaw);
+  // Must be `let` — multi-turn context (line ~345) reassigns this when the
+  // user replies with a bare "yes"/"ok"/"go ahead". Declaring const here
+  // crashes every handleChat call with TypeError in ESM strict mode.
+  let lastMsg      = stripSystemPrefix(lastMsgRaw);
 
   if (!env.GROQ_API_KEY) return jsonRes({ error: 'GROQ_API_KEY not configured' }, 500);
 
@@ -300,7 +308,7 @@ async function handleChat(request, env) {
   });
 
   let intent = detectIntent(lastMsg);
-  console.log('[ARIA v16.2] intent="%s" lastMsg="%s"', intent, lastMsg.slice(0, 120));
+  console.log('[ARIA v16.3] intent="%s" lastMsg="%s"', intent, lastMsg.slice(0, 120));
   let semanticSearchTerms = null;
 
   // Multi-turn context: if the user sent a tiny acknowledgement ("yes", "ok",
@@ -323,17 +331,26 @@ async function handleChat(request, env) {
   // (e.g. "have I got any assessments from companies?", "any offers from Apple?",
   //  "my interview schedule"). If yes, hoist into read_emails with the suggested
   // keywords so buildGmailQuery picks them up.
-  if (intent === 'chat' && userApps.gmail) {
+  //
+  // GUARD (v16.3): never run the semantic fallback when the message already
+  // mentions "email"/"mail"/"inbox" or importance keywords — those route via
+  // the deterministic detectIntent rules above, and letting the LLM rewrite
+  // them as "search_terms: specific" caused the "Found N emails matching
+  // 'specific'" garbage seen in v16.2.
+  const _alreadyEmailKeyword = /\b(e-?mail|mail|inbox|gmail|message|important|priorit|urgent|top\s+\d+)\b/i.test(effectiveMsg);
+  if (intent === 'chat' && userApps.gmail && !_alreadyEmailKeyword) {
     try {
       const semantic = await extractJSON(
         effectiveMsg,
         `The user has Gmail connected. Decide if their message is implicitly asking about something that would likely be found in their email inbox (job offers, assessments, interviews, invoices, receipts, deliveries, bank statements, newsletters, updates from a sender, meeting confirmations, etc.).
 EMAIL: "any offers from Apple", "did I get an assessment", "interview schedule", "anything from my bank", "my latest invoice".
 NOT EMAIL: "hi", "how are you", "what's the weather", "tell me a joke", "explain X", general knowledge questions.
-Return ONLY JSON: {"is_email_query": true|false, "search_terms": "1-3 keyword(s) to search Gmail for — empty if not an email query"}`,
+Return ONLY JSON: {"is_email_query": true|false, "search_terms": "1-3 keyword(s) to search Gmail for — empty if not an email query. NEVER return generic words like specific, particular, important, top, recent, email, message — those are not real keywords."}`,
         env
       );
-      if (semantic && semantic.is_email_query === true && semantic.search_terms && semantic.search_terms.trim().length >= 2) {
+      const terms = (semantic?.search_terms || '').trim().toLowerCase();
+      const isJunkTerm = /^(specific|particular|important|top|recent|email|emails|mail|message|relevant|various|certain|matching|general)$/i.test(terms);
+      if (semantic && semantic.is_email_query === true && terms.length >= 2 && !isJunkTerm) {
         intent = 'read_emails';
         semanticSearchTerms = semantic.search_terms.trim();
       }
@@ -614,11 +631,14 @@ function detectIntent(msg) {
 
   // Smart importance ranker — catches every phrasing that asks about
   // important / priority / urgent / critical emails. Order-independent:
-  // "important emails", "emails that are important", "important ones".
+  // "important emails", "emails that are important", "important ones",
+  // "tell me and summarize me the top 10 most important emails of today".
   if (/\b(important|priorit(?:y|ies)|urgent|critical|crucial|essential)\b/i.test(m)
       && /\b(e-?mail|mail|inbox|message)s?\b/i.test(m)) return 'important_emails';
   if (/\b(top|most)\s+(\d+\s+)?(important|priorit(?:y|ies)|urgent|critical)\b/i.test(m)) return 'important_emails';
   if (/\bwhat'?s?\s+(important|urgent|priority)\b/i.test(m)) return 'important_emails';
+  // "top 10 emails", "top emails of today" — implies importance ranking
+  if (/\btop\s+(\d+\s+)?(e-?mail|mail|inbox|message)s?\b/i.test(m)) return 'important_emails';
   // "summarize me the top important emails of today" — even with extra noise
   if (/\b(summari[sz]e|brief|highlight)\b.*\b(important|priorit(?:y|ies)|urgent|top)\b.*\b(e-?mail|mail|inbox)s?\b/i.test(m)) return 'important_emails';
   if (/\bsort (my )?(inbox|emails)\b|\borganize (my )?(inbox|emails)\b|\bclean(up)? (my )?inbox\b/i.test(m))             return 'sort_inbox';
