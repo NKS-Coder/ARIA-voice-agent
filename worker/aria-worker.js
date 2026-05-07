@@ -1,16 +1,11 @@
 // ═══════════════════════════════════════════════════════════════
-//  ARIA — Cloudflare Worker v16.5
-//  - CRITICAL: stripSystemPrefix now anchors on `]\n`, not first `]`.
-//    The capNote contains a JSON example with `[`/`]` brackets; the old
-//    non-greedy regex stripped only up to the first `]` inside that JSON,
-//    leaking words like "sender", "email", "mail" into the user message.
-//    That made `hi` route to read_emails with senderPhrase="sender" and
-//    return 4 random emails. Fixed in stripSystemPrefix.
-//  - lastMsg is `let` (v16.3, was const, threw at every request)
-//  - importance intent detected BEFORE semantic LLM fallback
-//  - LLM semantic fallback rejects junk search_terms
-//  - SMART IMPORTANCE RANKER (v16.1): parallel category searches
-//  - multi-turn context, quantity stopwords, bulk organize
+//  ARIA — Cloudflare Worker v16.6
+//  - Category-aware importance ranker: "important BANK emails" runs only
+//    the financial bucket. Categories: financial, government, job, urgent,
+//    starred, documents. Bank/financial bucket also expanded with more
+//    institutions (citi, hsbc, capital one, etc.).
+//  - stripSystemPrefix anchors on `]\n` (v16.5)
+//  - lastMsg is `let` (v16.3)
 // ═══════════════════════════════════════════════════════════════
 
 const BELLA = 'EXAVITQu4vr4xnSDxMaL';
@@ -85,7 +80,7 @@ export default {
 
     try {
       if (url.pathname === '/health')
-        return jsonRes({ status: 'ARIA v16.5 ✅', groq: !!env.GROQ_API_KEY, elevenlabs: !!env.ELEVENLABS_API_KEY, google: !!env.GOOGLE_CLIENT_ID, supabase: !!env.SUPABASE_URL });
+        return jsonRes({ status: 'ARIA v16.6 ✅', groq: !!env.GROQ_API_KEY, elevenlabs: !!env.ELEVENLABS_API_KEY, google: !!env.GOOGLE_CLIENT_ID, supabase: !!env.SUPABASE_URL });
 
       if (url.pathname === '/tts')        return await handleTTS(request, env);
       if (url.pathname === '/tts/quota')  return await handleTTSQuota(env);
@@ -320,7 +315,7 @@ async function handleChat(request, env) {
   });
 
   let intent = detectIntent(lastMsg);
-  console.log('[ARIA v16.5] intent="%s" lastMsg="%s"', intent, lastMsg.slice(0, 120));
+  console.log('[ARIA v16.6] intent="%s" lastMsg="%s"', intent, lastMsg.slice(0, 120));
   let semanticSearchTerms = null;
 
   // Multi-turn context: if the user sent a tiny acknowledgement ("yes", "ok",
@@ -414,22 +409,52 @@ Return ONLY JSON: {"is_email_query": true|false, "search_terms": "1-3 keyword(s)
                         : /\bmonth\b/i.test(lastMsg) ? 30
                         : 7; // default: this week
 
-        const ranked = await findImportantEmails(userApps.gmail, env, { days, max });
+        // Detect category restriction: "important BANK emails", "important
+        // JOB emails", "urgent GOVERNMENT mails", etc. When present we run
+        // only that category, otherwise we scan all five.
+        let category = null;
+        let categoryLabel = '';
+        if (/\b(bank|banking|financial|finance|payment|invoice|bill|statement|transaction|paypal|venmo|chase|amex|visa|mastercard|wellsfargo|"wells fargo"|citi|hsbc|barclays|capitalone|"capital one")\b/i.test(lastMsg)) {
+          category = 'financial'; categoryLabel = 'financial';
+        } else if (/\b(job|jobs|interview|offer|hiring|recruiter|career|application|workday|greenhouse|lever)\b/i.test(lastMsg)) {
+          category = 'job'; categoryLabel = 'job';
+        } else if (/\b(government|govt|tax|taxes|irs|uscis|dmv|court|legal|ssa|"social security")\b/i.test(lastMsg)) {
+          category = 'government'; categoryLabel = 'government';
+        } else if (/\b(starred|favourite|favorite)\b/i.test(lastMsg)) {
+          category = 'starred'; categoryLabel = 'starred';
+        } else if (/\b(contract|agreement|document|signature|docusign|esignature)\b/i.test(lastMsg)) {
+          category = 'documents'; categoryLabel = 'document';
+        } else if (/\b(deadline|action required|expires|expiring|final notice|asap|time-sensitive)\b/i.test(lastMsg)) {
+          category = 'urgent'; categoryLabel = 'urgent / time-sensitive';
+        }
+
+        const ranked = await findImportantEmails(userApps.gmail, env, { days, max, category });
 
         if (!ranked.length) {
+          const noneLabel = categoryLabel
+            ? `No important ${categoryLabel} emails`
+            : 'No important emails';
+          const noneSummary = categoryLabel
+            ? `I couldn't find any ${categoryLabel} emails in the last ${days} day${days===1?'':'s'}.`
+            : `I couldn't find any high-importance emails in the last ${days} day${days===1?'':'s'}.`;
           reply = JSON.stringify({
             type: 'email_list', count: 0,
-            title: 'No important emails',
-            summary: `I couldn't find any high-importance emails in the last ${days} day${days===1?'':'s'}.`,
+            title: noneLabel,
+            summary: noneSummary,
             emails: []
           });
         } else {
           const slim = ranked.map(e => ({ id: e.id, from: e.from, subject: e.subject, date: e.date, snippet: e.snippet }));
           const window = days === 1 ? 'today' : days === 2 ? 'since yesterday' : days === 30 ? 'this month' : 'this week';
+          const title = categoryLabel
+            ? `Top ${ranked.length} ${categoryLabel} email${ranked.length===1?'':'s'} ${window}`
+            : `Top ${ranked.length} important email${ranked.length===1?'':'s'} ${window}`;
+          const summary = categoryLabel
+            ? `Here are your ${ranked.length} most important ${categoryLabel} email${ranked.length===1?'':'s'} ${window}.`
+            : `Here are your ${ranked.length} most important email${ranked.length===1?'':'s'} ${window}, ranked across financial, government, job, urgent, and starred signals.`;
           reply = JSON.stringify({
             type: 'email_list', count: ranked.length,
-            title: `Top ${ranked.length} important email${ranked.length===1?'':'s'} ${window}`,
-            summary: `Here are your ${ranked.length} most important email${ranked.length===1?'':'s'} ${window}, ranked across financial, government, job, urgent, and starred signals.`,
+            title, summary,
             emails: slim
           });
         }
@@ -883,20 +908,33 @@ function decodeEmailBody(payload) {
 //   - job / interview / offer keywords                         +2
 //   - urgent / deadline / action-required keywords             +2
 //   - documents / contracts                                    +1
+//
+// opts.category restricts to one specific bucket — used when the user asks
+// for "important BANK emails" or "important JOB emails" etc.
 async function findImportantEmails(gmailApp, env, opts = {}) {
   const days = opts.days || 7;
   const max  = opts.max  || 5;
   const window = `newer_than:${days}d`;
 
-  const categories = [
-    { weight: 3, q: `is:important ${window}` },
-    { weight: 2, q: `is:starred ${window}` },
-    { weight: 2, q: `(subject:(payment OR invoice OR bill OR statement OR transaction OR balance OR due OR refund OR receipt) OR from:(bank OR billing OR payments OR finance OR chase OR wellsfargo OR amex OR visa OR mastercard OR paypal OR venmo OR stripe)) ${window}` },
-    { weight: 2, q: `(subject:(tax OR irs OR uscis OR dmv OR court OR legal OR government OR official OR notice OR fine OR violation) OR from:(.gov OR irs.gov)) ${window}` },
-    { weight: 2, q: `(subject:(interview OR offer OR application OR hiring OR position OR opportunity OR onsite OR recruiter) OR from:(recruiter OR talent OR careers OR hr OR jobs OR recruiting)) ${window}` },
-    { weight: 2, q: `(subject:(urgent OR deadline OR "action required" OR "expires" OR "expiring" OR "final notice" OR "important" OR "asap" OR "time-sensitive")) ${window}` },
-    { weight: 1, q: `(subject:(contract OR agreement OR document OR signature OR sign OR docusign OR esignature OR adobesign OR form)) ${window}` },
-  ];
+  const allCategories = {
+    important:  { weight: 3, q: `is:important ${window}` },
+    starred:    { weight: 2, q: `is:starred ${window}` },
+    financial:  { weight: 2, q: `(subject:(payment OR invoice OR bill OR statement OR transaction OR balance OR due OR refund OR receipt OR account OR debit OR credit OR loan OR mortgage OR deposit OR withdrawal) OR from:(bank OR billing OR payments OR finance OR chase OR wellsfargo OR "wells fargo" OR amex OR "american express" OR visa OR mastercard OR paypal OR venmo OR stripe OR citi OR citibank OR hsbc OR barclays OR usbank OR "u.s. bank" OR pnc OR td OR ally OR discover OR capitalone OR "capital one")) ${window}` },
+    government: { weight: 2, q: `(subject:(tax OR irs OR uscis OR dmv OR court OR legal OR government OR official OR notice OR fine OR violation OR ssa OR "social security") OR from:(.gov OR irs.gov OR uscis.gov OR ssa.gov)) ${window}` },
+    job:        { weight: 2, q: `(subject:(interview OR offer OR application OR hiring OR position OR opportunity OR onsite OR recruiter OR "next steps") OR from:(recruiter OR talent OR careers OR hr OR jobs OR recruiting OR workday OR greenhouse OR lever OR ashby)) ${window}` },
+    urgent:     { weight: 2, q: `(subject:(urgent OR deadline OR "action required" OR "expires" OR "expiring" OR "final notice" OR "important" OR "asap" OR "time-sensitive")) ${window}` },
+    documents:  { weight: 1, q: `(subject:(contract OR agreement OR document OR signature OR sign OR docusign OR esignature OR adobesign OR form)) ${window}` },
+  };
+
+  // If a specific category is requested ("important bank emails", "important
+  // job emails"), run ONLY that one category. Mixing in the unrestricted
+  // is:important query would let unrelated emails leak into the results.
+  let categories;
+  if (opts.category && allCategories[opts.category]) {
+    categories = [allCategories[opts.category]];
+  } else {
+    categories = Object.values(allCategories);
+  }
 
   const results = await Promise.all(categories.map(async c => {
     try {
