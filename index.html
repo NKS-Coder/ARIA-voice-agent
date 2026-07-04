@@ -1930,6 +1930,10 @@ async function showEmailDetail(email) {
         subject: email.subject,
         body:    (email.body || email.snippet || '').slice(0, 2000),
         date:    email.date || '',
+        // id + session let the Worker fetch the REAL full email body server-side
+        // so the summary and suggested reply are grounded, not snippet-guesses.
+        id:      email.id || '',
+        session: getSession(),
       })
     });
 

@@ -10,6 +10,19 @@
 
 const BELLA = 'EXAVITQu4vr4xnSDxMaL';
 
+// Human-readable current date/time, injected into LLM prompts so ARIA can
+// reason about "today", "tomorrow", "this week", "next Friday", etc. The model
+// has no clock of its own — without this every relative date is a guess.
+function nowContext() {
+  try {
+    return new Date().toLocaleString('en-US', {
+      weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
+      hour: '2-digit', minute: '2-digit', timeZone: 'UTC', timeZoneName: 'short'
+    });
+  } catch (e) { return new Date().toISOString(); }
+}
+function todayISO() { return new Date().toISOString().slice(0, 10); }
+
 function corsHeaders() {
   return {
     'Access-Control-Allow-Origin':  '*',
@@ -541,7 +554,7 @@ Return ONLY JSON: {"is_email_query": true|false, "search_terms": "1-3 keyword(s)
       reply = "Connect your Google Calendar in Settings to book meetings by voice.";
     } else {
       try {
-        const d = await extractJSON(lastMsg, `Extract calendar event ONLY from what the user explicitly stated. Return ONLY JSON: {"title":"title","date":"YYYY-MM-DD","time":"HH:MM","duration":60}. Never invent details.`, env);
+        const d = await extractJSON(lastMsg, `Today is ${todayISO()} (UTC). Extract a calendar event ONLY from what the user explicitly stated. Resolve relative dates ("tomorrow", "next Friday", "in 2 days", "tonight") against today's date. Return ONLY JSON: {"title":"title","date":"YYYY-MM-DD","time":"HH:MM","duration":60}. Never invent a title the user did not give.`, env);
         if (!d?.title || !d?.date || !d?.time) reply = `I need a title, date, and time to create the event. What should I call it, and when?`;
         else { await createCalEvent(d, userApps.calendar, env); reply = `Done. "${d.title}" added to your calendar on ${d.date} at ${d.time}.`; }
       } catch (e) { console.error('calendar error:', e.message); reply = `Could not create the event: ${e.message}.`; }
@@ -610,12 +623,27 @@ Return ONLY JSON: {"is_email_query": true|false, "search_terms": "1-3 keyword(s)
 
 async function analyzeEmail(request, env) {
   if (!env.GROQ_API_KEY) return jsonRes({ error: 'No Groq key' }, 500);
-  const { from, subject, body, date } = await request.json().catch(() => ({}));
+  const { from, subject, body, date, id, session } = await request.json().catch(() => ({}));
+
+  // The frontend only holds a ~100-char snippet. When we have the message id and
+  // a connected Gmail, fetch the REAL full body server-side so the summary, key
+  // points, and suggested reply are grounded in the actual email — not a preview.
+  let fullBody = (body || '').trim();
+  if (id && session && fullBody.length < 400) {
+    const gmailApp = await getSessionGmail(session, env);
+    if (gmailApp && gmailApp.refresh_token) {
+      try {
+        const fetched = await fetchEmailFullBody(id, gmailApp, env);
+        if (fetched && fetched.length > fullBody.length) fullBody = fetched;
+      } catch (e) { console.warn('analyzeEmail full-body fetch failed:', e.message); }
+    }
+  }
+
   const res = await groqFetch({
-    max_tokens: 600, temperature: 0.3,
+    max_tokens: 700, temperature: 0.3,
     messages: [
-      { role: 'system', content: `You are an email analyst. Read the email below and return ONLY a JSON object with these keys:\n"summary" — write 2 sentences describing what this specific email is actually about\n"key_points" — array of 2 actual takeaways from this email\n"sentiment" — exactly one of: positive, neutral, urgent, negative\n"action_required" — true or false\n"suggested_reply" — write a complete professional reply to THIS specific email\n\nBase every field on the real email content. Do not echo these instructions back. Do not use placeholder text.` },
-      { role: 'user',   content: `From: ${from}\nSubject: ${subject}\nDate: ${date}\nBody: ${(body||'').slice(0,1500)}` }
+      { role: 'system', content: `You are an expert email analyst. Today is ${todayISO()} (UTC). Read the email below and return ONLY a JSON object with these keys:\n"summary" — 2-3 sentences describing what THIS specific email is actually about\n"key_points" — array of 2-4 concrete takeaways, deadlines, amounts, or asks found in the email\n"sentiment" — exactly one of: positive, neutral, urgent, negative\n"action_required" — true or false (true if the sender needs a decision, reply, payment, or by a deadline)\n"suggested_reply" — a complete, professional reply written specifically to THIS email, matching its tone; sign off as the recipient without inventing a name\n\nBase every field strictly on the real email content. If a deadline or date is mentioned, resolve it relative to today. Do not echo these instructions. Do not use placeholder text like [Name] or [Company] unless the email itself is that generic.` },
+      { role: 'user',   content: `From: ${from}\nSubject: ${subject}\nDate: ${date}\nBody: ${fullBody.slice(0, 4000)}` }
     ]
   }, env);
   const data = await res.json();
@@ -708,18 +736,19 @@ STRICT RULES:
 - If something is ambiguous, ask a clarifying question.`;
 
 const PERSONAS = {
-  general:  `You are ARIA, a brilliant AI assistant. Connected apps: {apps}. Be direct and helpful. Max 3 sentences. No bullet points.` + HARD_RULES,
-  sales:    `You are ARIA, a world-class sales assistant. Connected: {apps}. Warm, persuasive. Max 3 sentences.` + HARD_RULES,
-  support:  `You are ARIA, expert tech support. Connected: {apps}. Precise and patient. Max 3 sentences.` + HARD_RULES,
-  research: `You are ARIA, a research assistant. Connected: {apps}. Accurate and thorough. Max 4 sentences.` + HARD_RULES,
-  jarvis:   `You are ARIA — exactly like Jarvis from Iron Man. Confident, intelligent, slightly witty. Connected: {apps}. Max 3 sentences.` + HARD_RULES,
+  general:  `You are ARIA, a sharp, capable AI assistant. Connected apps: {apps}. Be direct, warm, and genuinely helpful. Prefer concise answers (2-4 sentences), but give a fuller, well-structured answer when the user asks for depth, steps, reasoning, or a list. Write in natural plain text; only use bullet points when the user actually wants a list.` + HARD_RULES,
+  sales:    `You are ARIA, a world-class sales assistant. Connected: {apps}. Warm, persuasive, concise — usually 2-4 sentences.` + HARD_RULES,
+  support:  `You are ARIA, expert tech support. Connected: {apps}. Precise and patient. Give clear step-by-step help when troubleshooting; otherwise keep it short.` + HARD_RULES,
+  research: `You are ARIA, a research assistant. Connected: {apps}. Accurate and thorough; organize longer answers clearly.` + HARD_RULES,
+  jarvis:   `You are ARIA — exactly like Jarvis from Iron Man. Confident, intelligent, slightly witty. Connected: {apps}. Concise unless asked for detail.` + HARD_RULES,
 };
 
 async function callGroq(messages, persona, connectedApps, env) {
   const apps = connectedApps.join(', ') || 'none';
-  const prompt = (PERSONAS[persona] || PERSONAS.general).replace('{apps}', apps);
+  const prompt = (PERSONAS[persona] || PERSONAS.general).replace('{apps}', apps)
+    + `\nCurrent date and time: ${nowContext()}. Use this whenever the user refers to relative dates or times.`;
   const res = await groqFetch({
-    max_tokens: 500, temperature: 0.6,
+    max_tokens: 800, temperature: 0.6,
     messages: [{ role: 'system', content: prompt }, ...(messages || []).slice(-12)]
   }, env);
   const data = await res.json();
@@ -988,6 +1017,30 @@ async function readGmail(query, max, gmailApp, env) {
     const gh = n => d.payload?.headers?.find(h => h.name === n)?.value || '';
     return { id: m.id, from: gh('From'), subject: gh('Subject'), date: gh('Date'), snippet: d.snippet || '', body: '' };
   }));
+}
+
+// Look up a session's stored Gmail credentials (server-side only — tokens never
+// leave the Worker). Used by analyzeEmail to fetch the real message body.
+async function getSessionGmail(session, env) {
+  if (!session || !env.SUPABASE_URL) return null;
+  try {
+    const rows = await sbGet(env, `/rest/v1/user_apps?session_id=eq.${enc(session)}&app_name=eq.gmail&select=access_token,refresh_token,email`);
+    return rows?.[0] || null;
+  } catch (e) { return null; }
+}
+
+// Fetch and decode the FULL text body of one message. readGmail deliberately
+// uses format=metadata (fast, snippet-only) for lists; this is the on-demand
+// deep read used only when the user opens a single email.
+async function fetchEmailFullBody(id, gmailApp, env) {
+  const token = await getGoogleToken(gmailApp, env);
+  const r = await fetchWithTimeout(
+    `https://gmail.googleapis.com/gmail/v1/users/me/messages/${enc(id)}?format=full`,
+    { headers: { 'Authorization': `Bearer ${token}` } }
+  );
+  if (!r.ok) return '';
+  const d = await r.json();
+  return decodeEmailBody(d.payload || {});
 }
 
 // ALWAYS returns email_list. Single-email "detail" responses caused the frontend
