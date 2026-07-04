@@ -1,0 +1,13 @@
+{
+  "name": "aria-voice-agent",
+  "version": "1.0.0",
+  "description": "ARIA — Cloudflare Worker proxy for the ARIA voice assistant (Groq, ElevenLabs, Gmail/Calendar, Supabase).",
+  "private": true,
+  "scripts": {
+    "deploy": "wrangler deploy",
+    "dev": "wrangler dev"
+  },
+  "devDependencies": {
+    "wrangler": "^4.107.0"
+  }
+}

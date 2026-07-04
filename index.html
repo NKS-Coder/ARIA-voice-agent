@@ -185,6 +185,13 @@ select.minp option{background:#0a0c10;}
 #sidebarOverlay.open{display:block;}
 /* Stop button */
 #stopBtn{position:fixed;top:11px;left:50%;transform:translateX(-50%);z-index:99999;align-items:center;gap:4px;padding:4px 14px;border-radius:8px;border:1px solid rgba(245,101,101,0.3);background:rgba(245,101,101,0.08);color:#fc8181;font-size:0.65rem;cursor:pointer;font-family:inherit;backdrop-filter:blur(6px);}
+/* Desktop collapsible sidebars — toggled via the top-bar buttons */
+@media(min-width:769px){
+  .left,.right{transition:width 0.3s cubic-bezier(0.16,1,0.3,1);overflow:hidden;}
+  .left.collapsed{width:0!important;min-width:0!important;border-right:none!important;}
+  .right.collapsed{width:0!important;min-width:0!important;border-left:none!important;overflow:hidden!important;}
+}
+#menuToggle:hover,#rightToggle:hover{background:rgba(255,255,255,0.06)!important;color:rgba(255,255,255,0.7)!important;}
 /* Responsive */
 @media(max-width:768px){
   /* Use dynamic viewport height to exclude Safari chrome */
@@ -252,7 +259,7 @@ select.minp option{background:#0a0c10;}
     <button id="newChatBtn" style="width:100%;display:flex;align-items:center;gap:8px;padding:9px 14px;border-radius:12px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.06);font-size:11px;font-weight:600;color:rgba(255,255,255,0.45);cursor:pointer;font-family:inherit;transition:all 0.15s;" onmouseover="this.style.background='rgba(255,255,255,0.06)';this.style.color='rgba(255,255,255,0.75)';" onmouseout="this.style.background='rgba(255,255,255,0.03)';this.style.color='rgba(255,255,255,0.45)';">
       <span class="material-symbols-outlined" style="font-size:16px;color:#007BFF;">add</span> New Conversation
     </button>
-    <input id="histSearch" type="text" placeholder="Search history..." style="width:100%;margin-top:8px;padding:7px 12px;border-radius:10px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.05);font-size:11px;color:rgba(255,255,255,0.55);outline:none;font-family:inherit;" placeholder-color="rgba(255,255,255,0.2)"/>
+    <input id="histSearch" type="text" placeholder="Search history..." style="width:100%;margin-top:8px;padding:7px 12px;border-radius:10px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.05);font-size:11px;color:rgba(255,255,255,0.55);outline:none;font-family:inherit;"/>
   </div>
   <div style="padding:0 28px 10px;">
     <div style="font-size:8px;text-transform:uppercase;letter-spacing:0.3em;font-weight:700;color:#374151;">Neural History</div>
@@ -277,7 +284,7 @@ select.minp option{background:#0a0c10;}
 
   <!-- Top bar -->
   <div style="display:flex;align-items:center;gap:10px;padding:10px 20px;border-bottom:1px solid rgba(255,255,255,0.04);flex-shrink:0;">
-    <button id="menuToggle" style="display:none;width:32px;height:32px;border-radius:8px;align-items:center;justify-content:center;background:none;border:none;color:rgba(255,255,255,0.3);cursor:pointer;"><span class="material-symbols-outlined" style="font-size:18px;">menu</span></button>
+    <button id="menuToggle" title="Toggle history sidebar" style="display:flex;width:32px;height:32px;border-radius:8px;align-items:center;justify-content:center;background:none;border:none;color:rgba(255,255,255,0.3);cursor:pointer;transition:all 0.15s;"><span class="material-symbols-outlined" style="font-size:18px;">menu</span></button>
     <a href="#" style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.2em;background:linear-gradient(135deg,#007BFF,#00E5FF);-webkit-background-clip:text;-webkit-text-fill-color:transparent;text-decoration:none;">Intelligence</a>
     <a href="#" onclick="openModal('apps');return false;" style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.2em;color:rgba(100,116,139,0.8);text-decoration:none;">Integrations</a>
     <a href="#" onclick="openModal('about');return false;" style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.2em;color:rgba(100,116,139,0.8);text-decoration:none;">Protocol</a>
@@ -286,7 +293,7 @@ select.minp option{background:#0a0c10;}
     <button id="stopBtn" style="display:none;" onclick="stopSpeaking();if(window.S&&window.S.listening&&typeof stopListen==='function')stopListen();if(typeof window._ariaWakePause==='function')window._ariaWakePause();">
       <span class="material-symbols-outlined" style="font-size:13px;">stop</span> Stop
     </button>
-    <button id="rightToggle" style="display:none;width:32px;height:32px;border-radius:8px;align-items:center;justify-content:center;background:none;border:none;color:rgba(255,255,255,0.3);cursor:pointer;"><span class="material-symbols-outlined" style="font-size:18px;">apps</span></button>
+    <button id="rightToggle" title="Toggle control sidebar" style="display:flex;width:32px;height:32px;border-radius:8px;align-items:center;justify-content:center;background:none;border:none;color:rgba(255,255,255,0.3);cursor:pointer;transition:all 0.15s;"><span class="material-symbols-outlined" style="font-size:18px;">apps</span></button>
   </div>
 
   <!-- Hero — compact, always pinned at top-center -->
@@ -471,7 +478,7 @@ select.minp option{background:#0a0c10;}
       <div class="msaved" id="voiceSaved">&#10003; Voice settings saved</div>
     </div>
     <div class="tpanel" id="tab-about">
-      <div class="mnote"><strong>ARIA v10</strong> &mdash; Built by Nihhar K Sonee (NKS-Coder)<br>Groq Llama 3.3 70B &middot; Browser TTS &middot; Cloudflare Workers &middot; Supabase<br><br>All API keys are encrypted server-side in Cloudflare.</div>
+      <div class="mnote"><strong>ARIA v16.6</strong> &mdash; Built by Nihhar K Sonee (NKS-Coder)<br>Groq Llama 3.3 70B &middot; ElevenLabs TTS &middot; Cloudflare Workers &middot; Supabase<br><br>All API keys are encrypted server-side in Cloudflare.</div>
       <div class="mfld"><div class="mlbl">Worker Status</div><div id="workerStatus-about" class="minp" style="color:rgba(255,255,255,0.3);font-size:0.6rem;">Checking...</div></div>
     </div>
   </div>
@@ -571,6 +578,9 @@ const C={
 };
 
 const $=id=>document.getElementById(id);
+// Escape untrusted strings (email senders/subjects, conversation titles)
+// before injecting into innerHTML — email content is attacker-controlled.
+const escHtml=s=>String(s??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 const D={
   msgs:$('msgs'),inp:$('inp'),send:$('sendBtn'),think:$('think'),
   mic:$('micBtn'),viz:$('viz'),micLbl:$('micLbl'),status:$('statusChip'),
@@ -630,7 +640,13 @@ async function loadFromSupabase() {
       let merged = {};
       try { merged = JSON.parse(localStorage.getItem('aria_apps')||'{}'); } catch(e) {}
       Object.entries(appsData.apps).forEach(([k,v]) => {
-        if(v && v.connected) merged[k] = v;          // Supabase has it — use it
+        if(v && v.connected){
+          // Supabase has it — use it, but never drop tokens localStorage already
+          // holds (the Worker no longer ships tokens in this response).
+          merged[k] = { ...merged[k], ...v,
+            access_token:  v.access_token  || merged[k]?.access_token  || '',
+            refresh_token: v.refresh_token || merged[k]?.refresh_token || '' };
+        }
         else if(!merged[k]?.connected) merged[k] = v; // neither has it — accept Supabase value
         // if localStorage has connected=true but Supabase doesn't, keep localStorage
       });
@@ -648,15 +664,31 @@ async function loadFromSupabase() {
   }
 
   try {
-    // Load conversation history from Supabase
+    // Load conversation history from Supabase — rebuilds the History sidebar
+    // on a fresh device / cleared browser. Messages are stored flat per
+    // session, so group them into threads wherever the gap exceeds 30 minutes.
     const convRes  = await fetch(`${W}/auth/conversations?session=${enc(session)}`);
     const convData = await convRes.json();
-    const msgs     = convData.conversations || [];
+    const rows     = convData.conversations || [];
 
-    if(msgs.length > 0 && C.convs.length === 0) {
-      // Group into conversation threads (pairs of user+assistant)
-      // Use existing localStorage convs if available, otherwise build from Supabase
-      console.log('✅ Found', msgs.length, 'messages in Supabase');
+    if(rows.length > 0 && C.convs.length === 0) {
+      const asc = rows.slice().sort((a,b)=>new Date(a.created_at)-new Date(b.created_at));
+      const threads = [];
+      let cur = null, prevT = 0;
+      asc.forEach(r=>{
+        const t = new Date(r.created_at).getTime();
+        if(!cur || t - prevT > 30*60*1000){
+          cur = { id:'sb_'+t, title:'', messages:[], persona:r.persona||'general', time:t };
+          threads.push(cur);
+        }
+        cur.messages.push({ role:r.role, content:r.content });
+        if(!cur.title && r.role==='user') cur.title = String(r.content||'').slice(0,38);
+        cur.time = t;
+        prevT = t;
+      });
+      threads.forEach(th=>{ if(th.messages.length) C.saveConv(th); });
+      renderHist();
+      console.log('✅ Restored', threads.length, 'conversations from Supabase');
     }
   } catch(e) {
     console.warn('Could not load conversations from Supabase:', e.message);
@@ -1515,7 +1547,9 @@ async function callWorker(txt){
       `(6) NEVER return type:"email_detail" for a generic read/list/show request. email_detail is only for single-email-focused queries like "summarize this email" or "tell me about the email from X". ` +
       `(7) For all other requests — including greetings and any message without explicit email keywords — respond normally as plain text. NEVER mention or reference emails unless the user asked.]`
     : '';
-  const msgs = S.msgs.slice(-12);
+  // Strip to role+content — the extra `display` key is UI-only and must not
+  // reach the Groq API (OpenAI-compatible endpoints reject unknown fields).
+  const msgs = S.msgs.slice(-12).map(m=>({role:m.role,content:m.content}));
   // If the last user message is clearly an email-read request but the phrasing
   // doesn't start with a canonical verb (show/list/read/etc.), prepend "Show me"
   // so the Worker's detectIntent regex catches it instead of routing to chat.
@@ -1620,7 +1654,9 @@ async function sendMsg(){
   D.think.classList.remove('hidden');D.send.disabled=true;setMode('thinking');
   try{
     const reply=await callWorker(txt);
-    S.msgs.push({role:'assistant',content:_ariaSanitizeForMemory(reply)});
+    // `content` (sanitized) feeds the LLM on later turns; `display` keeps the
+    // raw reply (incl. email-card JSON) so history reloads re-render the cards.
+    S.msgs.push({role:'assistant',content:_ariaSanitizeForMemory(reply),display:reply});
     D.think.classList.add('hidden');D.send.disabled=false;
     addMsg('assistant',reply);speak(reply);saveCurrentConv();
   }catch(err){
@@ -1631,7 +1667,7 @@ async function sendMsg(){
 }
 D.send.addEventListener('click',()=>{unlockAudio();sendMsg();});
 D.inp.addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendMsg();}});
-function autoResize(){D.inp.style.height='auto';D.inp.style.height=Math.min(D.inp.scrollHeight,110)+'px';}
+function autoResize(){D.inp.style.height='auto';D.inp.style.height=Math.min(D.inp.scrollHeight,window.innerWidth<600?80:110)+'px';}
 D.inp.addEventListener('input',autoResize);
 
 // ── SMART AI TITLE GENERATION ────────────────────────────────
@@ -1677,7 +1713,8 @@ function loadConv(conv){
   if(S.msgs.length>0)saveCurrentConv();
   S.msgs=[...conv.messages];S.convId=conv.id;S.convTitle=conv.title;S.persona=conv.persona||'general';S.msgN=0;
   D.msgs.innerHTML='';
-  conv.messages.forEach(m=>{S.msgN++;addMsg(m.role,m.content);});
+  // addMsg increments S.msgN itself; `display` restores email cards saved from live replies
+  conv.messages.forEach(m=>{addMsg(m.role,m.display||m.content);});
   D.nMsgs.textContent=S.msgN;D.convLabel.textContent=conv.title;
   document.querySelectorAll('.pc').forEach(c=>c.classList.toggle('active',c.dataset.p===S.persona));
   renderHist();
@@ -1704,7 +1741,7 @@ function renderHist(filter=''){
   convs.forEach(conv=>{
     const d=document.createElement('div');
     d.className='hi'+(conv.id===S.convId?' active':'');
-    d.innerHTML=`<div class="hi-ico">◈</div><div class="hi-body"><div class="hi-title">${conv.title}</div><div class="hi-time">${ftime(conv.time)}</div></div><button class="hi-del" onclick="deleteConv('${conv.id}',event)">✕</button>`;
+    d.innerHTML=`<div class="hi-ico">◈</div><div class="hi-body"><div class="hi-title">${escHtml(conv.title)}</div><div class="hi-time">${ftime(conv.time)}</div></div><button class="hi-del" onclick="deleteConv('${conv.id}',event)">✕</button>`;
     d.addEventListener('click',()=>loadConv(conv));
     D.histList.appendChild(d);
   });
@@ -1876,8 +1913,7 @@ async function showEmailDetail(email) {
   // Add user message to chat
   const userTxt = `Reading email from ${fromName}: ${email.subject}`;
   S.msgs.push({role:'user', content: userTxt});
-  addMsg('user', userTxt);
-  S.msgN++; D.nMsgs.textContent = S.msgN;
+  addMsg('user', userTxt); // addMsg already increments S.msgN
 
   // Show thinking
   D.think.classList.remove('hidden');
@@ -1894,6 +1930,10 @@ async function showEmailDetail(email) {
         subject: email.subject,
         body:    (email.body || email.snippet || '').slice(0, 2000),
         date:    email.date || '',
+        // id + session let the Worker fetch the REAL full email body server-side
+        // so the summary and suggested reply are grounded, not snippet-guesses.
+        id:      email.id || '',
+        session: getSession(),
       })
     });
 
@@ -1924,11 +1964,11 @@ async function showEmailDetail(email) {
 
     card.innerHTML = `
       <div style="padding:14px 16px;background:#fff;border-bottom:1px solid #e8eaed;">
-        <div style="font-size:0.95rem;font-weight:600;color:#202124;margin-bottom:10px;line-height:1.3;">${email.subject||'(no subject)'}</div>
+        <div style="font-size:0.95rem;font-weight:600;color:#202124;margin-bottom:10px;line-height:1.3;">${htmlEsc1(email.subject||'(no subject)')}</div>
         <div style="display:flex;align-items:center;gap:10px;">
-          <div style="width:34px;height:34px;border-radius:50%;background:${avBg};color:#fff;display:flex;align-items:center;justify-content:center;font-size:0.76rem;font-weight:600;flex-shrink:0;">${initial}</div>
+          <div style="width:34px;height:34px;border-radius:50%;background:${avBg};color:#fff;display:flex;align-items:center;justify-content:center;font-size:0.76rem;font-weight:600;flex-shrink:0;">${htmlEsc1(initial)}</div>
           <div>
-            <div style="font-size:0.74rem;font-weight:600;color:#202124;">${fromName}</div>
+            <div style="font-size:0.74rem;font-weight:600;color:#202124;">${htmlEsc1(fromName)}</div>
             <div style="font-size:0.62rem;color:#5f6368;margin-top:1px;">${dateStr}</div>
           </div>
         </div>
@@ -1936,13 +1976,13 @@ async function showEmailDetail(email) {
       ${detail.summary ? `
       <div style="padding:12px 16px;border-bottom:1px solid #f1f3f4;">
         <div style="font-size:0.55rem;letter-spacing:0.1em;text-transform:uppercase;color:#EA4335;font-weight:600;margin-bottom:6px;">Summary</div>
-        <div style="font-size:0.76rem;color:#202124;line-height:1.75;">${detail.summary}</div>
+        <div style="font-size:0.76rem;color:#202124;line-height:1.75;">${htmlEsc1(detail.summary)}</div>
       </div>` : ''}
       ${detail.key_points?.length ? `
       <div style="padding:12px 16px;border-bottom:1px solid #f1f3f4;">
         <div style="font-size:0.55rem;letter-spacing:0.1em;text-transform:uppercase;color:#EA4335;font-weight:600;margin-bottom:6px;">Key Points</div>
         <ul style="list-style:none;display:flex;flex-direction:column;gap:5px;">
-          ${detail.key_points.map(p=>`<li style="font-size:0.74rem;color:#202124;padding-left:14px;position:relative;"><span style="position:absolute;left:0;color:#1a73e8;font-size:1rem;top:-3px;">•</span>${p}</li>`).join('')}
+          ${detail.key_points.map(p=>`<li style="font-size:0.74rem;color:#202124;padding-left:14px;position:relative;"><span style="position:absolute;left:0;color:#1a73e8;font-size:1rem;top:-3px;">•</span>${htmlEsc1(p)}</li>`).join('')}
         </ul>
       </div>` : ''}
       ${detail.suggested_reply ? `
@@ -2146,7 +2186,8 @@ function renderInboxStats(data, container) {
 
 
 function renderEmailList(data, container) {
-  if (!data.emails?.length && data.count === 0) {
+  data.emails = data.emails || [];
+  if (!data.emails.length) {
     const el = document.createElement('div');
     el.style.cssText = 'padding:12px;font-size:0.76rem;color:#5f6368;background:#fff;border-radius:12px;border:1px solid #e0e0e0;';
     el.textContent = data.summary || 'No emails found.';
@@ -2177,7 +2218,7 @@ function renderEmailList(data, container) {
         Open ↗
       </button>
     </div>
-    ${data.summary ? `<div style="padding:9px 14px;font-size:0.73rem;color:#5f6368;border-bottom:1px solid #f1f3f4;background:#fafafa;line-height:1.6;">${data.summary}</div>` : ''}
+    ${data.summary ? `<div style="padding:9px 14px;font-size:0.73rem;color:#5f6368;border-bottom:1px solid #f1f3f4;background:#fafafa;line-height:1.6;">${escHtml(data.summary)}</div>` : ''}
   `;
 
   // Email rows
@@ -2195,9 +2236,9 @@ function renderEmailList(data, container) {
     row.innerHTML = `
       <div style="width:32px;height:32px;border-radius:50%;background:${avBg};color:#fff;display:flex;align-items:center;justify-content:center;font-size:0.72rem;font-weight:600;flex-shrink:0;">${initial}</div>
       <div style="flex:1;min-width:0;">
-        <div style="font-size:0.74rem;font-weight:600;color:#202124;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${fromName.slice(0,30)}</div>
-        <div style="font-size:0.7rem;color:#202124;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:1px;">${(email.subject||'(no subject)').slice(0,45)}</div>
-        <div style="font-size:0.64rem;color:#5f6368;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:1px;">${(email.snippet||'').slice(0,55)}</div>
+        <div style="font-size:0.74rem;font-weight:600;color:#202124;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escHtml(fromName.slice(0,30))}</div>
+        <div style="font-size:0.7rem;color:#202124;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:1px;">${escHtml((email.subject||'(no subject)').slice(0,45))}</div>
+        <div style="font-size:0.64rem;color:#5f6368;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:1px;">${escHtml((email.snippet||'').slice(0,55))}</div>
       </div>
       <div style="font-size:0.6rem;color:#5f6368;flex-shrink:0;text-align:right;">
         <div>${dateStr}</div>
@@ -2271,11 +2312,11 @@ function renderEmailDetail(data, container) {
   el.innerHTML = `
     <!-- Email header -->
     <div style="padding:16px;background:#fff;border-bottom:1px solid #e8eaed;">
-      <div style="font-size:1rem;font-weight:600;color:#202124;margin-bottom:10px;line-height:1.3;">${email?.subject || '(no subject)'}</div>
+      <div style="font-size:1rem;font-weight:600;color:#202124;margin-bottom:10px;line-height:1.3;">${htmlEsc2(email?.subject || '(no subject)')}</div>
       <div style="display:flex;align-items:center;gap:10px;">
-        <div style="width:36px;height:36px;border-radius:50%;background:#EA4335;color:#fff;display:flex;align-items:center;justify-content:center;font-size:0.8rem;font-weight:600;flex-shrink:0;">${initial}</div>
+        <div style="width:36px;height:36px;border-radius:50%;background:#EA4335;color:#fff;display:flex;align-items:center;justify-content:center;font-size:0.8rem;font-weight:600;flex-shrink:0;">${htmlEsc2(initial)}</div>
         <div>
-          <div style="font-size:0.76rem;font-weight:600;color:#202124;">${fromName}</div>
+          <div style="font-size:0.76rem;font-weight:600;color:#202124;">${htmlEsc2(fromName)}</div>
           <div style="font-size:0.64rem;color:#5f6368;margin-top:1px;">${dateStr}</div>
         </div>
       </div>
@@ -2284,7 +2325,7 @@ function renderEmailDetail(data, container) {
     <!-- Summary -->
     <div style="padding:14px 16px;border-bottom:1px solid #f1f3f4;">
       <div style="font-size:0.58rem;letter-spacing:0.1em;text-transform:uppercase;color:#EA4335;font-weight:600;margin-bottom:7px;">Summary</div>
-      <div style="font-size:0.78rem;color:#202124;line-height:1.8;">${detail.summary || ''}</div>
+      <div style="font-size:0.78rem;color:#202124;line-height:1.8;">${htmlEsc2(detail.summary || '')}</div>
     </div>
 
     <!-- Key Points -->
@@ -2294,7 +2335,7 @@ function renderEmailDetail(data, container) {
       <ul style="list-style:none;display:flex;flex-direction:column;gap:6px;">
         ${detail.key_points.map(p => `
           <li style="font-size:0.76rem;color:#202124;padding-left:16px;position:relative;line-height:1.55;">
-            <span style="position:absolute;left:0;color:#1a73e8;font-size:1rem;top:-2px;">•</span>${p}
+            <span style="position:absolute;left:0;color:#1a73e8;font-size:1rem;top:-2px;">•</span>${htmlEsc2(p)}
           </li>`).join('')}
       </ul>
     </div>` : ''}
@@ -2401,7 +2442,7 @@ async function sendEmailReply(to, subject, body) {
   setMode('thinking');
   try {
     const reply = await callWorker(cmd);
-    S.msgs.push({ role: 'assistant', content: _ariaSanitizeForMemory(reply) });
+    S.msgs.push({ role: 'assistant', content: _ariaSanitizeForMemory(reply), display: reply });
     D.think.classList.add('hidden');
     D.send.disabled = false;
     addMsg('assistant', reply);
@@ -2445,11 +2486,11 @@ function openGmailPanel(emails) {
         const fromName = (e.from||'').replace(/<[^>]+>/,'').replace(/"/g,'').trim();
         const initial  = fromName[0]?.toUpperCase()||'?';
         const dateStr  = e.date ? new Date(e.date).toLocaleDateString('en-US',{month:'short',day:'numeric'}) : '';
-        return `<a class="gmail-panel-email-item" href="https://mail.google.com/mail/u/0/#inbox/${e.id||''}" target="_blank">
-          <div class="email-avatar ${avColors[i%5]}" style="width:28px;height:28px;font-size:0.62rem;flex-shrink:0">${initial}</div>
+        return `<a class="gmail-panel-email-item" href="https://mail.google.com/mail/u/0/#inbox/${encodeURIComponent(e.id||'')}" target="_blank" rel="noopener">
+          <div class="email-avatar ${avColors[i%5]}" style="width:28px;height:28px;font-size:0.62rem;flex-shrink:0">${escHtml(initial)}</div>
           <div style="flex:1;min-width:0">
-            <div class="gmail-panel-email-from">${fromName.slice(0,22)}</div>
-            <div class="gmail-panel-email-subj">${(e.subject||'(no subject)').slice(0,45)}</div>
+            <div class="gmail-panel-email-from">${escHtml(fromName.slice(0,22))}</div>
+            <div class="gmail-panel-email-subj">${escHtml((e.subject||'(no subject)').slice(0,45))}</div>
           </div>
           <div style="font-size:0.56rem;color:var(--gmail-muted);flex-shrink:0">${dateStr}</div>
         </a>`;
@@ -2475,18 +2516,13 @@ function getSession(){
   sid = sessionStorage.getItem('aria_sid');
   if(sid){ localStorage.setItem('aria_sid',sid); return sid; }
 
-  // Generate stable ID from browser fingerprint so it survives soft clears
-  const fp = [
-    navigator.userAgent,
-    navigator.language,
-    screen.width + 'x' + screen.height,
-    Intl.DateTimeFormat().resolvedOptions().timeZone,
-  ].join('|');
-
-  // Hash the fingerprint
-  let hash = 0;
-  for(let i=0;i<fp.length;i++){hash=((hash<<5)-hash)+fp.charCodeAt(i);hash|=0;}
-  sid = 'u_' + Math.abs(hash).toString(36);
+  // Generate a cryptographically random ID. The old fingerprint hash
+  // (UA + language + screen + timezone) collided across users with identical
+  // setups — two people would share one Supabase session and see each other's
+  // conversations and Gmail connection. Random UUIDs cannot collide or be
+  // guessed by someone probing the Worker's /auth endpoints.
+  sid = 'u_' + (crypto.randomUUID ? crypto.randomUUID() :
+    Date.now().toString(36) + Math.random().toString(36).slice(2, 12));
 
   localStorage.setItem('aria_sid', sid);
   sessionStorage.setItem('aria_sid', sid);
@@ -2499,12 +2535,14 @@ function setSession(sid){
   return sid;
 }
 
-// ── MOBILE RESPONSIVE CONTROLS ────────────────────────────────
+// ── SIDEBAR CONTROLS (desktop collapse + mobile slide-in) ─────
 const leftPanel    = document.querySelector('.left');
 const rightPanel   = document.querySelector('.right');
 const overlay      = $('sidebarOverlay');
 const menuToggle   = $('menuToggle');
 const rightToggle  = $('rightToggle');
+
+const isDesktop = () => window.innerWidth > 768;
 
 function closeAllPanels() {
   leftPanel?.classList.remove('open');
@@ -2512,7 +2550,20 @@ function closeAllPanels() {
   overlay?.classList.remove('open');
 }
 
+// Restore collapsed state on desktop (persisted across reloads)
+function applySidebarPrefs() {
+  if (!isDesktop()) return;
+  leftPanel?.classList.toggle('collapsed',  localStorage.getItem('aria_left_collapsed')  === '1');
+  rightPanel?.classList.toggle('collapsed', localStorage.getItem('aria_right_collapsed') === '1');
+}
+applySidebarPrefs();
+
 menuToggle?.addEventListener('click', () => {
+  if (isDesktop()) {
+    const c = leftPanel?.classList.toggle('collapsed');
+    localStorage.setItem('aria_left_collapsed', c ? '1' : '0');
+    return;
+  }
   const isOpen = leftPanel?.classList.contains('open');
   closeAllPanels();
   if (!isOpen) {
@@ -2522,6 +2573,11 @@ menuToggle?.addEventListener('click', () => {
 });
 
 rightToggle?.addEventListener('click', () => {
+  if (isDesktop()) {
+    const c = rightPanel?.classList.toggle('collapsed');
+    localStorage.setItem('aria_right_collapsed', c ? '1' : '0');
+    return;
+  }
   const isOpen = rightPanel?.classList.contains('open');
   closeAllPanels();
   if (!isOpen) {
@@ -2532,16 +2588,19 @@ rightToggle?.addEventListener('click', () => {
 
 overlay?.addEventListener('click', closeAllPanels);
 
-// Close panels when window resizes to desktop
+// Crossing the mobile/desktop breakpoint: reset slide-in panels, re-apply
+// the persisted desktop collapse state, and never leave a mobile 'open'
+// or desktop 'collapsed' class active in the wrong mode.
 window.addEventListener('resize', () => {
-  if (window.innerWidth > 768) closeAllPanels();
+  if (isDesktop()) {
+    closeAllPanels();
+    applySidebarPrefs();
+  } else {
+    leftPanel?.classList.remove('collapsed');
+    rightPanel?.classList.remove('collapsed');
+  }
 });
 
-// Dynamic textarea auto-resize with max height
-D.inp.addEventListener('input', () => {
-  D.inp.style.height = 'auto';
-  D.inp.style.height = Math.min(D.inp.scrollHeight, window.innerWidth < 600 ? 80 : 110) + 'px';
-});
 </script>
 <!-- ARIA Wake Word v7 — no monkey-patching, explicit restart every path -->
 <script>
