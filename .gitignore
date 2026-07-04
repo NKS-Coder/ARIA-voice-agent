@@ -1,0 +1,14 @@
+# Secrets — NEVER commit these. Set them in the Cloudflare dashboard instead.
+.dev.vars
+.dev.vars.*
+.env
+.env.*
+
+# Dependencies / build
+node_modules/
+.wrangler/
+dist/
+
+# OS / editor
+.DS_Store
+*.log
