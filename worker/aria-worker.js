@@ -773,7 +773,7 @@ async function googleCallback(url, env) {
     <p>${userInfo.name || userInfo.email} is now connected to ARIA.<br>Closing automatically...</p>
     <button onclick="window.close()">Close</button>
     <script>
-      try { if(window.opener) window.opener.postMessage({type:'ARIA_OAUTH_SUCCESS',app:'${state.app}',email:'${userInfo.email||''}',session:'${state.session}',access_token:'${tokens.access_token||''}',refresh_token:'${tokens.refresh_token||''}'},'*'); } catch(e){}
+      try { if(window.opener) window.opener.postMessage({type:'ARIA_OAUTH_SUCCESS',app:'${state.app}',email:'${userInfo.email||''}',session:'${state.session}',access_token:'${tokens.access_token||''}',refresh_token:'${tokens.refresh_token||''}'},'${env.PAGES_ORIGIN || '*'}'); } catch(e){}
       setTimeout(()=>window.close(),2500);
     <\/script>`);
 }
@@ -807,7 +807,7 @@ async function microsoftCallback(url, env) {
     <p>${user.displayName || email} connected.<br>Closing automatically...</p>
     <button onclick="window.close()">Close</button>
     <script>
-      try { if(window.opener) window.opener.postMessage({type:'ARIA_OAUTH_SUCCESS',app:'outlook',email:'${email}',session:'${state.session}'},'*'); } catch(e){}
+      try { if(window.opener) window.opener.postMessage({type:'ARIA_OAUTH_SUCCESS',app:'outlook',email:'${email}',session:'${state.session}'},'${env.PAGES_ORIGIN || '*'}'); } catch(e){}
       setTimeout(()=>window.close(),2500);
     <\/script>`);
 }
@@ -817,8 +817,11 @@ async function authStatus(url, env) {
   const app = url.searchParams.get('app');
   if (!env.SUPABASE_URL) return jsonRes({ connected: false });
   try {
-    const rows = await sbGet(env, `/rest/v1/user_apps?session_id=eq.${enc(session)}&app_name=eq.${enc(app)}&select=email,access_token,refresh_token`);
-    if (rows?.length) return jsonRes({ connected: true, email: rows[0].email || '', access_token: rows[0].access_token || '', refresh_token: rows[0].refresh_token || '' });
+    // Never return access/refresh tokens here — this is an unauthenticated GET,
+    // so shipping tokens would let anyone who learns a session ID take over the
+    // linked Gmail. Chat requests read tokens straight from Supabase server-side.
+    const rows = await sbGet(env, `/rest/v1/user_apps?session_id=eq.${enc(session)}&app_name=eq.${enc(app)}&select=email`);
+    if (rows?.length) return jsonRes({ connected: true, email: rows[0].email || '' });
     return jsonRes({ connected: false });
   } catch (e) { return jsonRes({ connected: false }); }
 }
@@ -827,9 +830,11 @@ async function loadAllConnections(url, env) {
   const session = url.searchParams.get('session');
   if (!session || !env.SUPABASE_URL) return jsonRes({ apps: {} });
   try {
-    const rows = await sbGet(env, `/rest/v1/user_apps?session_id=eq.${enc(session)}&select=app_name,email,access_token,refresh_token`);
+    // Tokens intentionally omitted — see authStatus. connected+email is all the
+    // UI needs; the Worker resolves tokens from Supabase on every chat call.
+    const rows = await sbGet(env, `/rest/v1/user_apps?session_id=eq.${enc(session)}&select=app_name,email`);
     const apps = {};
-    (rows || []).forEach(r => { apps[r.app_name] = { connected: true, email: r.email || '', access_token: r.access_token || '', refresh_token: r.refresh_token || '' }; });
+    (rows || []).forEach(r => { apps[r.app_name] = { connected: true, email: r.email || '' }; });
     return jsonRes({ apps, session });
   } catch (e) { return jsonRes({ apps: {} }); }
 }
