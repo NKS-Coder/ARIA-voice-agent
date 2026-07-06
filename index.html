@@ -478,7 +478,7 @@ select.minp option{background:#0a0c10;}
       <div class="msaved" id="voiceSaved">&#10003; Voice settings saved</div>
     </div>
     <div class="tpanel" id="tab-about">
-      <div class="mnote"><strong>ARIA v16.6</strong> &mdash; Built by Nihhar K Sonee (NKS-Coder)<br>Groq Llama 3.3 70B &middot; ElevenLabs TTS &middot; Cloudflare Workers &middot; Supabase<br><br>All API keys are encrypted server-side in Cloudflare.</div>
+      <div class="mnote"><strong>ARIA v16.7</strong> &mdash; Built by Nihhar K Sonee (NKS-Coder)<br>Groq Llama 3.3 70B &middot; ElevenLabs TTS &middot; Cloudflare Workers &middot; Supabase<br><br>All API keys are encrypted server-side in Cloudflare.</div>
       <div class="mfld"><div class="mlbl">Worker Status</div><div id="workerStatus-about" class="minp" style="color:rgba(255,255,255,0.3);font-size:0.6rem;">Checking...</div></div>
     </div>
   </div>
@@ -721,7 +721,7 @@ async function checkWorker(){
         }
       }
     } catch(e){ /* quota endpoint optional — stay quiet */ }
-    $('workerStatus').textContent=`✓ ARIA v16.6${elBadge}`;
+    $('workerStatus').textContent=`✓ ARIA v16.7${elBadge}`;
     if(!$('workerStatus').style.color) $('workerStatus').style.color='#5de6d8';
   }catch(e){
     $('workerStatus').textContent='✗ Cannot reach Worker — check Cloudflare deployment';

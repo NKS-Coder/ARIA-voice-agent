@@ -1,9 +1,16 @@
 // ═══════════════════════════════════════════════════════════════
-//  ARIA — Cloudflare Worker v16.6
-//  - Category-aware importance ranker: "important BANK emails" runs only
-//    the financial bucket. Categories: financial, government, job, urgent,
-//    starred, documents. Bank/financial bucket also expanded with more
-//    institutions (citi, hsbc, capital one, etc.).
+//  ARIA — Cloudflare Worker v16.7
+//  - SECURITY: /auth/status and /auth/connections no longer return OAuth
+//    access/refresh tokens (they were fetchable by anyone with a session ID).
+//  - Grounded email analysis: /analyze-email fetches the REAL full message
+//    body server-side (getSessionGmail + fetchEmailFullBody) so summaries and
+//    suggested replies are based on the actual email, not the ~100-char snippet.
+//  - Date awareness: nowContext()/todayISO() injected into chat + calendar so
+//    "today", "tomorrow", "next Friday" resolve correctly.
+//  - Configurable OAuth postMessage origin via PAGES_ORIGIN.
+//  - Category-aware importance ranker (v16.6): "important BANK emails" runs
+//    only the financial bucket. Categories: financial, government, job, urgent,
+//    starred, documents.
 //  - stripSystemPrefix anchors on `]\n` (v16.5)
 //  - lastMsg is `let` (v16.3)
 // ═══════════════════════════════════════════════════════════════
@@ -93,7 +100,7 @@ export default {
 
     try {
       if (url.pathname === '/health')
-        return jsonRes({ status: 'ARIA v16.6 ✅', groq: !!env.GROQ_API_KEY, elevenlabs: !!env.ELEVENLABS_API_KEY, google: !!env.GOOGLE_CLIENT_ID, supabase: !!env.SUPABASE_URL });
+        return jsonRes({ status: 'ARIA v16.7 ✅', groq: !!env.GROQ_API_KEY, elevenlabs: !!env.ELEVENLABS_API_KEY, google: !!env.GOOGLE_CLIENT_ID, supabase: !!env.SUPABASE_URL });
 
       if (url.pathname === '/tts')        return await handleTTS(request, env);
       if (url.pathname === '/tts/quota')  return await handleTTSQuota(env);
@@ -328,7 +335,7 @@ async function handleChat(request, env) {
   });
 
   let intent = detectIntent(lastMsg);
-  console.log('[ARIA v16.6] intent="%s" lastMsg="%s"', intent, lastMsg.slice(0, 120));
+  console.log('[ARIA v16.7] intent="%s" lastMsg="%s"', intent, lastMsg.slice(0, 120));
   let semanticSearchTerms = null;
 
   // Multi-turn context: if the user sent a tiny acknowledgement ("yes", "ok",
