@@ -5,6 +5,10 @@
 //  The deployed version is carried by ARIA_VERSION below (an inline comment
 //  attached to code, which the bundler preserves at the top of the output).
 //  Changelog:
+//  - v16.9 fuzzy language layer: normalizeSlang() rewrites slang/typos/texting
+//    shorthand (gimme, plz, imp, singlemost, 2day, tmrw, ...) before intent
+//    routing and count/time parsing. "singlemost important mail of today" now
+//    returns exactly 1 email. Raw text still used for email bodies.
 //  - v16.8 intent fix: "gimme mostr imp email of today" no longer searches
 //    Gmail for the literal word "gimme" — slang/abbreviation/typo stopwords,
 //    "imp"/"impt" recognized as importance intent, LLM extractor hardened.
@@ -19,7 +23,7 @@
 // to the string value, so esbuild keeps it at the top of the bundled/deployed
 // code — this is what makes the version visible in the Cloudflare editor.
 // Also exposed at /health and /version. Bump this one line each release.
-const ARIA_VERSION = /* ═══════════  ARIA PROXY · DEPLOYED VERSION → v16.8  ═══════════ */ 'v16.8';
+const ARIA_VERSION = /* ═══════════  ARIA PROXY · DEPLOYED VERSION → v16.9  ═══════════ */ 'v16.9';
 
 const BELLA = 'EXAVITQu4vr4xnSDxMaL';
 
@@ -220,6 +224,30 @@ const SENDER_STOPWORDS = new Set([
   'hey','hello','okay','yeah','yep','yes','sure','just','really','very','again','right','stuff','things'
 ]);
 
+// v16.9: normalize slang / texting shorthand / common typos BEFORE intent
+// detection and count/time parsing, so fuzzy phrasings route correctly
+// ("gimme the singlemost imp mail of 2day" → "give me the single most
+// important mail of today"). Used ONLY for routing and parameter parsing —
+// the raw message is preserved for email/calendar content extraction so we
+// never rewrite words the user actually wants sent in an email body.
+const SLANG_MAP = [
+  [/\bgimme\b/gi, 'give me'], [/\bgimmie\b/gi, 'give me'], [/\blemme\b/gi, 'let me'],
+  [/\bwanna\b/gi, 'want to'], [/\bgotta\b/gi, 'got to'],  [/\bgonna\b/gi, 'going to'],
+  [/\bplz\b/gi, 'please'],    [/\bpls\b/gi, 'please'],    [/\bthx\b/gi, 'thanks'],
+  [/\bimp\b/gi, 'important'], [/\bimpt\b/gi, 'important'],[/\bimpo\b/gi, 'important'],
+  [/\burgnt\b/gi, 'urgent'],  [/\bmostr\b/gi, 'most'],    [/\bsinglemost\b/gi, 'single most'],
+  [/\bsingle\s+most\b/gi, 'one most'],
+  [/\b2day\b/gi, 'today'],    [/\btmrw\b/gi, 'tomorrow'], [/\btmr\b/gi, 'tomorrow'],
+  [/\byest\b/gi, 'yesterday'],[/\brn\b/gi, 'right now'],
+  [/\bmials?\b/gi, 'mails'],  [/\bemals?\b/gi, 'emails'], [/\bmsgs\b/gi, 'messages'],
+  [/\bwassup\b/gi, "what's up"], [/\bsup\b/gi, "what's up"],
+];
+function normalizeSlang(msg) {
+  let out = String(msg || '');
+  for (const [re, sub] of SLANG_MAP) out = out.replace(re, sub);
+  return out;
+}
+
 function cleanSenderPhrase(raw) {
   return raw.toLowerCase()
     .replace(/[^\w\s'&-]/g, ' ')
@@ -349,7 +377,9 @@ async function handleChat(request, env) {
     }
   });
 
-  let intent = detectIntent(lastMsg);
+  // Route on the slang-normalized message so "gimme mostr imp mail of 2day"
+  // and "give me the most important mail of today" take the same path.
+  let intent = detectIntent(normalizeSlang(lastMsg));
   console.log('[ARIA %s] intent="%s" lastMsg="%s"', ARIA_VERSION, intent, lastMsg.slice(0, 120));
   let semanticSearchTerms = null;
 
@@ -364,7 +394,7 @@ async function handleChat(request, env) {
     if (prevUserTurn) {
       effectiveMsg = stripSystemPrefix(prevUserTurn.content);
       console.log('[multi-turn] ack detected, reusing previous turn:', effectiveMsg);
-      intent = detectIntent(effectiveMsg);
+      intent = detectIntent(normalizeSlang(effectiveMsg));
     }
   }
 
@@ -379,7 +409,7 @@ async function handleChat(request, env) {
   // the deterministic detectIntent rules above, and letting the LLM rewrite
   // them as "search_terms: specific" caused the "Found N emails matching
   // 'specific'" garbage seen in v16.2.
-  const _alreadyEmailKeyword = /\b(e-?mail|mail|inbox|gmail|message|important|priorit|urgent|top\s+\d+)\b/i.test(effectiveMsg);
+  const _alreadyEmailKeyword = /\b(e-?mail|mail|inbox|gmail|message|important|priorit|urgent|top\s+\d+)\b/i.test(normalizeSlang(effectiveMsg));
   if (intent === 'chat' && userApps.gmail && !_alreadyEmailKeyword) {
     try {
       const semantic = await extractJSON(
@@ -435,13 +465,15 @@ Return ONLY JSON: {"is_email_query": true|false, "search_terms": "1-3 keyword(s)
       reply = "Connect your Gmail in Settings so I can identify your most important emails.";
     } else {
       try {
-        // Parse desired count and time window from the user's words.
-        const numMatch  = lastMsg.match(/\b(\d+|three|four|five|six|seven|eight|nine|ten)\b/i);
-        const numMap    = { three:3,four:4,five:5,six:6,seven:7,eight:8,nine:9,ten:10 };
+        // Parse desired count and time window from the slang-normalized words,
+        // so "singlemost imp mail of 2day" → count 1, window today.
+        const fuzzyMsg  = normalizeSlang(lastMsg);
+        const numMatch  = fuzzyMsg.match(/\b(\d+|one|two|three|four|five|six|seven|eight|nine|ten|single)\b/i);
+        const numMap    = { one:1,single:1,two:2,three:3,four:4,five:5,six:6,seven:7,eight:8,nine:9,ten:10 };
         const max       = numMatch ? (parseInt(numMatch[1]) || numMap[numMatch[1].toLowerCase()] || 5) : 5;
-        const days      = /\btoday\b/i.test(lastMsg) ? 1
-                        : /\byesterday\b/i.test(lastMsg) ? 2
-                        : /\bmonth\b/i.test(lastMsg) ? 30
+        const days      = /\btoday\b/i.test(fuzzyMsg) ? 1
+                        : /\byesterday\b/i.test(fuzzyMsg) ? 2
+                        : /\bmonth\b/i.test(fuzzyMsg) ? 30
                         : 7; // default: this week
 
         // Detect category restriction: "important BANK emails", "important
@@ -505,11 +537,12 @@ Return ONLY JSON: {"is_email_query": true|false, "search_terms": "1-3 keyword(s)
       reply = "Connect your Gmail in Settings to read your emails by voice.";
     } else {
       try {
-        const numMatch = lastMsg.match(/\b(\d+|one|two|three|four|five|six|seven|eight|nine|ten|fifteen|twenty|all|latest|recent|last)\b/i);
+        const fuzzyMsg = normalizeSlang(lastMsg);
+        const numMatch = fuzzyMsg.match(/\b(\d+|one|two|three|four|five|six|seven|eight|nine|ten|fifteen|twenty|all|latest|recent|last)\b/i);
         const numMap = { one:1,two:2,three:3,four:4,five:5,six:6,seven:7,eight:8,nine:9,ten:10,fifteen:15,twenty:20,all:20,latest:10,recent:10,last:10 };
 
-        let { query, hasSender, senderTerms, senderPhrase, wantsUnread } = buildGmailQuery(lastMsg);
-        const isSpamQuery = /\b(spam|junk)\b/i.test(lastMsg);
+        let { query, hasSender, senderTerms, senderPhrase, wantsUnread } = buildGmailQuery(fuzzyMsg);
+        const isSpamQuery = /\b(spam|junk)\b/i.test(fuzzyMsg);
 
         // If the semantic intent layer suggested keywords (e.g. "assessments"
         // for "have I got any assessments from companies"), use those directly
@@ -527,7 +560,7 @@ Return ONLY JSON: {"is_email_query": true|false, "search_terms": "1-3 keyword(s)
         }
 
         if (!hasSender && !isSpamQuery) {
-          const hint = await llmExtractSearch(lastMsg, env);
+          const hint = await llmExtractSearch(fuzzyMsg, env);
           const candidate = hint.sender || hint.keywords;
           if (candidate && candidate.trim().length >= 2) {
             senderPhrase = candidate.trim();
