@@ -1,26 +1,24 @@
 // ═══════════════════════════════════════════════════════════════
-//  ARIA — Cloudflare Worker v16.7
-//  - SECURITY: /auth/status and /auth/connections no longer return OAuth
-//    access/refresh tokens (they were fetchable by anyone with a session ID).
-//  - Grounded email analysis: /analyze-email fetches the REAL full message
-//    body server-side (getSessionGmail + fetchEmailFullBody) so summaries and
-//    suggested replies are based on the actual email, not the ~100-char snippet.
-//  - Date awareness: nowContext()/todayISO() injected into chat + calendar so
-//    "today", "tomorrow", "next Friday" resolve correctly.
-//  - Configurable OAuth postMessage origin via PAGES_ORIGIN.
-//  - Category-aware importance ranker (v16.6): "important BANK emails" runs
-//    only the financial bucket. Categories: financial, government, job, urgent,
-//    starred, documents.
-//  - stripSystemPrefix anchors on `]\n` (v16.5)
-//  - lastMsg is `let` (v16.3)
+//  ARIA — Cloudflare Worker
+//  NOTE: this banner block is a plain comment and esbuild STRIPS it during
+//  `wrangler deploy` bundling — it will NOT appear in the deployed editor.
+//  The deployed version is carried by ARIA_VERSION below (an inline comment
+//  attached to code, which the bundler preserves at the top of the output).
+//  Changelog:
+//  - v16.7 SECURITY: /auth/status + /auth/connections no longer return tokens;
+//    grounded full-body email analysis; date awareness (nowContext/todayISO);
+//    configurable OAuth origin (PAGES_ORIGIN); /version endpoint.
+//  - v16.6 category-aware importance ranker.
+//  - v16.5 stripSystemPrefix anchors on `]\n`.  - v16.3 lastMsg is `let`.
 // ═══════════════════════════════════════════════════════════════
 
-const BELLA = 'EXAVITQu4vr4xnSDxMaL';
+// Single source of truth for the version. The inline comment below is ATTACHED
+// to the string value, so esbuild keeps it at the top of the bundled/deployed
+// code — this is what makes the version visible in the Cloudflare editor.
+// Also exposed at /health and /version. Bump this one line each release.
+const ARIA_VERSION = /* ═══════════  ARIA PROXY · DEPLOYED VERSION → v16.7  ═══════════ */ 'v16.7';
 
-// Single source of truth for the version. This is a runtime constant (not a
-// comment), so it SURVIVES esbuild bundling and shows up in the deployed code,
-// at /health, and at /version. Bump this one line each release.
-const ARIA_VERSION = 'v16.7';
+const BELLA = 'EXAVITQu4vr4xnSDxMaL';
 
 // Human-readable current date/time, injected into LLM prompts so ARIA can
 // reason about "today", "tomorrow", "this week", "next Friday", etc. The model

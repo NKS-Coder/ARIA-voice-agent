@@ -187,11 +187,37 @@ select.minp option{background:#0a0c10;}
 #stopBtn{position:fixed;top:11px;left:50%;transform:translateX(-50%);z-index:99999;align-items:center;gap:4px;padding:4px 14px;border-radius:8px;border:1px solid rgba(245,101,101,0.3);background:rgba(245,101,101,0.08);color:#fc8181;font-size:0.65rem;cursor:pointer;font-family:inherit;backdrop-filter:blur(6px);}
 /* Desktop collapsible sidebars — toggled via the top-bar buttons */
 @media(min-width:769px){
-  .left,.right{transition:width 0.3s cubic-bezier(0.16,1,0.3,1);overflow:hidden;}
+  .left,.right{overflow:hidden;}
+  /* Animate only after first paint (body.sb-anim) so a collapsed panel doesn't
+     visibly slide shut on every page load. */
+  body.sb-anim .left, body.sb-anim .right{transition:width 0.28s cubic-bezier(0.16,1,0.3,1);}
   .left.collapsed{width:0!important;min-width:0!important;border-right:none!important;}
   .right.collapsed{width:0!important;min-width:0!important;border-left:none!important;overflow:hidden!important;}
 }
-#menuToggle:hover,#rightToggle:hover{background:rgba(255,255,255,0.06)!important;color:rgba(255,255,255,0.7)!important;}
+/* Sidebar toggle buttons — clearly visible, bordered, accented so they read as buttons */
+#menuToggle,#rightToggle{
+  border:1px solid rgba(0,229,255,0.25)!important;
+  background:rgba(0,229,255,0.06)!important;
+  color:#00E5FF!important;
+  border-radius:9px!important;
+  flex-shrink:0;
+}
+#menuToggle:hover,#rightToggle:hover{background:rgba(0,229,255,0.16)!important;color:#7df6ff!important;border-color:rgba(0,229,255,0.5)!important;}
+#menuToggle:active,#rightToggle:active{transform:scale(0.92);}
+/* Floating edge tabs — shown by JS (body.left-collapsed / body.right-collapsed) when a
+   sidebar is collapsed on desktop, giving an obvious way to re-open it. */
+.edge-tab{
+  position:fixed;top:50%;transform:translateY(-50%);z-index:450;
+  width:24px;height:70px;display:none;align-items:center;justify-content:center;
+  background:rgba(0,229,255,0.10);border:1px solid rgba(0,229,255,0.35);
+  color:#00E5FF;cursor:pointer;transition:background 0.15s;
+}
+.edge-tab:hover{background:rgba(0,229,255,0.24);}
+#edgeTabLeft{left:0;border-left:none;border-radius:0 10px 10px 0;}
+#edgeTabRight{right:0;border-right:none;border-radius:10px 0 0 10px;}
+body.left-collapsed  #edgeTabLeft{display:flex;}
+body.right-collapsed #edgeTabRight{display:flex;}
+@media(max-width:768px){ .edge-tab{display:none!important;} }
 /* Responsive */
 @media(max-width:768px){
   /* Use dynamic viewport height to exclude Safari chrome */
@@ -240,6 +266,10 @@ select.minp option{background:#0a0c10;}
 
 <div id="sidebarOverlay"></div>
 
+<!-- Floating edge tabs — re-open a collapsed sidebar on desktop -->
+<div id="edgeTabLeft" class="edge-tab" title="Show history panel"><span class="material-symbols-outlined" style="font-size:18px;">chevron_right</span></div>
+<div id="edgeTabRight" class="edge-tab" title="Show controls panel"><span class="material-symbols-outlined" style="font-size:18px;">chevron_left</span></div>
+
 <div class="flex h-screen w-full overflow-hidden">
 
 <!-- â•â•â• LEFT SIDEBAR â•â•â• -->
@@ -284,7 +314,7 @@ select.minp option{background:#0a0c10;}
 
   <!-- Top bar -->
   <div style="display:flex;align-items:center;gap:10px;padding:10px 20px;border-bottom:1px solid rgba(255,255,255,0.04);flex-shrink:0;">
-    <button id="menuToggle" title="Toggle history sidebar" style="display:flex;width:32px;height:32px;border-radius:8px;align-items:center;justify-content:center;background:none;border:none;color:rgba(255,255,255,0.3);cursor:pointer;transition:all 0.15s;"><span class="material-symbols-outlined" style="font-size:18px;">menu</span></button>
+    <button id="menuToggle" title="Hide / show history panel" style="display:flex;width:34px;height:32px;align-items:center;justify-content:center;cursor:pointer;transition:all 0.15s;"><span id="menuToggleIcon" class="material-symbols-outlined" style="font-size:20px;">chevron_left</span></button>
     <a href="#" style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.2em;background:linear-gradient(135deg,#007BFF,#00E5FF);-webkit-background-clip:text;-webkit-text-fill-color:transparent;text-decoration:none;">Intelligence</a>
     <a href="#" onclick="openModal('apps');return false;" style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.2em;color:rgba(100,116,139,0.8);text-decoration:none;">Integrations</a>
     <a href="#" onclick="openModal('about');return false;" style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.2em;color:rgba(100,116,139,0.8);text-decoration:none;">Protocol</a>
@@ -293,7 +323,7 @@ select.minp option{background:#0a0c10;}
     <button id="stopBtn" style="display:none;" onclick="stopSpeaking();if(window.S&&window.S.listening&&typeof stopListen==='function')stopListen();if(typeof window._ariaWakePause==='function')window._ariaWakePause();">
       <span class="material-symbols-outlined" style="font-size:13px;">stop</span> Stop
     </button>
-    <button id="rightToggle" title="Toggle control sidebar" style="display:flex;width:32px;height:32px;border-radius:8px;align-items:center;justify-content:center;background:none;border:none;color:rgba(255,255,255,0.3);cursor:pointer;transition:all 0.15s;"><span class="material-symbols-outlined" style="font-size:18px;">apps</span></button>
+    <button id="rightToggle" title="Hide / show controls panel" style="display:flex;width:34px;height:32px;align-items:center;justify-content:center;cursor:pointer;transition:all 0.15s;"><span id="rightToggleIcon" class="material-symbols-outlined" style="font-size:20px;">chevron_right</span></button>
   </div>
 
   <!-- Hero — compact, always pinned at top-center -->
@@ -2553,40 +2583,73 @@ function closeAllPanels() {
   overlay?.classList.remove('open');
 }
 
+// Reflect collapse state into the toggle-button icons and the floating edge
+// tabs so the control is always obvious: chevrons point the way the panel will
+// move, and a re-open tab appears at the screen edge when a panel is hidden.
+function syncSidebarUI() {
+  const mIco = $('menuToggleIcon'), rIco = $('rightToggleIcon');
+  if (isDesktop()) {
+    const lc = !!leftPanel?.classList.contains('collapsed');
+    const rc = !!rightPanel?.classList.contains('collapsed');
+    if (mIco) mIco.textContent = lc ? 'chevron_right' : 'chevron_left';
+    if (rIco) rIco.textContent = rc ? 'chevron_left'  : 'chevron_right';
+    document.body.classList.toggle('left-collapsed',  lc);
+    document.body.classList.toggle('right-collapsed', rc);
+  } else {
+    // Mobile: the toggles act as slide-in menu buttons (hamburger / apps grid).
+    if (mIco) mIco.textContent = 'menu';
+    if (rIco) rIco.textContent = 'apps';
+    document.body.classList.remove('left-collapsed', 'right-collapsed');
+  }
+}
+
 // Restore collapsed state on desktop (persisted across reloads)
 function applySidebarPrefs() {
-  if (!isDesktop()) return;
-  leftPanel?.classList.toggle('collapsed',  localStorage.getItem('aria_left_collapsed')  === '1');
-  rightPanel?.classList.toggle('collapsed', localStorage.getItem('aria_right_collapsed') === '1');
+  if (isDesktop()) {
+    leftPanel?.classList.toggle('collapsed',  localStorage.getItem('aria_left_collapsed')  === '1');
+    rightPanel?.classList.toggle('collapsed', localStorage.getItem('aria_right_collapsed') === '1');
+  }
+  syncSidebarUI();
 }
 applySidebarPrefs();
+// Enable collapse animation only after the first two frames so a persisted
+// collapsed panel renders already-shut instead of animating on every load.
+requestAnimationFrame(() => requestAnimationFrame(() => document.body.classList.add('sb-anim')));
 
 menuToggle?.addEventListener('click', () => {
   if (isDesktop()) {
     const c = leftPanel?.classList.toggle('collapsed');
     localStorage.setItem('aria_left_collapsed', c ? '1' : '0');
+    syncSidebarUI();
     return;
   }
   const isOpen = leftPanel?.classList.contains('open');
   closeAllPanels();
-  if (!isOpen) {
-    leftPanel?.classList.add('open');
-    overlay?.classList.add('open');
-  }
+  if (!isOpen) { leftPanel?.classList.add('open'); overlay?.classList.add('open'); }
 });
 
 rightToggle?.addEventListener('click', () => {
   if (isDesktop()) {
     const c = rightPanel?.classList.toggle('collapsed');
     localStorage.setItem('aria_right_collapsed', c ? '1' : '0');
+    syncSidebarUI();
     return;
   }
   const isOpen = rightPanel?.classList.contains('open');
   closeAllPanels();
-  if (!isOpen) {
-    rightPanel?.classList.add('open');
-    overlay?.classList.add('open');
-  }
+  if (!isOpen) { rightPanel?.classList.add('open'); overlay?.classList.add('open'); }
+});
+
+// Edge tabs re-open a collapsed panel (desktop)
+$('edgeTabLeft')?.addEventListener('click', () => {
+  leftPanel?.classList.remove('collapsed');
+  localStorage.setItem('aria_left_collapsed', '0');
+  syncSidebarUI();
+});
+$('edgeTabRight')?.addEventListener('click', () => {
+  rightPanel?.classList.remove('collapsed');
+  localStorage.setItem('aria_right_collapsed', '0');
+  syncSidebarUI();
 });
 
 overlay?.addEventListener('click', closeAllPanels);
@@ -2601,6 +2664,7 @@ window.addEventListener('resize', () => {
   } else {
     leftPanel?.classList.remove('collapsed');
     rightPanel?.classList.remove('collapsed');
+    syncSidebarUI();
   }
 });
 
