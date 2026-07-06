@@ -17,6 +17,11 @@
 
 const BELLA = 'EXAVITQu4vr4xnSDxMaL';
 
+// Single source of truth for the version. This is a runtime constant (not a
+// comment), so it SURVIVES esbuild bundling and shows up in the deployed code,
+// at /health, and at /version. Bump this one line each release.
+const ARIA_VERSION = 'v16.7';
+
 // Human-readable current date/time, injected into LLM prompts so ARIA can
 // reason about "today", "tomorrow", "this week", "next Friday", etc. The model
 // has no clock of its own — without this every relative date is a guess.
@@ -99,8 +104,11 @@ export default {
     const url = new URL(request.url);
 
     try {
+      if (url.pathname === '/version')
+        return jsonRes({ version: ARIA_VERSION });
+
       if (url.pathname === '/health')
-        return jsonRes({ status: 'ARIA v16.7 ✅', groq: !!env.GROQ_API_KEY, elevenlabs: !!env.ELEVENLABS_API_KEY, google: !!env.GOOGLE_CLIENT_ID, supabase: !!env.SUPABASE_URL });
+        return jsonRes({ status: `ARIA ${ARIA_VERSION} ✅`, version: ARIA_VERSION, groq: !!env.GROQ_API_KEY, elevenlabs: !!env.ELEVENLABS_API_KEY, google: !!env.GOOGLE_CLIENT_ID, supabase: !!env.SUPABASE_URL });
 
       if (url.pathname === '/tts')        return await handleTTS(request, env);
       if (url.pathname === '/tts/quota')  return await handleTTSQuota(env);
@@ -335,7 +343,7 @@ async function handleChat(request, env) {
   });
 
   let intent = detectIntent(lastMsg);
-  console.log('[ARIA v16.7] intent="%s" lastMsg="%s"', intent, lastMsg.slice(0, 120));
+  console.log('[ARIA %s] intent="%s" lastMsg="%s"', ARIA_VERSION, intent, lastMsg.slice(0, 120));
   let semanticSearchTerms = null;
 
   // Multi-turn context: if the user sent a tiny acknowledgement ("yes", "ok",
