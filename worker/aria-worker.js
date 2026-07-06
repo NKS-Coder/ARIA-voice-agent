@@ -5,6 +5,9 @@
 //  The deployed version is carried by ARIA_VERSION below (an inline comment
 //  attached to code, which the bundler preserves at the top of the output).
 //  Changelog:
+//  - v16.8 intent fix: "gimme mostr imp email of today" no longer searches
+//    Gmail for the literal word "gimme" — slang/abbreviation/typo stopwords,
+//    "imp"/"impt" recognized as importance intent, LLM extractor hardened.
 //  - v16.7 SECURITY: /auth/status + /auth/connections no longer return tokens;
 //    grounded full-body email analysis; date awareness (nowContext/todayISO);
 //    configurable OAuth origin (PAGES_ORIGIN); /version endpoint.
@@ -16,7 +19,7 @@
 // to the string value, so esbuild keeps it at the top of the bundled/deployed
 // code — this is what makes the version visible in the Cloudflare editor.
 // Also exposed at /health and /version. Bump this one line each release.
-const ARIA_VERSION = /* ═══════════  ARIA PROXY · DEPLOYED VERSION → v16.7  ═══════════ */ 'v16.7';
+const ARIA_VERSION = /* ═══════════  ARIA PROXY · DEPLOYED VERSION → v16.8  ═══════════ */ 'v16.8';
 
 const BELLA = 'EXAVITQu4vr4xnSDxMaL';
 
@@ -209,7 +212,12 @@ const SENDER_STOPWORDS = new Set([
   // v16.3: words the LLM hallucinated as "search terms" — never valid sender phrases
   'email','emails','mail','mails','inbox','message','messages','msg','msgs','gmail','mailbox',
   'specific','particular','general','various','certain','relevant','related','matching','similar',
-  'critical','crucial','essential','significant','notable','prominent','high','low','medium'
+  'critical','crucial','essential','significant','notable','prominent','high','low','medium',
+  // v16.8: slang, abbreviations, and common typos — "gimme mostr imp email of today"
+  // was searching Gmail for the literal word "gimme". None of these are ever senders.
+  'gimme','gimmie','gonna','wanna','gotta','want','wants','wanted','need','needs','needed',
+  'plz','pls','please','imp','impt','impo','mostr','moist','urgnt','asap','quick','quickly',
+  'hey','hello','okay','yeah','yep','yes','sure','just','really','very','again','right','stuff','things'
 ]);
 
 function cleanSenderPhrase(raw) {
@@ -302,7 +310,8 @@ async function llmExtractSearch(message, env) {
       message,
       `The user wants to search their Gmail inbox. Extract search parameters.
 Return ONLY JSON: {"sender":"company or person name the user mentioned, or empty","keywords":"topic words they mentioned, or empty","time":"today|yesterday|week|month|empty"}
-Only use words the user actually typed. Never invent.`,
+Only use words the user actually typed. Never invent.
+CRITICAL: if the request is generic ("show my emails", "gimme most important email of today", "latest mails", "check inbox") there is NO sender and NO keyword — return empty strings. Filler words (gimme, show, want, imp, important, latest, today) are NEVER senders or keywords. Only extract a real company/person name ("from Amazon", "Apple emails") or a real topic ("about my flight", "regarding the invoice").`,
       env
     );
     return out || {};
@@ -711,9 +720,10 @@ function detectIntent(msg) {
   // important / priority / urgent / critical emails. Order-independent:
   // "important emails", "emails that are important", "important ones",
   // "tell me and summarize me the top 10 most important emails of today".
-  if (/\b(important|priorit(?:y|ies)|urgent|critical|crucial|essential)\b/i.test(m)
+  // "imp"/"impt" are common shorthand for "important" ("gimme mostr imp email of today").
+  if (/\b(imp(?:ortant|t|o)?|priorit(?:y|ies)|urgent|urgnt|critical|crucial|essential)\b/i.test(m)
       && /\b(e-?mail|mail|inbox|message)s?\b/i.test(m)) return 'important_emails';
-  if (/\b(top|most)\s+(\d+\s+)?(important|priorit(?:y|ies)|urgent|critical)\b/i.test(m)) return 'important_emails';
+  if (/\b(top|most\w*)\s+(\d+\s+)?(imp(?:ortant|t|o)?|priorit(?:y|ies)|urgent|critical)\b/i.test(m)) return 'important_emails';
   if (/\bwhat'?s?\s+(important|urgent|priority)\b/i.test(m)) return 'important_emails';
   // "top 10 emails", "top emails of today" — implies importance ranking
   if (/\btop\s+(\d+\s+)?(e-?mail|mail|inbox|message)s?\b/i.test(m)) return 'important_emails';
