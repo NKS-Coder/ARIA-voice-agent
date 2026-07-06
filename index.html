@@ -721,7 +721,10 @@ async function checkWorker(){
         }
       }
     } catch(e){ /* quota endpoint optional — stay quiet */ }
-    $('workerStatus').textContent=`✓ ARIA v16.7${elBadge}`;
+    // Read the version straight from the Worker's /health so the UI always
+    // reflects whatever is actually deployed — no hardcoded version to drift.
+    const liveVer = d.version || (d.status||'').match(/v[0-9.]+/)?.[0] || '';
+    $('workerStatus').textContent=`✓ ARIA ${liveVer}${elBadge}`.replace('ARIA  ','ARIA ');
     if(!$('workerStatus').style.color) $('workerStatus').style.color='#5de6d8';
   }catch(e){
     $('workerStatus').textContent='✗ Cannot reach Worker — check Cloudflare deployment';
