@@ -148,6 +148,7 @@ export default {
       if (url.pathname === '/auth/microsoft/url')      return microsoftAuthURL(url, env);
       if (url.pathname === '/auth/microsoft/callback') return await microsoftCallback(url, env);
 
+      if (url.pathname === '/auth/me')            return await authMe(url, env);
       if (url.pathname === '/auth/status')        return await authStatus(url, env);
       if (url.pathname === '/auth/connections')   return await loadAllConnections(url, env);
       if (url.pathname === '/auth/conversations') return await loadConversations(url, env);
@@ -952,6 +953,39 @@ function googleAuthURL(url, env) {
   return jsonRes({ url: authUrl });
 }
 
+// Resolve-or-create the stable session for a signed-in Google account.
+// Returning an existing row is what makes sign-in on a new device restore the
+// same history; a fresh random id is minted only for genuinely new users.
+async function resolveUserSession(userInfo, env, fallbackSession) {
+  const mint = () => 'u_' + (crypto.randomUUID ? crypto.randomUUID() : (Date.now().toString(36) + Math.random().toString(36).slice(2, 12)));
+  if (!env.SUPABASE_URL) return fallbackSession || mint();
+  try {
+    const rows = await sbGet(env, `/rest/v1/users?email=eq.${enc(userInfo.email)}&select=session_id`);
+    if (rows?.length && rows[0].session_id) return rows[0].session_id;
+    const sid = mint();
+    await sbPost(env, '/rest/v1/users?on_conflict=email', {
+      email: userInfo.email, name: userInfo.name || '', picture: userInfo.picture || '',
+      session_id: sid, created_at: new Date().toISOString()
+    });
+    return sid;
+  } catch (e) {
+    console.warn('resolveUserSession failed:', e.message);
+    return fallbackSession || mint();
+  }
+}
+
+// Who is this session? Used by the frontend to restore the signed-in header
+// after a reload. Returns profile only — never tokens.
+async function authMe(url, env) {
+  const session = url.searchParams.get('session');
+  if (!session || !env.SUPABASE_URL) return jsonRes({ signed_in: false });
+  try {
+    const rows = await sbGet(env, `/rest/v1/users?session_id=eq.${enc(session)}&select=email,name,picture`);
+    if (rows?.length) return jsonRes({ signed_in: true, email: rows[0].email || '', name: rows[0].name || '', picture: rows[0].picture || '' });
+    return jsonRes({ signed_in: false });
+  } catch (e) { return jsonRes({ signed_in: false }); }
+}
+
 async function googleCallback(url, env) {
   const code = url.searchParams.get('code');
   const stateRaw = url.searchParams.get('state') || '';
@@ -964,13 +998,27 @@ async function googleCallback(url, env) {
   if (!tokens.access_token) return htmlRes(`<div class="icon" style="color:#f0657a">✕</div><h2>Failed</h2><p>Could not get token. Please try again.</p><button onclick="window.close()">Close</button>`);
   const userRes = await fetch('https://www.googleapis.com/oauth2/v2/userinfo', { headers: { 'Authorization': `Bearer ${tokens.access_token}` } });
   const userInfo = await userRes.json();
-  if (env.SUPABASE_URL && state.session) {
-    await sbPost(env, '/rest/v1/user_apps?on_conflict=session_id,app_name', { session_id: state.session, app_name: state.app, access_token: tokens.access_token, refresh_token: tokens.refresh_token || null, email: userInfo.email || '', connected_at: new Date().toISOString() }).catch(e => console.error('Supabase save:', e.message));
+
+  // Sign-in resolves a STABLE session for this Google account, so the same
+  // person on a second device lands on their own history and connections.
+  // The id is random — never derived from the email — so knowing someone's
+  // address tells you nothing about their session.
+  let sessionId = state.session;
+  if (state.app === 'signin' && userInfo.email) {
+    sessionId = await resolveUserSession(userInfo, env, state.session);
+  }
+
+  if (env.SUPABASE_URL && sessionId) {
+    await sbPost(env, '/rest/v1/user_apps?on_conflict=session_id,app_name', { session_id: sessionId, app_name: state.app, access_token: tokens.access_token, refresh_token: tokens.refresh_token || null, email: userInfo.email || '', connected_at: new Date().toISOString() }).catch(e => console.error('Supabase save:', e.message));
   }
   const appName = { signin: 'your account', gmail: 'Gmail', calendar: 'Google Calendar' }[state.app] || state.app;
   const payload = {
     type: 'ARIA_OAUTH_SUCCESS', app: state.app, email: userInfo.email || '',
-    session: state.session, access_token: tokens.access_token || '', refresh_token: tokens.refresh_token || ''
+    name: userInfo.name || '', picture: userInfo.picture || '',
+    session: sessionId,
+    // Identity sign-in never needs Gmail/Calendar tokens in the browser.
+    access_token:  state.app === 'signin' ? '' : (tokens.access_token  || ''),
+    refresh_token: state.app === 'signin' ? '' : (tokens.refresh_token || '')
   };
   return htmlRes(`
     <div class="icon" style="color:#5de6d8">✓</div>

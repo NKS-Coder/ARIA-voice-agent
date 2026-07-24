@@ -297,11 +297,12 @@ body.right-collapsed #edgeTabRight{display:flex;}
   <div id="histList" style="flex:1;overflow-y:auto;padding:0 12px 12px;"></div>
   <div style="padding:18px 22px;border-top:1px solid rgba(255,255,255,0.04);">
     <div style="display:flex;align-items:center;gap:10px;">
-      <div style="width:28px;height:28px;border-radius:50%;background:linear-gradient(135deg,#007BFF,#00E5FF);display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:#000;flex-shrink:0;">N</div>
+      <div id="userAvatar" style="width:28px;height:28px;border-radius:50%;background:linear-gradient(135deg,#007BFF,#00E5FF);display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:#000;flex-shrink:0;background-size:cover;background-position:center;">?</div>
       <div style="flex:1;min-width:0;">
-        <div style="font-size:11px;font-weight:700;color:rgba(255,255,255,0.75);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">Nihhar K Sonee</div>
+        <div id="userName" style="font-size:11px;font-weight:700;color:rgba(255,255,255,0.75);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">Guest</div>
         <div style="font-size:9px;color:#007BFF;" id="statusChip">Online</div>
       </div>
+      <button id="authBtn" title="Sign in with Google" style="font-size:9px;font-weight:700;padding:4px 9px;border-radius:8px;border:1px solid rgba(0,229,255,0.3);background:rgba(0,229,255,0.08);color:#00E5FF;cursor:pointer;font-family:inherit;flex-shrink:0;white-space:nowrap;">Sign in</button>
       <button id="gearBtn" style="width:28px;height:28px;border-radius:8px;display:flex;align-items:center;justify-content:center;background:none;border:none;color:rgba(255,255,255,0.25);cursor:pointer;transition:all 0.15s;" onmouseover="this.style.background='rgba(255,255,255,0.06)';this.style.color='rgba(255,255,255,0.6)';" onmouseout="this.style.background='none';this.style.color='rgba(255,255,255,0.25)';">
         <span class="material-symbols-outlined" style="font-size:17px;">settings</span>
       </button>
@@ -628,6 +629,7 @@ window.addEventListener('load', async ()=>{
   startNewConv(false);
   renderHist();
   checkWorker();
+  refreshProfile();
 
   // Step 3: Load EVERYTHING from Supabase using current session
   // This runs on every page load — restores apps + conversations automatically
@@ -1799,12 +1801,22 @@ document.querySelectorAll('.pc').forEach(c=>{
 // Listen for OAuth success message from popup
 window.addEventListener('message', (event) => {
   if (event.data?.type === 'ARIA_OAUTH_SUCCESS') {
-    const { app, email, session, access_token, refresh_token } = event.data;
+    const { app, email, session, access_token, refresh_token, name, picture } = event.data;
     console.log('OAuth success received:', app, email, 'session:', session);
 
     // Sync session ID — this is critical
     if (session) {
       setSession(session); // always sync to OAuth session
+    }
+
+    // Identity sign-in: store the profile and pull this account's saved
+    // conversations + connected apps (they may live on another device).
+    if (app === 'signin') {
+      setProfile({ email: email || '', name: name || '', picture: picture || '' });
+      const m = `Signed in as ${email || 'your account'}. Restoring your workspace…`;
+      addMsg('assistant', m); speak(m);
+      if (typeof loadFromSupabase === 'function') loadFromSupabase().then(()=>renderHist());
+      return;
     }
 
     // Save to BOTH storages so it survives page reloads
@@ -2587,6 +2599,73 @@ function setSession(sid){
   localStorage.setItem('aria_sid', sid);
   sessionStorage.setItem('aria_sid', sid);
   return sid;
+}
+
+// ── SIGN IN / SIGN OUT ────────────────────────────────────────
+// Multi-user: anyone can sign in with Google to get their own private session.
+// Signing in on a second device restores the same history, because the Worker
+// resolves a stable session id per Google account.
+function getProfile(){
+  try { return JSON.parse(localStorage.getItem('aria_profile')||'null'); } catch(e){ return null; }
+}
+function setProfile(p){
+  if(p) localStorage.setItem('aria_profile', JSON.stringify(p));
+  else  localStorage.removeItem('aria_profile');
+  renderProfile();
+}
+function renderProfile(){
+  const p = getProfile();
+  const av = $('userAvatar'), nm = $('userName'), btn = $('authBtn');
+  if(!av||!nm||!btn) return;
+  if(p && p.email){
+    nm.textContent = p.name || p.email;
+    nm.title = p.email;
+    if(p.picture){ av.style.backgroundImage = `url("${p.picture}")`; av.textContent=''; }
+    else { av.style.backgroundImage='none'; av.textContent = (p.name||p.email)[0].toUpperCase(); }
+    btn.textContent = 'Sign out';
+    btn.title = `Sign out of ${p.email}`;
+    btn.onclick = signOut;
+  } else {
+    nm.textContent = 'Guest';
+    nm.title = 'Not signed in — this session is local to this browser';
+    av.style.backgroundImage='none'; av.textContent='?';
+    btn.textContent = 'Sign in';
+    btn.title = 'Sign in with Google';
+    btn.onclick = signIn;
+  }
+}
+function signIn(){
+  fetch(`${W}/auth/google/url?app=signin&session=${enc(getSession())}`)
+    .then(r=>r.json())
+    .then(d=>{
+      if(!d.url){ addMsg('assistant','Could not start sign-in. Please try again.',true); return; }
+      const w = window.open(d.url,'oauth','width=520,height=640,left=400,top=80');
+      if(!w) alert('Please allow popups for this site to sign in.');
+    })
+    .catch(()=>addMsg('assistant','Could not reach the sign-in service.',true));
+}
+function signOut(){
+  const p = getProfile();
+  if(!confirm(`Sign out${p&&p.email?' of '+p.email:''}?\n\nYour conversations and connected apps stay saved to your account — signing back in restores them on any device.`)) return;
+  // Clear every local trace so the next person on this browser starts clean.
+  ['aria_sid','aria_profile','aria_apps','aria_convs'].forEach(k=>{ localStorage.removeItem(k); sessionStorage.removeItem(k); });
+  S.msgs=[]; S.convId=null; S.convTitle=''; S.msgN=0;
+  D.msgs.innerHTML=''; D.nMsgs.textContent='0';
+  window._lastEmails=null;
+  getSession();          // mint a fresh anonymous session
+  renderProfile();
+  syncApps(); renderHist(); startNewConv(false);
+  addMsg('assistant','Signed out. This browser is now a fresh guest session.');
+}
+// Restore the signed-in header after a reload (server is source of truth).
+async function refreshProfile(){
+  renderProfile();
+  try{
+    const r = await fetch(`${W}/auth/me?session=${enc(getSession())}`);
+    const d = await r.json();
+    if(d.signed_in) setProfile({email:d.email,name:d.name,picture:d.picture});
+    else if(getProfile()) setProfile(null); // server says this session isn't signed in
+  }catch(e){ /* offline — keep whatever the cache says */ }
 }
 
 // ── SIDEBAR CONTROLS (desktop collapse + mobile slide-in) ─────
