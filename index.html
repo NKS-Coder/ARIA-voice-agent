@@ -473,6 +473,14 @@ body.right-collapsed #edgeTabRight{display:flex;}
     </div>
     <div class="tpanel on" id="tab-apps">
       <div class="mnote">&#128274; Connections use OAuth2 &mdash; ARIA never sees your password.</div>
+      <div style="display:flex;align-items:center;gap:10px;padding:11px 12px;border-radius:10px;background:rgba(0,229,255,0.06);border:1px solid rgba(0,229,255,0.2);margin-bottom:12px;">
+        <div style="font-size:1.1rem;">&#129514;</div>
+        <div style="flex:1;min-width:0;">
+          <div style="font-size:0.74rem;font-weight:700;color:rgba(255,255,255,0.85);">Try the demo inbox</div>
+          <div style="font-size:0.62rem;color:rgba(255,255,255,0.4);margin-top:1px;">Explore every email feature with sample data &mdash; no sign-in, no Google access.</div>
+        </div>
+        <button id="demoBtn" onclick="toggleDemo()" style="font-size:0.62rem;font-weight:700;padding:6px 13px;border-radius:8px;border:1px solid rgba(0,229,255,0.35);background:rgba(0,229,255,0.12);color:#00E5FF;cursor:pointer;font-family:inherit;flex-shrink:0;white-space:nowrap;">Start</button>
+      </div>
       <div class="msec">Google</div>
       <div class="acard" id="card-gmail"><div class="acl"><div class="acico">&#128231;</div><div><div class="acname">Gmail</div><div class="acdesc" id="desc-gmail">Send, read, sort emails</div></div></div><button class="abtn connect" id="btn-gmail" onclick="connectApp('gmail')">Connect</button></div>
       <div class="acard" id="card-calendar"><div class="acl"><div class="acico">&#128197;</div><div><div class="acname">Calendar</div><div class="acdesc" id="desc-calendar">Book meetings</div></div></div><button class="abtn connect" id="btn-calendar" onclick="connectApp('calendar')">Connect</button></div>
@@ -630,6 +638,7 @@ window.addEventListener('load', async ()=>{
   renderHist();
   checkWorker();
   refreshProfile();
+  syncDemoBtn();
 
   // Step 3: Load EVERYTHING from Supabase using current session
   // This runs on every page load — restores apps + conversations automatically
@@ -1567,7 +1576,99 @@ function addMsg(role, txt, err=false) {
 }
 
 // WORKER
+// ── DEMO MODE ─────────────────────────────────────────────────
+// Zero-signup path for LinkedIn / first-time visitors: a synthetic inbox that
+// exercises the full email UX (important ranking, Trash badges, summaries,
+// suggested replies) with NO Google OAuth. Chat/voice/weather still hit the
+// real Groq worker, so the demo feels live — only the mailbox is fixture data.
+const DEMO_EMAILS = [
+  { id:'d1', from:'Chase Bank <alerts@chase.com>', email:'alerts@chase.com', subject:'Your statement is ready — payment due Aug 2', date:'2026-07-23', location:'inbox', unread:true, action_required:true,
+    snippet:'Your July statement is ready. Minimum payment of $145.00 is due by August 2 to avoid a late fee.',
+    summary:'Your Chase credit-card July statement is ready. The minimum payment of $145.00 is due by August 2; a $40 late fee applies after that.',
+    key_points:['Minimum payment: $145.00','Due date: August 2, 2026','Late fee: $40 if missed'],
+    suggested_reply:'Thank you for the reminder — I have scheduled the $145 payment for July 31, ahead of the due date.' },
+  { id:'d2', from:'Google Recruiting <no-reply@google.com>', email:'no-reply@google.com', subject:'Next steps — onsite interview', date:'2026-07-22', location:'trash', unread:false, action_required:true,
+    snippet:'Congratulations! We would like to invite you to an onsite interview. Please share your availability for next week.',
+    summary:'Google Recruiting invited you to an onsite interview and is asking for your availability next week. This was found in your Trash.',
+    key_points:['Onsite interview invitation','Reply with availability for next week','Recruiter: Sarah from Google Staffing'],
+    suggested_reply:'Thank you so much! I am available Tuesday and Thursday afternoon next week, and happy to work around your team’s schedule.' },
+  { id:'d3', from:'USCIS <no-reply@uscis.dhs.gov>', email:'no-reply@uscis.dhs.gov', subject:'Case status update: Request for Evidence', date:'2026-07-21', location:'inbox', unread:true, action_required:true,
+    snippet:'Your case has a new status. A Request for Evidence (RFE) has been issued. Response due within 30 days.',
+    summary:'USCIS issued a Request for Evidence on your case. You must respond within 30 days or the case may be denied.',
+    key_points:['Request for Evidence issued','Deadline: 30 days from notice','Action: gather and submit requested documents'],
+    suggested_reply:'' },
+  { id:'d4', from:'Stripe <receipts@stripe.com>', email:'receipts@stripe.com', subject:'Payout of $2,340 completed', date:'2026-07-20', location:'inbox', unread:false, action_required:false,
+    snippet:'Your payout of $2,340.00 has been sent to your bank account ending in 4021.',
+    summary:'Stripe confirmed a payout of $2,340.00 to your bank account ending 4021. No action needed.',
+    key_points:['Payout: $2,340.00','Account ending 4021','Status: completed'],
+    suggested_reply:'' },
+  { id:'d5', from:'DocuSign <dse@docusign.net>', email:'dse@docusign.net', subject:'Please sign: Consulting Agreement', date:'2026-07-19', location:'inbox', unread:true, action_required:true,
+    snippet:'You have a document waiting for signature: Consulting Agreement. Please review and sign.',
+    summary:'A Consulting Agreement is waiting for your signature via DocuSign.',
+    key_points:['Document: Consulting Agreement','Action: review and e-sign','Sender: Acme Legal'],
+    suggested_reply:'' },
+];
+function isDemo(){ return sessionStorage.getItem('aria_demo')==='1'; }
+function syncDemoBtn(){
+  const b=$('demoBtn'); if(!b) return;
+  b.textContent = isDemo() ? 'Stop' : 'Start';
+}
+function toggleDemo(){
+  if(isDemo()){ exitDemo(); addMsg('assistant','Demo mode off. Connect Gmail in Settings to use your real inbox.'); }
+  else { enterDemo(); D.modal.classList.remove('open'); }
+  syncDemoBtn();
+}
+function enterDemo(){
+  sessionStorage.setItem('aria_demo','1');
+  C.saveApp('gmail',{connected:true,email:'demo@ariademo.app',demo:true});
+  syncApps();
+  const m = "Demo mode is on — I've loaded a sample inbox so you can try everything without signing in. Try: \"show my most important emails including deleted ones\".";
+  addMsg('assistant', m); speak(m);
+}
+function exitDemo(){
+  sessionStorage.removeItem('aria_demo');
+  if(C.apps.gmail?.demo) C.delApp('gmail');
+  syncApps();
+}
+// Returns a fixture reply string for email intents, or null to let the real worker handle it.
+function demoReply(txt){
+  const t = (txt||'').toLowerCase();
+  const isEmailish = /\b(e-?mail|mail|inbox|message|gmail)s?\b/i.test(t) || /\b(important|priorit|urgent|deleted|trash|unread)\b/i.test(t);
+  if(!isEmailish) return null; // chat / weather / etc. → real worker
+
+  // Send / organize → canned confirmations (never actually sends in demo)
+  if(_ariaIsEmailSendIntent(txt)) return "In demo mode I don't send real email — but in the live app this would send it via your connected account.";
+  if(/\b(restore|recover|undelete|bring back)\b/i.test(t)){
+    return "Done — in the live app I'd restore that email from Trash back to your inbox. (Demo inbox is read-only.)";
+  }
+  if(/\b(archive|delete|mark as read|star|spam)\b/i.test(t)) return "Got it — in the live app I'd apply that to your real inbox. The demo inbox stays as-is so you can keep exploring.";
+
+  // Read / important → filter the fixture
+  const wantsTrash = /\b(deleted|trash|bin|including deleted|recover)\b/i.test(t);
+  const wantsImportant = /\b(important|priorit|urgent|top)\b/i.test(t);
+  let list = DEMO_EMAILS.slice();
+  if(!wantsTrash) list = list.filter(e=>e.location!=='trash');
+  if(wantsImportant) list = list.filter(e=>e.action_required || e.location==='trash');
+  const numM = t.match(/\b(\d+|one|single|two|three)\b/);
+  const numMap={one:1,single:1,two:2,three:3};
+  if(numM){ const n = parseInt(numM[1])||numMap[numM[1]]||list.length; list = list.slice(0,n); }
+
+  const trashN = list.filter(e=>e.location==='trash').length;
+  return JSON.stringify({
+    type:'email_list', count:list.length, enriched:true,
+    title:`Top ${list.length} important email${list.length===1?'':'s'}${trashN?` (${trashN} from Trash)`:''} · Demo`,
+    summary:`Here ${list.length===1?'is':'are'} your ${list.length} most important email${list.length===1?'':'s'}, each summarized with a suggested reply. (Sample inbox — demo mode.)`,
+    emails:list,
+  });
+}
+
 async function callWorker(txt){
+  // Demo mode: short-circuit email intents with fixture data; let everything
+  // else (chat, weather, voice) hit the real Groq worker so the demo feels live.
+  if(isDemo()){
+    const dr = demoReply(txt);
+    if(dr!==null){ await new Promise(r=>setTimeout(r,450)); return dr; }
+  }
   // Build a capabilities note so the AI knows what it can actually do right now.
   const connectedApps = Object.entries(C.apps||{})
     .filter(([,v])=>v&&v.connected).map(([k])=>k);
