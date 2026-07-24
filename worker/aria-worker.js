@@ -5,6 +5,11 @@
 //  The deployed version is carried by ARIA_VERSION below (an inline comment
 //  attached to code, which the bundler preserves at the top of the output).
 //  Changelog:
+//  - v17.0 hardening: OAuth callback HTML/JS injection fixed (escaped output +
+//    JSON-encoded postMessage payload); postMessage targetOrigin locked to the
+//    Pages origin (no more '*'); Groq fallback also covers decommissioned-model
+//    errors; calendar events use the user's real browser timezone; expanded
+//    slang/typo map; misc dead code removed.
 //  - v16.9 fuzzy language layer: normalizeSlang() rewrites slang/typos/texting
 //    shorthand (gimme, plz, imp, singlemost, 2day, tmrw, ...) before intent
 //    routing and count/time parsing. "singlemost important mail of today" now
@@ -23,9 +28,21 @@
 // to the string value, so esbuild keeps it at the top of the bundled/deployed
 // code — this is what makes the version visible in the Cloudflare editor.
 // Also exposed at /health and /version. Bump this one line each release.
-const ARIA_VERSION = /* ═══════════  ARIA PROXY · DEPLOYED VERSION → v16.9  ═══════════ */ 'v16.9';
+const ARIA_VERSION = /* ═══════════  ARIA PROXY · DEPLOYED VERSION → v17.0  ═══════════ */ 'v17.0';
 
 const BELLA = 'EXAVITQu4vr4xnSDxMaL';
+
+const DEFAULT_PAGES_ORIGIN = 'https://nks-coder.github.io';
+
+function escapeHtml(s) {
+  return String(s ?? '')
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+// Safe to embed inside a <script> block: JSON-encode, then break any </script>.
+function jsForScript(v) {
+  return JSON.stringify(v ?? '').replace(/</g, '\\u003c');
+}
 
 // Human-readable current date/time, injected into LLM prompts so ARIA can
 // reason about "today", "tomorrow", "this week", "next Friday", etc. The model
@@ -96,6 +113,14 @@ async function groqFetch(params, env, ms = 28000) {
   if (res.status === 429) {
     console.warn('[ARIA] Groq 70B rate-limited — retrying with llama-3.1-8b-instant');
     res = await call('llama-3.1-8b-instant');
+  } else if (res.status === 400 || res.status === 404) {
+    // Groq retires models with a 400/404 "model_decommissioned"/"model_not_found"
+    // error — fall back so ARIA keeps answering instead of hard-failing.
+    const errText = await res.clone().text().catch(() => '');
+    if (/model/i.test(errText)) {
+      console.warn('[ARIA] Groq 70B model error — retrying with llama-3.1-8b-instant:', errText.slice(0, 200));
+      res = await call('llama-3.1-8b-instant');
+    }
   }
   return res;
 }
@@ -241,6 +266,13 @@ const SLANG_MAP = [
   [/\byest\b/gi, 'yesterday'],[/\brn\b/gi, 'right now'],
   [/\bmials?\b/gi, 'mails'],  [/\bemals?\b/gi, 'emails'], [/\bmsgs\b/gi, 'messages'],
   [/\bwassup\b/gi, "what's up"], [/\bsup\b/gi, "what's up"],
+  // v17.0: more shorthand and common typos
+  [/\bur\b/gi, 'your'],       [/\bchk\b/gi, 'check'],     [/\bshw\b/gi, 'show'],
+  [/\binbx\b/gi, 'inbox'],    [/\babt\b/gi, 'about'],     [/\bmsg\b/gi, 'message'],
+  [/\bsum+[ae]ri[sz]e\b/gi, 'summarize'], [/\bsumry\b/gi, 'summary'],
+  [/\bimprtn?t\b/gi, 'important'], [/\bimportnt\b/gi, 'important'], [/\bimprotant\b/gi, 'important'],
+  [/\btod+ya\b/gi, 'today'],  [/\btody\b/gi, 'today'],    [/\byda\b/gi, 'yesterday'],
+  [/\bltst\b/gi, 'latest'],   [/\brecnt\b/gi, 'recent'],  [/\bunrd\b/gi, 'unread'],
 ];
 function normalizeSlang(msg) {
   let out = String(msg || '');
@@ -312,7 +344,7 @@ function buildGmailQuery(rawMsg) {
     }
   }
 
-  if (/\bimportant|priority|urgent\b/i.test(msg))            filters.push('is:important');
+  if (/\b(important|priority|urgent)\b/i.test(msg))          filters.push('is:important');
   // "unread" maps to in:inbox (newest first) — the bare is:unread API label only surfaces
   // one ancient email when the true unread queue is sparse. in:inbox gives the user what
   // they actually want: their latest emails.
@@ -352,7 +384,8 @@ async function handleChat(request, env) {
   let body;
   try { body = await request.json(); } catch (e) { return jsonRes({ error: 'Invalid JSON body' }, 400); }
 
-  const { messages, persona, session_id, apps: frontendApps = {} } = body;
+  const { messages, persona, session_id, apps: frontendApps = {}, tz } = body;
+  const userTz = (typeof tz === 'string' && /^[\w/+-]{1,64}$/.test(tz)) ? tz : 'America/New_York';
   const lastMsgRaw = messages?.[messages.length - 1]?.content || '';
   // Must be `let` — multi-turn context (line ~345) reassigns this when the
   // user replies with a bare "yes"/"ok"/"go ahead". Declaring const here
@@ -609,9 +642,11 @@ Return ONLY JSON: {"is_email_query": true|false, "search_terms": "1-3 keyword(s)
       reply = "Connect your Google Calendar in Settings to book meetings by voice.";
     } else {
       try {
-        const d = await extractJSON(lastMsg, `Today is ${todayISO()} (UTC). Extract a calendar event ONLY from what the user explicitly stated. Resolve relative dates ("tomorrow", "next Friday", "in 2 days", "tonight") against today's date. Return ONLY JSON: {"title":"title","date":"YYYY-MM-DD","time":"HH:MM","duration":60}. Never invent a title the user did not give.`, env);
+        let localToday = todayISO();
+        try { localToday = new Date().toLocaleDateString('en-CA', { timeZone: userTz }); } catch (e) {}
+        const d = await extractJSON(lastMsg, `Today is ${localToday} (user's local date, timezone ${userTz}). Extract a calendar event ONLY from what the user explicitly stated. Resolve relative dates ("tomorrow", "next Friday", "in 2 days", "tonight") against today's date. Return ONLY JSON: {"title":"title","date":"YYYY-MM-DD","time":"HH:MM","duration":60}. Never invent a title the user did not give.`, env);
         if (!d?.title || !d?.date || !d?.time) reply = `I need a title, date, and time to create the event. What should I call it, and when?`;
-        else { await createCalEvent(d, userApps.calendar, env); reply = `Done. "${d.title}" added to your calendar on ${d.date} at ${d.time}.`; }
+        else { await createCalEvent(d, userApps.calendar, env, userTz); reply = `Done. "${d.title}" added to your calendar on ${d.date} at ${d.time}.`; }
       } catch (e) { console.error('calendar error:', e.message); reply = `Could not create the event: ${e.message}.`; }
     }
   }
@@ -849,16 +884,20 @@ async function googleCallback(url, env) {
   const userRes = await fetch('https://www.googleapis.com/oauth2/v2/userinfo', { headers: { 'Authorization': `Bearer ${tokens.access_token}` } });
   const userInfo = await userRes.json();
   if (env.SUPABASE_URL && state.session) {
-    await sbPost(env, '/rest/v1/user_apps', { session_id: state.session, app_name: state.app, access_token: tokens.access_token, refresh_token: tokens.refresh_token || null, email: userInfo.email || '', connected_at: new Date().toISOString() }).catch(e => console.error('Supabase save:', e.message));
+    await sbPost(env, '/rest/v1/user_apps?on_conflict=session_id,app_name', { session_id: state.session, app_name: state.app, access_token: tokens.access_token, refresh_token: tokens.refresh_token || null, email: userInfo.email || '', connected_at: new Date().toISOString() }).catch(e => console.error('Supabase save:', e.message));
   }
   const appName = { signin: 'your account', gmail: 'Gmail', calendar: 'Google Calendar' }[state.app] || state.app;
+  const payload = {
+    type: 'ARIA_OAUTH_SUCCESS', app: state.app, email: userInfo.email || '',
+    session: state.session, access_token: tokens.access_token || '', refresh_token: tokens.refresh_token || ''
+  };
   return htmlRes(`
     <div class="icon" style="color:#5de6d8">✓</div>
-    <h2 style="color:#5de6d8">${appName} Connected!</h2>
-    <p>${userInfo.name || userInfo.email} is now connected to ARIA.<br>Closing automatically...</p>
+    <h2 style="color:#5de6d8">${escapeHtml(appName)} Connected!</h2>
+    <p>${escapeHtml(userInfo.name || userInfo.email)} is now connected to ARIA.<br>Closing automatically...</p>
     <button onclick="window.close()">Close</button>
     <script>
-      try { if(window.opener) window.opener.postMessage({type:'ARIA_OAUTH_SUCCESS',app:'${state.app}',email:'${userInfo.email||''}',session:'${state.session}',access_token:'${tokens.access_token||''}',refresh_token:'${tokens.refresh_token||''}'},'${env.PAGES_ORIGIN || '*'}'); } catch(e){}
+      try { if(window.opener) window.opener.postMessage(${jsForScript(payload)}, ${jsForScript(env.PAGES_ORIGIN || DEFAULT_PAGES_ORIGIN)}); } catch(e){}
       setTimeout(()=>window.close(),2500);
     <\/script>`);
 }
@@ -884,15 +923,19 @@ async function microsoftCallback(url, env) {
   const user = await userRes.json();
   const email = user.mail || user.userPrincipalName || '';
   if (env.SUPABASE_URL && state.session) {
-    await sbPost(env, '/rest/v1/user_apps', { session_id: state.session, app_name: 'outlook', access_token: tokens.access_token, refresh_token: tokens.refresh_token || null, email, connected_at: new Date().toISOString() }).catch(() => {});
+    await sbPost(env, '/rest/v1/user_apps?on_conflict=session_id,app_name', { session_id: state.session, app_name: 'outlook', access_token: tokens.access_token, refresh_token: tokens.refresh_token || null, email, connected_at: new Date().toISOString() }).catch(() => {});
   }
+  const msPayload = {
+    type: 'ARIA_OAUTH_SUCCESS', app: 'outlook', email, session: state.session,
+    access_token: tokens.access_token || '', refresh_token: tokens.refresh_token || ''
+  };
   return htmlRes(`
     <div class="icon" style="color:#5de6d8">✓</div>
     <h2 style="color:#5de6d8">Outlook Connected!</h2>
-    <p>${user.displayName || email} connected.<br>Closing automatically...</p>
+    <p>${escapeHtml(user.displayName || email)} connected.<br>Closing automatically...</p>
     <button onclick="window.close()">Close</button>
     <script>
-      try { if(window.opener) window.opener.postMessage({type:'ARIA_OAUTH_SUCCESS',app:'outlook',email:'${email}',session:'${state.session}'},'${env.PAGES_ORIGIN || '*'}'); } catch(e){}
+      try { if(window.opener) window.opener.postMessage(${jsForScript(msPayload)}, ${jsForScript(env.PAGES_ORIGIN || DEFAULT_PAGES_ORIGIN)}); } catch(e){}
       setTimeout(()=>window.close(),2500);
     <\/script>`);
 }
@@ -946,7 +989,7 @@ async function handleConnect(request, env) {
   const { app, token, session } = await request.json().catch(() => ({}));
   if (!app || !token || !session) return jsonRes({ error: 'Missing fields' }, 400);
   if (!env.SUPABASE_URL) return jsonRes({ success: true });
-  await sbPost(env, '/rest/v1/user_apps', { session_id: session, app_name: app, access_token: token, connected_at: new Date().toISOString() }).catch(() => {});
+  await sbPost(env, '/rest/v1/user_apps?on_conflict=session_id,app_name', { session_id: session, app_name: app, access_token: token, connected_at: new Date().toISOString() }).catch(() => {});
   return jsonRes({ success: true });
 }
 
@@ -970,7 +1013,7 @@ async function getGoogleToken(appData, env) {
 async function sendGmail(details, gmailApp, env) {
   if (!isValidRecipient(details.to)) throw new Error(`Invalid recipient: ${details.to}`);
   const token = await getGoogleToken(gmailApp, env);
-  const raw = btoa(unescape(encodeURIComponent(`To: ${details.to}\r\nSubject: ${details.subject}\r\nContent-Type: text/plain; charset=utf-8\r\n\r\n${details.body}`))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+  const raw = btoa(unescape(encodeURIComponent(`To: ${details.to}\r\nSubject: ${details.subject || '(no subject)'}\r\nContent-Type: text/plain; charset=utf-8\r\n\r\n${details.body}`))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
   const res = await fetch('https://gmail.googleapis.com/gmail/v1/users/me/messages/send', { method: 'POST', headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ raw }) });
   if (!res.ok) { const e = await res.json(); throw new Error(e.error?.message || 'Gmail send failed'); }
 }
@@ -1141,23 +1184,6 @@ async function summarizeEmails(emails, env, ctx = {}) {
   return JSON.stringify({ type: 'email_list', count: emails.length, title, summary, emails: slim });
 }
 
-async function summarizeSingleEmail(email, env) {
-  const res = await groqFetch({
-    max_tokens: 700, temperature: 0.4,
-    messages: [
-      { role: 'system', content: `You are an email analyst. Read the email below and return ONLY a JSON object with these keys:\n"summary" — write 2-3 sentences describing what this specific email is actually about\n"key_points" — array of 2-3 actual takeaways from this email\n"sentiment" — exactly one of: positive, neutral, urgent, negative\n"action_required" — true or false\n"suggested_reply" — write a complete professional reply to THIS specific email\n\nBase every field on the real email content. Do not echo these instructions back. Do not use placeholder text.` },
-      { role: 'user',   content: `From: ${email.from}\nSubject: ${email.subject}\nDate: ${email.date}\nBody: ${email.body || email.snippet}` }
-    ]
-  }, env);
-  const data = await res.json();
-  try {
-    const raw = data.choices[0].message.content.trim();
-    return JSON.parse(raw.match(/\{[\s\S]*\}/)?.[0] || raw);
-  } catch (e) {
-    return { summary: data.choices[0].message.content.trim(), key_points: [], sentiment: 'neutral', action_required: false, suggested_reply: '' };
-  }
-}
-
 async function organizeEmail(command, gmailApp, env) {
   const token = await getGoogleToken(gmailApp, env);
   const m = command.toLowerCase();
@@ -1223,12 +1249,17 @@ async function sortInbox(gmailApp, env) {
   return JSON.stringify({ type: 'inbox_stats', total: total.resultSizeEstimate || 0, unread: unread.resultSizeEstimate || 0, important_count: important.messages?.length || 0, suggestion: 'Would you like me to archive old emails, mark everything as read, or focus on the important ones?' });
 }
 
-async function createCalEvent(details, calApp, env) {
+async function createCalEvent(details, calApp, env, tz = 'America/New_York') {
   const token = await getGoogleToken(calApp, env);
   const start = `${details.date}T${details.time}:00`;
-  const end = new Date(`${details.date}T${details.time}`);
-  end.setMinutes(end.getMinutes() + (details.duration || 60));
-  await fetch('https://www.googleapis.com/calendar/v3/calendars/primary/events', { method: 'POST', headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ summary: details.title, start: { dateTime: start, timeZone: 'America/New_York' }, end: { dateTime: end.toISOString().slice(0, 19), timeZone: 'America/New_York' } }) });
+  // Compute the end as a wall-clock string in the SAME local frame as start —
+  // toISOString() would shift it to UTC while still labeling it with the user's
+  // timezone, silently stretching/shrinking the event.
+  const end = new Date(`${details.date}T${details.time}:00Z`);
+  end.setUTCMinutes(end.getUTCMinutes() + (details.duration || 60));
+  const endStr = end.toISOString().slice(0, 19);
+  const res = await fetch('https://www.googleapis.com/calendar/v3/calendars/primary/events', { method: 'POST', headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ summary: details.title, start: { dateTime: start, timeZone: tz }, end: { dateTime: endStr, timeZone: tz } }) });
+  if (!res.ok) { const e = await res.json().catch(() => ({})); throw new Error(e.error?.message || 'Calendar create failed'); }
 }
 
 async function getMicrosoftToken(appData, env) {

@@ -1,68 +1,40 @@
-ARIA — Voice AI Agent
+# ARIA — Voice AI Agent
 
-ARIA is a browser-based voice AI assistant that enables real-time interaction with large language models using natural speech.
+ARIA is a browser-based voice assistant that connects natural speech to real actions: reading, searching, summarizing, and sending Gmail, booking Google Calendar events, Slack messages, and weather — all through a single chat/voice interface.
 
-The system integrates Groq’s Llama models, ElevenLabs voice synthesis, and the Web Speech API to deliver a responsive conversational AI experience.
-
-This project demonstrates how modern voice assistants can be built using lightweight web technologies and external AI APIs.
-
-
-
-The assistant is deployed using GitHub Pages.
-
-https://NKS-Coder.github.io/ARIA-voice-agent/index.html
-
-
-Open the link and interact with the assistant directly in your browser.
-
-Interface Preview
-
-
+**Live app:** https://NKS-Coder.github.io/ARIA-voice-agent/index.html
 
 ![ARIA Interface](screenshot.png)
 
-The interface allows users to activate the assistant using microphone input and receive synthesized voice responses from the AI model.
+## Architecture
 
-Features
+```
+Browser (GitHub Pages: index.html)
+  ├─ Web Speech API — mic input + "Hey ARIA" wake word
+  └─ fetch → Cloudflare Worker (ariaproxy)
+       ├─ Groq Llama 3.3 70B  — intent routing, chat, extraction
+       ├─ ElevenLabs          — neural TTS (key stays server-side)
+       ├─ Google OAuth        — Gmail read/send/organize, Calendar
+       ├─ Microsoft OAuth     — Outlook (optional, needs Azure app)
+       ├─ Slack API           — post messages (bot token)
+       └─ Supabase            — sessions, connected apps, chat history
+```
 
-Real-time voice interaction using the Web Speech API
+The Worker (`worker/aria-worker.js`) is the only place API keys live. The frontend is a single static `index.html`.
 
-Fast AI inference powered by Groq Llama models
+## Features
 
-Human-like voice responses using ElevenLabs
+- Real-time voice interaction with wake-word ("Hey ARIA") support
+- Fuzzy language layer — slang, shorthand, and typos route correctly ("gimme mostr imp mail of 2day")
+- Smart importance ranking across financial / government / job / urgent / starred signals
+- Gmail: read, search, summarize, send (with editable confirmation dialog), archive, star, spam, bulk actions
+- Google Calendar event creation in your local timezone
+- Multiple assistant personas (General, Sales, Support, Research, Jarvis)
+- ElevenLabs neural voices with browser-TTS fallback
 
-Multiple assistant personas for different use cases
+## Deploying
 
-Automation-ready architecture compatible with n8n workflows
-
-Fully browser-based implementation
-
-Assistant Personas
-Mode	Purpose
-General	Everyday tasks and questions
-Sales	Lead generation and conversational selling
-Support	Troubleshooting and technical assistance
-Research	Information retrieval and analysis
-System Architecture
-User Voice
-   ↓
-Web Speech API
-   ↓
-Groq LLM (Llama 3.3)
-   ↓
-AI Response
-   ↓
-ElevenLabs Voice Synthesis
-   ↓
-Audio Playback
-
-This architecture enables low-latency conversational AI directly within the browser.
-
-Technology Stack
-Layer	Technology
-AI Model	Groq (Llama 3.3)
-Speech Recognition	Web Speech API
-Voice Synthesis	ElevenLabs
-Frontend	HTML / JavaScript
-Hosting	GitHub Pages
-Automation Integration	n8n
+- **Frontend:** GitHub Pages serves `index.html` from `main`.
+- **Worker:** pushed automatically by GitHub Actions (`.github/workflows/deploy-worker.yml`) on changes under `worker/` — needs `CF_API_TOKEN` + `CF_ACCOUNT_ID` repo secrets. Manual: `npm run deploy`.
+- **Worker secrets** (Cloudflare dashboard → Workers → ariaproxy → Settings): `GROQ_API_KEY`, `ELEVENLABS_API_KEY`, `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `SUPABASE_URL`, `SUPABASE_SERVICE_KEY`, optional `MICROSOFT_CLIENT_ID`/`MICROSOFT_CLIENT_SECRET`, optional `PAGES_ORIGIN`.
+- **Supabase:** create a free project and run `docs/supabase-schema.sql` in the SQL editor, then set the two Supabase secrets on the Worker.

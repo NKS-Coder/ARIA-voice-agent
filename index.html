@@ -508,7 +508,7 @@ body.right-collapsed #edgeTabRight{display:flex;}
       <div class="msaved" id="voiceSaved">&#10003; Voice settings saved</div>
     </div>
     <div class="tpanel" id="tab-about">
-      <div class="mnote"><strong>ARIA v16.7</strong> &mdash; Built by Nihhar K Sonee (NKS-Coder)<br>Groq Llama 3.3 70B &middot; ElevenLabs TTS &middot; Cloudflare Workers &middot; Supabase<br><br>All API keys are encrypted server-side in Cloudflare.</div>
+      <div class="mnote"><strong id="aboutVersion">ARIA</strong> &mdash; Built by Nihhar K Sonee (NKS-Coder)<br>Groq Llama 3.3 70B &middot; ElevenLabs TTS &middot; Cloudflare Workers &middot; Supabase<br><br>All API keys are encrypted server-side in Cloudflare.</div>
       <div class="mfld"><div class="mlbl">Worker Status</div><div id="workerStatus-about" class="minp" style="color:rgba(255,255,255,0.3);font-size:0.6rem;">Checking...</div></div>
     </div>
   </div>
@@ -520,9 +520,7 @@ body.right-collapsed #edgeTabRight{display:flex;}
     <div class="gmail-panel-title">&#128231; Gmail</div>
     <button class="gmail-panel-close" onclick="closeGmailPanel()">&#x2715;</button>
   </div>
-  <div class="gmail-panel-body">
-    <iframe id="gmailFrame" src="" title="Gmail" style="display:none;"></iframe>
-  </div>
+  <div class="gmail-panel-body"></div>
 </div>
 
 <!-- Personas (hidden, functional) -->
@@ -756,9 +754,12 @@ async function checkWorker(){
     const liveVer = d.version || (d.status||'').match(/v[0-9.]+/)?.[0] || '';
     $('workerStatus').textContent=`✓ ARIA ${liveVer}${elBadge}`.replace('ARIA  ','ARIA ');
     if(!$('workerStatus').style.color) $('workerStatus').style.color='#5de6d8';
+    const ab=$('workerStatus-about'); if(ab){ab.textContent=`✓ ARIA ${liveVer} — worker online`;ab.style.color='#5de6d8';}
+    const av=$('aboutVersion'); if(av&&liveVer)av.textContent=`ARIA ${liveVer}`;
   }catch(e){
     $('workerStatus').textContent='✗ Cannot reach Worker — check Cloudflare deployment';
     $('workerStatus').style.color='var(--rose)';
+    const ab=$('workerStatus-about'); if(ab){ab.textContent='✗ Cannot reach Worker';ab.style.color='var(--rose)';}
   }
 }
 
@@ -790,7 +791,7 @@ $('saveVoiceSidebar').addEventListener('click',()=>{
   const btn=$('saveVoiceSidebar');
   btn.textContent='✓ Saved';btn.style.color='var(--cyan)';btn.style.borderColor='rgba(93,230,216,0.3)';
   $('sidebarVoiceSaved').style.display='block';
-  setTimeout(()=>{btn.textContent='Save Voice as Default';btn.style.color='';btn.style.borderColor='';$('sidebarVoiceSaved').style.display='none';},2500);
+  setTimeout(()=>{btn.textContent='Save Voice';btn.style.color='';btn.style.borderColor='';$('sidebarVoiceSaved').style.display='none';},2500);
 });
 
 // LIVE VOICE SWITCH — browser voice name ('' = auto-select best)
@@ -1607,6 +1608,7 @@ async function callWorker(txt){
     persona:    S.persona,
     session_id: getSession(),
     apps:       C.apps,
+    tz:         (Intl.DateTimeFormat().resolvedOptions().timeZone)||'',
   })});
   const data=await res.json();if(data.error)throw new Error(data.error);return data.reply;
 }
@@ -1818,27 +1820,6 @@ window.addEventListener('message', (event) => {
     speak(m);
   }
 });
-
-// On page load, check Supabase for any existing connections
-async function restoreConnectionsFromSupabase() {
-  try {
-    const res  = await fetch(`${W}/auth/status?app=gmail&session=${getSession()}`);
-    const data = await res.json();
-    if(data.connected && data.email) {
-      const _gex = C.apps.gmail || {};
-      // Merge — always keep the best token we have from any source.
-      // Prefer Supabase tokens (fresher) but never discard a refresh_token we already hold.
-      C.saveApp('gmail', {
-        connected:     true,
-        email:         data.email || _gex.email || '',
-        access_token:  data.access_token  || _gex.access_token  || '',
-        refresh_token: data.refresh_token || _gex.refresh_token || '',
-      });
-      syncApps();
-      console.log('Restored Gmail connection from Supabase:', data.email);
-    }
-  } catch(e) { /* silent */ }
-}
 
 function connectApp(name){
   const app=APPS[name];if(!app)return;
@@ -2409,7 +2390,9 @@ function _showEmailConfirm(to, subject, body) {
     const ov = document.createElement('div');
     ov.id = '_ariaEmailConfirmModal';
     ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.75);z-index:999999;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(4px);';
-    const esc = function(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); };
+    // Quote escaping is REQUIRED — to/subject are injected into value="..."
+    // attributes and can come from attacker-controlled email headers.
+    const esc = function(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); };
     const fieldStyle = 'width:100%;box-sizing:border-box;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.12);border-radius:8px;padding:9px 12px;color:#fff;font-family:inherit;outline:none;transition:border-color 0.15s, box-shadow 0.15s;';
     ov.innerHTML = '<div style="background:#0d1117;border:1px solid rgba(255,255,255,0.1);border-radius:16px;padding:24px;max-width:460px;width:90%;box-shadow:0 8px 40px rgba(0,0,0,0.7);font-family:inherit;">' +
       '<div style="font-size:0.78rem;font-weight:700;color:#fc8181;text-transform:uppercase;letter-spacing:0.1em;margin-bottom:16px;">⚠ Confirm Email Send</div>' +
