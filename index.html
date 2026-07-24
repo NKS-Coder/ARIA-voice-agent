@@ -2226,7 +2226,7 @@ function renderEmailList(data, container) {
       <div style="display:flex;align-items:center;gap:8px;">
         <svg width="18" height="18" viewBox="0 0 48 48"><rect width="48" height="48" rx="4" fill="none"/><path fill="#fff" d="M5.5 40h8V23.1L4 16.2V37.5C4 38.9 4.6 40 5.5 40z"/><path fill="#fff" d="M34.5 40h8c.9 0 1.5-1.1 1.5-2.5V16.2l-9.5 6.9z"/><path fill="#fff" d="M34.5 8h-21L24 17.4z"/><path fill="#ffcdd2" d="M13.5 23.1V8H5.5C4.6 8 4 9.1 4 10.5v5.7l9.5 6.9z"/><path fill="#ffcdd2" d="M44 10.5V16.2L34.5 23.1V8H42.5C43.4 8 44 9.1 44 10.5z"/></svg>
         <span style="font-size:0.76rem;font-weight:600;color:#fff;letter-spacing:0.02em;">Gmail</span>
-        <span style="font-size:0.62rem;color:rgba(255,255,255,0.85);background:rgba(0,0,0,0.2);border-radius:10px;padding:1px 8px;">${data.count ?? data.emails?.length ?? 0} emails</span>
+        <span style="font-size:0.62rem;color:rgba(255,255,255,0.85);background:rgba(0,0,0,0.2);border-radius:10px;padding:1px 8px;">${(()=>{const n=data.count ?? data.emails?.length ?? 0;return n+' email'+(n===1?'':'s');})()}</span>
       </div>
       <button onclick="openGmailPanel(window._lastEmails)" style="display:flex;align-items:center;gap:4px;padding:5px 12px;border-radius:20px;border:1px solid rgba(255,255,255,0.35);background:rgba(255,255,255,0.12);color:#fff;font-size:0.63rem;font-weight:500;cursor:pointer;font-family:Arial,sans-serif;">
         Open ↗
@@ -2243,24 +2243,62 @@ function renderEmailList(data, container) {
     const avBg     = AV_COLORS[idx % AV_COLORS.length];
     const dateStr  = email.date ? new Date(email.date).toLocaleDateString('en-US',{month:'short',day:'numeric'}) : '';
 
+    // Trash/spam location badge — so "deleted important emails" are clearly flagged.
+    const loc = email.location || 'inbox';
+    const locBadge = loc === 'trash'
+      ? '<span style="font-size:0.52rem;font-weight:700;letter-spacing:0.04em;color:#c5221f;background:#fce8e6;border-radius:8px;padding:1px 6px;margin-left:6px;vertical-align:middle;">🗑 TRASH</span>'
+      : loc === 'spam'
+      ? '<span style="font-size:0.52rem;font-weight:700;letter-spacing:0.04em;color:#b06000;background:#fef7e0;border-radius:8px;padding:1px 6px;margin-left:6px;vertical-align:middle;">⚠ SPAM</span>'
+      : '';
+    // Enriched = the worker already attached an AI summary/points/reply; expandable inline (no extra round-trip).
+    const isEnriched = !!(email.summary || (email.key_points && email.key_points.length) || email.suggested_reply);
+    const arRow = email.action_required
+      ? '<span style="font-size:0.52rem;font-weight:700;color:#b06000;background:#fef7e0;border-radius:8px;padding:1px 6px;margin-left:6px;vertical-align:middle;">ACTION</span>'
+      : '';
+
+    const rowWrap = document.createElement('div');
+    rowWrap.style.cssText = 'border-bottom:1px solid #f1f3f4;background:#fff;';
+
     const row = document.createElement('div');
-    row.style.cssText = 'display:flex;align-items:center;gap:10px;padding:9px 14px;border-bottom:1px solid #f1f3f4;cursor:pointer;transition:background 0.15s;background:#fff;';
+    row.style.cssText = 'display:flex;align-items:center;gap:10px;padding:9px 14px;cursor:pointer;transition:background 0.15s;background:#fff;';
     row.onmouseover = () => row.style.background = '#f2f6fc';
     row.onmouseout  = () => row.style.background = '#fff';
     row.innerHTML = `
       <div style="width:32px;height:32px;border-radius:50%;background:${avBg};color:#fff;display:flex;align-items:center;justify-content:center;font-size:0.72rem;font-weight:600;flex-shrink:0;">${initial}</div>
       <div style="flex:1;min-width:0;">
-        <div style="font-size:0.74rem;font-weight:600;color:#202124;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escHtml(fromName.slice(0,30))}</div>
+        <div style="font-size:0.74rem;font-weight:600;color:#202124;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escHtml(fromName.slice(0,30))}${locBadge}${arRow}</div>
         <div style="font-size:0.7rem;color:#202124;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:1px;">${escHtml((email.subject||'(no subject)').slice(0,45))}</div>
-        <div style="font-size:0.64rem;color:#5f6368;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:1px;">${escHtml((email.snippet||'').slice(0,55))}</div>
+        <div style="font-size:0.64rem;color:#5f6368;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:1px;">${escHtml(((email.summary||email.snippet)||'').slice(0,60))}</div>
       </div>
       <div style="font-size:0.6rem;color:#5f6368;flex-shrink:0;text-align:right;">
         <div>${dateStr}</div>
-        <div style="font-size:0.85rem;margin-top:3px;opacity:0.3;cursor:pointer;" title="Star">☆</div>
+        <div style="font-size:0.7rem;margin-top:3px;color:#1a73e8;">${isEnriched ? '▾' : '›'}</div>
       </div>
     `;
-    row.onclick = () => showEmailDetail(email);
-    panel.appendChild(row);
+    rowWrap.appendChild(row);
+
+    if (isEnriched) {
+      // Inline expandable AI panel — everything already computed server-side.
+      const detail = document.createElement('div');
+      detail.style.cssText = 'display:none;padding:0 14px 12px 56px;background:#fafbfc;';
+      const replyId = 'aria-enr-reply-' + (email.id || idx) + '-' + idx;
+      detail.innerHTML = `
+        ${email.summary ? `<div style="padding-top:10px;"><div style="font-size:0.52rem;letter-spacing:0.08em;text-transform:uppercase;color:#EA4335;font-weight:700;margin-bottom:4px;">Summary</div><div style="font-size:0.72rem;color:#202124;line-height:1.65;">${escHtml(email.summary)}</div></div>` : ''}
+        ${(email.key_points && email.key_points.length) ? `<div style="padding-top:10px;"><div style="font-size:0.52rem;letter-spacing:0.08em;text-transform:uppercase;color:#EA4335;font-weight:700;margin-bottom:4px;">Key Points</div><ul style="list-style:none;display:flex;flex-direction:column;gap:4px;">${email.key_points.map(p=>`<li style="font-size:0.7rem;color:#202124;padding-left:12px;position:relative;line-height:1.5;"><span style="position:absolute;left:0;color:#1a73e8;">•</span>${escHtml(p)}</li>`).join('')}</ul></div>` : ''}
+        ${email.suggested_reply ? `<div style="padding-top:10px;"><div style="font-size:0.52rem;letter-spacing:0.08em;text-transform:uppercase;color:#EA4335;font-weight:700;margin-bottom:4px;">Suggested Reply</div><textarea id="${replyId}" style="width:100%;box-sizing:border-box;resize:vertical;min-height:72px;border:2px solid #c5cae9;border-left:4px solid #1a73e8;border-radius:4px;padding:9px 11px;font-size:0.72rem;color:#202124;line-height:1.6;font-family:Google Sans,Roboto,Arial,sans-serif;background:#fff;outline:none;">${escHtml(email.suggested_reply)}</textarea><button onclick="sendEmailReplyFromEl('${encodeURIComponent(email.from||'')}','${encodeURIComponent(email.subject||'')}','${replyId}')" style="margin-top:8px;width:100%;background:#1a73e8;color:#fff;border:none;border-radius:18px;padding:8px;font-family:inherit;font-size:0.72rem;font-weight:600;cursor:pointer;">↩ Send This Reply</button></div>` : ''}
+        ${loc === 'trash' ? `<div style="padding-top:10px;"><button onclick="sendMsg_quick('restore the email from ${escHtml((fromName||'').replace(/'/g,''))}')" style="width:100%;background:#fff;color:#1a73e8;border:1px solid #dadce0;border-radius:18px;padding:8px;font-family:inherit;font-size:0.7rem;font-weight:600;cursor:pointer;">♻ Restore from Trash</button></div>` : ''}
+      `;
+      rowWrap.appendChild(detail);
+      row.onclick = () => {
+        const open = detail.style.display !== 'none';
+        detail.style.display = open ? 'none' : 'block';
+        const caret = row.querySelector('div[style*="color:#1a73e8"]');
+        if (caret) caret.textContent = open ? '▾' : '▴';
+      };
+    } else {
+      row.onclick = () => showEmailDetail(email);
+    }
+    panel.appendChild(rowWrap);
   });
 
   // Last row — open in Gmail (and an optional retry chip when the list is suspiciously short)
