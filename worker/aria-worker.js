@@ -125,15 +125,128 @@ async function groqFetch(params, env, ms = 28000) {
   return res;
 }
 
+// ═══════════════════════════════════════════════════════════════
+//  ABUSE PROTECTION
+//  /chat and /tts spend real money (Groq + ElevenLabs) on every call and are
+//  unauthenticated by design, so they need their own guard rails. Limits are
+//  per-IP sliding windows held in isolate memory: zero infrastructure, works
+//  the moment it deploys. Cloudflare keeps a given client on a given colo, so
+//  this reliably stops the realistic attack (one person looping curl). If a
+//  RATE_LIMIT KV namespace is bound it is used instead, which also survives
+//  isolate recycling and spans colos.
+// ═══════════════════════════════════════════════════════════════
+const RATE_LIMITS = {
+  '/tts':           { perMin: 15, perDay: 300 },  // most expensive (ElevenLabs chars)
+  '/chat':          { perMin: 20, perDay: 500 },
+  '/':              { perMin: 20, perDay: 500 },
+  '/analyze-email': { perMin: 20, perDay: 400 },
+  '/title':         { perMin: 20, perDay: 400 },
+  '/connect':       { perMin: 10, perDay: 100 },
+};
+const DEFAULT_LIMIT   = { perMin: 60, perDay: 2000 };
+const MAX_BODY_BYTES  = 128 * 1024;   // generous for chat history, absurd for abuse
+const MAX_MESSAGES    = 60;
+
+const _rlBuckets = new Map(); // key -> { count, resetAt }
+
+function _bump(key, limit, windowMs, now) {
+  let b = _rlBuckets.get(key);
+  if (!b || now >= b.resetAt) { b = { count: 0, resetAt: now + windowMs }; _rlBuckets.set(key, b); }
+  b.count++;
+  // Opportunistic sweep so a long-lived isolate can't grow the Map without bound.
+  if (_rlBuckets.size > 5000) {
+    for (const [k, v] of _rlBuckets) if (now >= v.resetAt) _rlBuckets.delete(k);
+  }
+  return b;
+}
+
+function checkRateLimit(request, url) {
+  const cfg = RATE_LIMITS[url.pathname] || DEFAULT_LIMIT;
+  const ip  = request.headers.get('CF-Connecting-IP') || 'unknown';
+  const now = Date.now();
+
+  const minute = _bump(`m:${ip}:${url.pathname}`, cfg.perMin, 60_000, now);
+  if (minute.count > cfg.perMin) {
+    return { retryAfter: Math.max(1, Math.ceil((minute.resetAt - now) / 1000)), scope: 'minute' };
+  }
+  const day = _bump(`d:${ip}:${url.pathname}`, cfg.perDay, 86_400_000, now);
+  if (day.count > cfg.perDay) {
+    return { retryAfter: Math.max(1, Math.ceil((day.resetAt - now) / 1000)), scope: 'day' };
+  }
+  return null;
+}
+
+function allowedOrigins(env) {
+  const extra = (env.PAGES_ORIGIN || '').split(',').map(s => s.trim()).filter(Boolean);
+  return [...new Set([...extra, DEFAULT_PAGES_ORIGIN,
+    'http://localhost:8787', 'http://127.0.0.1:8787', 'http://localhost:3000'])];
+}
+
+// Rewrite the wildcard ACAO the handlers emit into a specific allowed origin.
+// Doing it in one place at the edge of the request avoids touching ~30 call sites.
+function withCors(res, request, env) {
+  const origin = request.headers.get('Origin') || '';
+  const allow  = allowedOrigins(env);
+  const h = new Headers(res.headers);
+  if (origin && allow.includes(origin)) h.set('Access-Control-Allow-Origin', origin);
+  else if (origin)                      h.set('Access-Control-Allow-Origin', allow[0]);
+  h.set('Vary', 'Origin');
+  return new Response(res.body, { status: res.status, statusText: res.statusText, headers: h });
+}
+
+// Content-Length can be omitted entirely (chunked encoding), so the header
+// check in guardRequest is a fast path, not a guarantee. This measures the
+// body we actually received. Returns null on oversize/malformed input.
+async function readJsonCapped(request) {
+  let raw;
+  try { raw = await request.text(); } catch (e) { return null; }
+  if (raw.length > MAX_BODY_BYTES) return null;
+  try { return JSON.parse(raw); } catch (e) { return null; }
+}
+
+// Reject oversized or malformed requests before any paid API is touched.
+function guardRequest(request, env, url) {
+  const len = parseInt(request.headers.get('Content-Length') || '0', 10);
+  if (len > MAX_BODY_BYTES) return jsonRes({ error: 'Request body too large' }, 413);
+
+  const rl = checkRateLimit(request, url);
+  if (rl) {
+    const res = jsonRes({
+      error: rl.scope === 'day'
+        ? 'Daily limit reached for this endpoint. Please try again tomorrow.'
+        : 'Too many requests — please slow down and try again shortly.',
+      retry_after: rl.retryAfter,
+    }, 429);
+    const h = new Headers(res.headers);
+    h.set('Retry-After', String(rl.retryAfter));
+    return new Response(res.body, { status: 429, headers: h });
+  }
+  return null;
+}
+
 export default {
   async fetch(request, env) {
-    if (request.method === 'OPTIONS') {
-      return new Response(null, { status: 204, headers: corsHeaders() });
-    }
-
     const url = new URL(request.url);
 
-    try {
+    if (request.method === 'OPTIONS') {
+      return withCors(new Response(null, { status: 204, headers: corsHeaders() }), request, env);
+    }
+
+    const blocked = guardRequest(request, env, url);
+    if (blocked) return withCors(blocked, request, env);
+
+    let res;
+    try { res = await routeRequest(request, env, url); }
+    catch (err) {
+      console.error('Worker error:', err.message, err.stack);
+      res = jsonRes({ error: err.message }, 500);
+    }
+    return withCors(res, request, env);
+  }
+};
+
+async function routeRequest(request, env, url) {
+    {
       if (url.pathname === '/version')
         return jsonRes({ version: ARIA_VERSION });
 
@@ -164,20 +277,19 @@ export default {
         return await handleChat(request, env);
 
       return jsonRes({ error: 'Unknown endpoint: ' + url.pathname }, 404);
-
-    } catch (err) {
-      console.error('Worker error:', err.message, err.stack);
-      return jsonRes({ error: err.message }, 500);
     }
-  }
-};
+}
 
 async function handleTTS(request, env) {
   if (!env.ELEVENLABS_API_KEY) return jsonRes({ error: 'ELEVENLABS_API_KEY not set' }, 500);
-  let body;
-  try { body = await request.json(); } catch (e) { return jsonRes({ error: 'Invalid JSON' }, 400); }
+  const body = await readJsonCapped(request);
+  if (!body) return jsonRes({ error: 'Invalid or oversized JSON body' }, 400);
   const { text, voice_id } = body;
   if (!text?.trim()) return jsonRes({ error: 'No text provided' }, 400);
+  if (typeof text !== 'string' || text.length > 5000) return jsonRes({ error: 'Text too long' }, 400);
+  // Voice IDs are ElevenLabs alphanumeric handles — anything else is someone
+  // trying to steer the upstream URL.
+  if (voice_id && !/^[A-Za-z0-9]{10,40}$/.test(voice_id)) return jsonRes({ error: 'Invalid voice_id' }, 400);
   const voiceId = voice_id || BELLA;
   const res = await fetchWithTimeout(`https://api.elevenlabs.io/v1/text-to-speech/${voiceId}`, {
     method: 'POST',
@@ -382,10 +494,16 @@ CRITICAL: if the request is generic ("show my emails", "gimme most important ema
 async function handleChat(request, env) {
   if (request.method !== 'POST') return jsonRes({ error: 'POST required' }, 405);
 
-  let body;
-  try { body = await request.json(); } catch (e) { return jsonRes({ error: 'Invalid JSON body' }, 400); }
+  const body = await readJsonCapped(request);
+  if (!body) return jsonRes({ error: 'Invalid or oversized JSON body' }, 400);
 
   const { messages, persona, session_id, apps: frontendApps = {}, tz } = body;
+
+  // Shape guards: reject junk before it reaches a paid model.
+  if (!Array.isArray(messages) || !messages.length) return jsonRes({ error: 'messages must be a non-empty array' }, 400);
+  if (messages.length > MAX_MESSAGES)               return jsonRes({ error: 'Too many messages in one request' }, 400);
+  const _totalChars = messages.reduce((n, m) => n + String(m?.content || '').length, 0);
+  if (_totalChars > 60000)                          return jsonRes({ error: 'Conversation too long' }, 400);
   const userTz = (typeof tz === 'string' && /^[\w/+-]{1,64}$/.test(tz)) ? tz : 'America/New_York';
   const lastMsgRaw = messages?.[messages.length - 1]?.content || '';
   // Must be `let` — multi-turn context (line ~345) reassigns this when the
