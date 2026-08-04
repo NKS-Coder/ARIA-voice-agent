@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Privacy Policy — ARIA</title>
+<style>
+:root{color-scheme:light dark;}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;line-height:1.7;
+     max-width:760px;margin:0 auto;padding:40px 24px 80px;color:#1a1a1a;background:#fff;}
+@media(prefers-color-scheme:dark){body{background:#0d1117;color:#e6edf3;}a{color:#58a6ff;}
+  .box{background:#161b22!important;border-color:#30363d!important;}code{background:#161b22!important;}}
+h1{font-size:1.8rem;margin-bottom:4px;}
+h2{font-size:1.15rem;margin-top:34px;border-bottom:1px solid rgba(128,128,128,0.2);padding-bottom:6px;}
+.updated{color:#666;font-size:0.85rem;margin-bottom:28px;}
+.box{background:#f6f8fa;border:1px solid #d0d7de;border-radius:8px;padding:14px 18px;margin:18px 0;}
+table{border-collapse:collapse;width:100%;margin:14px 0;font-size:0.92rem;}
+th,td{text-align:left;padding:8px 10px;border-bottom:1px solid rgba(128,128,128,0.2);vertical-align:top;}
+code{background:#f6f8fa;padding:1px 5px;border-radius:4px;font-size:0.88em;}
+</style>
+</head>
+<body>
+
+<h1>Privacy Policy</h1>
+<div class="updated">ARIA — Voice AI Assistant · Last updated: 4 August 2026</div>
+
+<p>ARIA is a personal project built by Nihhar K Sonee that lets you read, search, summarize and send email using your voice. This policy explains exactly what data ARIA touches, where it goes, and what it is never used for.</p>
+
+<div class="box">
+<strong>The short version:</strong> ARIA stores as little as possible. Your email content is never sold, never used to train any AI model, never read by a human, and never shared with anyone beyond the specific services needed to answer the request you made.
+</div>
+
+<h2>1. What ARIA accesses</h2>
+
+<table>
+<tr><th>Data</th><th>Why</th><th>Stored?</th></tr>
+<tr><td>Google account email, name, profile picture</td><td>To sign you in and show who is logged in</td><td>Yes — until you sign out or delete</td></tr>
+<tr><td>Google OAuth tokens</td><td>To access the mailbox you explicitly connected</td><td>Yes — encrypted at rest</td></tr>
+<tr><td>Email metadata (sender, subject, date)</td><td>To list and rank your emails</td><td>No — fetched live per request</td></tr>
+<tr><td>Email body content</td><td>Only when you ask for a summary or reply</td><td>No — processed in memory, then discarded</td></tr>
+<tr><td>Your chat messages with ARIA</td><td>To keep conversation history across devices</td><td>Yes — until you delete them</td></tr>
+<tr><td>Voice audio</td><td>Speech recognition runs <em>in your browser</em></td><td>No — audio never leaves your device</td></tr>
+</table>
+
+<h2>2. Google user data — Limited Use</h2>
+
+<p>ARIA's use of information received from Google APIs adheres to the
+<a href="https://developers.google.com/terms/api-services-user-data-policy" target="_blank" rel="noopener">Google API Services User Data Policy</a>, including the Limited Use requirements.</p>
+
+<p>Specifically, ARIA:</p>
+<ul>
+<li><strong>Does not</strong> use Gmail data to train, improve, or fine-tune any AI or machine-learning model.</li>
+<li><strong>Does not</strong> transfer Gmail data to anyone except as needed to provide the feature you requested, or as required by law.</li>
+<li><strong>Does not</strong> allow humans to read your email, except with your explicit consent, for security purposes, or where required by law.</li>
+<li><strong>Does not</strong> sell, rent, or use Gmail data for advertising of any kind.</li>
+<li>Requests the narrowest scopes that make the requested features work.</li>
+</ul>
+
+<h2>3. Third parties that process your data</h2>
+
+<p>ARIA is a thin client over a small number of providers. Data reaches them only when a request requires it:</p>
+
+<table>
+<tr><th>Provider</th><th>Receives</th><th>When</th></tr>
+<tr><td><strong>Groq</strong> (AI inference)</td><td>Your message, and email content when you ask for a summary or reply</td><td>Only on requests that need AI</td></tr>
+<tr><td><strong>ElevenLabs</strong> (speech)</td><td>The text ARIA speaks back to you</td><td>Only when voice replies are on</td></tr>
+<tr><td><strong>Google</strong></td><td>API calls against your own mailbox</td><td>Only for the mailbox you connected</td></tr>
+<tr><td><strong>Cloudflare</strong> (hosting)</td><td>Requests transit their network</td><td>Always</td></tr>
+<tr><td><strong>Supabase</strong> (database)</td><td>Session, profile, chat history, encrypted tokens</td><td>Always</td></tr>
+</table>
+
+<div class="box">
+<strong>Please note:</strong> when you ask ARIA to summarize an email or draft a reply, the content of that email is sent to Groq to generate the response. Groq does not train on API data. If you would rather no email content ever leave Google's systems, do not use the summarize or reply features.
+</div>
+
+<h2>4. What ARIA never does</h2>
+<ul>
+<li>Never sends an email without showing you the exact contents first and requiring confirmation.</li>
+<li>Never permanently deletes email. "Delete" moves a message to Trash, which you can restore.</li>
+<li>Never stores your Google password. Sign-in uses OAuth; ARIA never sees your password.</li>
+<li>Never shares your data with advertisers or data brokers.</li>
+</ul>
+
+<h2>5. Your controls</h2>
+<ul>
+<li><strong>Disconnect any app</strong> — Settings → Integrations → Disconnect. Deletes the stored tokens.</li>
+<li><strong>Sign out</strong> — clears your session, profile, connected apps and conversations from that browser.</li>
+<li><strong>Revoke access at Google</strong> — <a href="https://myaccount.google.com/permissions" target="_blank" rel="noopener">myaccount.google.com/permissions</a> at any time, independent of ARIA.</li>
+<li><strong>Delete everything</strong> — email the address below and all server-side records are removed.</li>
+</ul>
+
+<h2>6. Retention</h2>
+<p>Chat history and connected-account records persist until you delete them or ask for deletion. Email content is never written to disk — it exists only in memory for the seconds it takes to answer your request.</p>
+
+<h2>7. Security</h2>
+<p>All traffic uses HTTPS. API keys live server-side in Cloudflare Workers and are never exposed to the browser. OAuth tokens are stored encrypted and are never returned to the client. Rate limiting is in place to protect against abuse.</p>
+
+<h2>8. Beta status</h2>
+<p>ARIA is a personal project under active development, currently in limited beta. It is provided as-is, without warranty. Please do not use it for anything mission-critical.</p>
+
+<h2>9. Children</h2>
+<p>ARIA is not directed at children under 13 and does not knowingly collect their data.</p>
+
+<h2>10. Changes</h2>
+<p>Material changes will be reflected in the "last updated" date above. Continued use after a change constitutes acceptance.</p>
+
+<h2>11. Contact</h2>
+<p>Questions, access requests, or deletion requests:<br>
+<strong>Nihhar K Sonee</strong> — <a href="https://github.com/NKS-Coder/ARIA-voice-agent" target="_blank" rel="noopener">github.com/NKS-Coder/ARIA-voice-agent</a><br>
+Open an issue on the repository, or contact via the email listed on the GitHub profile.</p>
+
+<p style="margin-top:36px;font-size:0.85rem;color:#666;">
+<a href="./index.html">← Back to ARIA</a> · <a href="./terms.html">Terms of Service</a>
+</p>
+
+</body>
+</html>

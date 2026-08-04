@@ -2,9 +2,9 @@
 
 ARIA is a browser-based voice assistant that connects natural speech to real actions: reading, searching, summarizing, and sending Gmail, booking Google Calendar events, Slack messages, and weather — all through a single chat/voice interface.
 
-**Live app:** https://NKS-Coder.github.io/ARIA-voice-agent/index.html
+**Live demo:** https://nks-coder.github.io/ARIA-voice-agent/ — opens in demo mode with a sample inbox, no sign-in required.
 
-![ARIA Interface](screenshot.png)
+> **Note on Gmail access.** Reading a real inbox needs Google's *restricted* Gmail scopes, which require a CASA security assessment before an app can serve the public. ARIA is therefore in limited beta: demo mode is open to everyone, and real-inbox access is enabled per tester. See [privacy policy](https://nks-coder.github.io/ARIA-voice-agent/privacy.html).
 
 ## Architecture
 

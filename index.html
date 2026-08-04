@@ -6,7 +6,16 @@
 <meta name="theme-color" content="#05070A"/>
 <meta name="mobile-web-app-capable" content="yes"/>
 <meta name="apple-mobile-web-app-capable" content="yes"/>
-<title>ARIA</title>
+<title>ARIA — Voice AI Assistant for Email</title>
+<meta name="description" content="ARIA is a voice assistant that reads, ranks and summarizes your email — including deleted mail — and drafts replies you can send in one tap."/>
+<!-- Inline SVG favicon: no extra request, no 404, works on every modern browser -->
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='15' fill='%2305070A'/%3E%3Ccircle cx='16' cy='16' r='14' fill='none' stroke='%2300E5FF' stroke-width='1.5'/%3E%3Ccircle cx='16' cy='16' r='5' fill='%2300E5FF'/%3E%3C/svg%3E"/>
+<!-- Social preview for LinkedIn / X link unfurls -->
+<meta property="og:title" content="ARIA — Voice AI Assistant for Email"/>
+<meta property="og:description" content="Say &quot;Hey ARIA&quot; and get your most important emails — including deleted ones — summarized with ready-to-send replies. Try the live demo, no sign-in needed."/>
+<meta property="og:type" content="website"/>
+<meta property="og:url" content="https://nks-coder.github.io/ARIA-voice-agent/"/>
+<meta name="twitter:card" content="summary_large_image"/>
 <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@200;300;400;500;600;700;800&display=swap" rel="stylesheet"/>
 <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
 <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
@@ -360,6 +369,15 @@ body.right-collapsed #edgeTabRight{display:flex;}
     </div>
   </div>
 
+  <!-- Demo banner — makes it unmistakable that the inbox is sample data -->
+  <div id="demoBanner" style="display:none;flex-shrink:0;padding:7px 20px;background:rgba(255,193,7,0.08);border-bottom:1px solid rgba(255,193,7,0.18);align-items:center;gap:8px;">
+    <span class="material-symbols-outlined" style="font-size:15px;color:#ffc107;flex-shrink:0;">science</span>
+    <span style="flex:1;font-size:11px;color:rgba(255,193,7,0.85);line-height:1.4;">
+      <strong>Demo mode</strong> — sample inbox, nothing is sent or changed.
+    </span>
+    <button onclick="openModal('apps')" style="flex-shrink:0;font-size:10px;font-weight:600;padding:3px 10px;border-radius:7px;border:1px solid rgba(255,193,7,0.35);background:rgba(255,193,7,0.1);color:#ffc107;cursor:pointer;font-family:inherit;white-space:nowrap;">Use real inbox</button>
+  </div>
+
   <!-- Messages -->
   <div id="msgs"></div>
 
@@ -519,6 +537,12 @@ body.right-collapsed #edgeTabRight{display:flex;}
     <div class="tpanel" id="tab-about">
       <div class="mnote"><strong id="aboutVersion">ARIA</strong> &mdash; Built by Nihhar K Sonee (NKS-Coder)<br>Groq Llama 3.3 70B &middot; ElevenLabs TTS &middot; Cloudflare Workers &middot; Supabase<br><br>All API keys are encrypted server-side in Cloudflare.</div>
       <div class="mfld"><div class="mlbl">Worker Status</div><div id="workerStatus-about" class="minp" style="color:rgba(255,255,255,0.3);font-size:0.6rem;">Checking...</div></div>
+      <div style="margin-top:16px;padding-top:14px;border-top:1px solid rgba(255,255,255,0.06);font-size:0.68rem;color:rgba(255,255,255,0.35);line-height:1.8;">
+        <a href="./privacy.html" target="_blank" rel="noopener" style="color:#00E5FF;text-decoration:none;">Privacy Policy</a>
+        &nbsp;·&nbsp;
+        <a href="./terms.html" target="_blank" rel="noopener" style="color:#00E5FF;text-decoration:none;">Terms of Service</a>
+        <div style="margin-top:8px;color:rgba(255,255,255,0.28);">ARIA never trains AI on your email, and never sends anything without showing you the text first.</div>
+      </div>
     </div>
   </div>
 </div>
@@ -556,14 +580,18 @@ const ELEVEN_VOICES=[
   {id:'onwK4e9ZLuTAKqWW03F9',name:'Daniel',desc:'News presenter · Male'},
   {id:'yoZ06aMxZJJ28mfd3POQ',name:'Sam',desc:'Raspy · Male'},
 ];
+// `beta` — works, but Google restricted scopes mean access is whitelist-only
+//          until the app completes CASA, so the button says so honestly.
+// `soon`  — no Worker implementation exists yet. These render disabled rather
+//          than as Connect buttons that silently do nothing.
 const APPS={
-  gmail:    {name:'Gmail',          icon:'📧',auth:'google',   prompt:null},
-  calendar: {name:'Calendar',       icon:'📅',auth:'google',   prompt:null},
-  outlook:  {name:'Outlook',        icon:'💼',auth:'microsoft',prompt:null},
+  gmail:    {name:'Gmail',          icon:'📧',auth:'google',   prompt:null, beta:true},
+  calendar: {name:'Calendar',       icon:'📅',auth:'google',   prompt:null, beta:true},
+  outlook:  {name:'Outlook',        icon:'💼',auth:'microsoft',prompt:null, soon:true},
   slack:    {name:'Slack',          icon:'💬',auth:'token',    prompt:'Paste your Slack Bot Token (xoxb-...):\n\nGet from api.slack.com/apps'},
-  discord:  {name:'Discord',        icon:'🎮',auth:'webhook',  prompt:'Paste your Discord Webhook URL:\n\nGet from channel Settings → Integrations'},
-  notion:   {name:'Notion',         icon:'📝',auth:'token',    prompt:'Paste your Notion Token:\n\nGet from notion.so/my-integrations'},
-  airtable: {name:'Airtable',       icon:'🗃',auth:'token',    prompt:'Paste your Airtable Token:\n\nGet from airtable.com/create/tokens'},
+  discord:  {name:'Discord',        icon:'🎮',auth:'webhook',  prompt:null, soon:true},
+  notion:   {name:'Notion',         icon:'📝',auth:'token',    prompt:null, soon:true},
+  airtable: {name:'Airtable',       icon:'🗃',auth:'token',    prompt:null, soon:true},
 };
 
 // STATE
@@ -650,7 +678,21 @@ window.addEventListener('load', async ()=>{
   // or keypress, which is why the console logged "Audio.play() blocked" and the
   // first greeting was silent. Once the user clicks/taps/types anywhere, the
   // spoken greeting fires exactly once.
-  addMsg('assistant', "Hello. I'm ARIA. Click the mic and speak, or type below.");
+  // First-time visitors land straight in demo mode. Real Gmail is whitelist-only
+  // until verification clears, so an empty app with a Connect button that fails
+  // is the worst first impression — this way everyone sees the full product.
+  const _firstVisit = !localStorage.getItem('aria_seen');
+  localStorage.setItem('aria_seen','1');
+  const _hasRealGmail = !!(C.apps.gmail?.connected && !C.apps.gmail?.demo);
+  if(_firstVisit && !_hasRealGmail && !isDemo()){
+    sessionStorage.setItem('aria_demo','1');
+    C.saveApp('gmail',{connected:true,email:'demo@ariademo.app',demo:true});
+    syncApps();
+    addMsg('assistant', "Hello, I'm ARIA — your voice assistant for email.\n\nYou're in demo mode with a sample inbox, so you can try everything right now. Say or type:\n\n  \"show my most important emails including deleted ones\"\n\nClick the mic to talk, or turn on \"Hey ARIA\" for hands-free.");
+  } else {
+    addMsg('assistant', "Hello. I'm ARIA. Click the mic and speak, or type below.");
+  }
+  syncDemoBanner();
   window._ariaSkipNextAutoListen = true; // don't auto-listen after welcome — prevents echo loop
   const greet = () => {
     if(window._ariaGreeted) return;
@@ -1610,8 +1652,11 @@ const DEMO_EMAILS = [
 ];
 function isDemo(){ return sessionStorage.getItem('aria_demo')==='1'; }
 function syncDemoBtn(){
-  const b=$('demoBtn'); if(!b) return;
-  b.textContent = isDemo() ? 'Stop' : 'Start';
+  const b=$('demoBtn'); if(b) b.textContent = isDemo() ? 'Stop' : 'Start';
+  syncDemoBanner();
+}
+function syncDemoBanner(){
+  const el=$('demoBanner'); if(el) el.style.display = isDemo() ? 'flex' : 'none';
 }
 function toggleDemo(){
   if(isDemo()){ exitDemo(); addMsg('assistant','Demo mode off. Connect Gmail in Settings to use your real inbox.'); }
@@ -1936,6 +1981,20 @@ window.addEventListener('message', (event) => {
 
 function connectApp(name){
   const app=APPS[name];if(!app)return;
+  if(app.soon){ addMsg('assistant',`${app.name} isn't built yet — it's on the roadmap. Try demo mode to see how the email features work.`); return; }
+  // Google restricted scopes: only whitelisted testers can authorize until the
+  // app clears verification. Say so up front instead of letting the user hit a
+  // dead-end "access_denied" screen with no explanation.
+  if(app.beta){
+    const proceed = confirm(
+      `${app.name} is in limited beta.\n\n`+
+      `Google requires a security review before any app can read real inboxes, so ${app.name} access is currently limited to approved testers.\n\n`+
+      `• Already approved? Click OK to sign in.\n`+
+      `• Not yet? Click Cancel and try Demo Mode — it shows the full experience with a sample inbox.\n\n`+
+      `To request access, contact the developer with the Google address you'd use.`
+    );
+    if(!proceed){ if(typeof enterDemo==='function'&&!isDemo()){ enterDemo(); syncDemoBtn(); D.modal.classList.remove('open'); } return; }
+  }
   if(app.auth==='google'||app.auth==='microsoft'){
     // Fetch OAuth URL from Worker then open as popup
     fetch(`${W}/auth/${app.auth}/url?app=${name}&session=${getSession()}`)
@@ -1997,9 +2056,23 @@ function syncApps(){
   const apps=C.apps;
   Object.keys(APPS).forEach(name=>{
     const b=$(`btn-${name}`),c=$(`card-${name}`),d=$(`desc-${name}`);if(!b||!c)return;
+    const meta=APPS[name]||{};
     const ok=apps[name]?.connected;c.classList.toggle('on',ok);
+    // Not built yet — show it as unavailable instead of a button that no-ops.
+    if(meta.soon){
+      if(d)d.textContent='Coming soon';
+      b.textContent='Soon';b.className='abtn';b.disabled=true;b.onclick=null;
+      b.style.cssText='font-size:0.62rem;font-weight:600;padding:5px 12px;border-radius:8px;border:1px solid rgba(255,255,255,0.08);background:rgba(255,255,255,0.02);color:rgba(255,255,255,0.25);cursor:not-allowed;font-family:inherit;';
+      c.style.opacity='0.55';
+      return;
+    }
+    c.style.opacity='';b.disabled=false;b.style.cssText='';
     if(ok){if(d)d.textContent=apps[name]?.email?`✓ ${apps[name].email}`:'✓ Connected';b.textContent='Disconnect';b.className='abtn disco';b.onclick=()=>disconnectApp(name);}
-    else{if(d)d.textContent={gmail:'Send, read, sort emails',calendar:'Book meetings',outlook:'Send and read emails',slack:'Send to channels',discord:'Post to channels',notion:'Create notes',airtable:'Log data'}[name]||'';b.textContent='Connect';b.className='abtn connect';b.onclick=()=>connectApp(name);}
+    else{
+      const base={gmail:'Send, read, sort emails',calendar:'Book meetings',slack:'Send to channels'}[name]||'';
+      if(d)d.textContent=meta.beta?`${base} · beta access`:base;
+      b.textContent=meta.beta?'Request':'Connect';b.className='abtn connect';b.onclick=()=>connectApp(name);
+    }
   });
   const connected=Object.keys(apps).filter(k=>apps[k]?.connected);
   D.sApps.innerHTML='';
