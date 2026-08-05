@@ -1115,7 +1115,8 @@ async function resolveUserSession(userInfo, env, fallbackSession) {
     if (rows?.length && rows[0].session_id) return rows[0].session_id;
     const sid = mint();
     await sbPost(env, '/rest/v1/users?on_conflict=email', {
-      email: userInfo.email, name: userInfo.name || '', picture: userInfo.picture || '',
+      // Column is avatar_url, not picture — matches the pre-existing users table.
+      email: userInfo.email, name: userInfo.name || '', avatar_url: userInfo.picture || '',
       session_id: sid, created_at: new Date().toISOString()
     });
     return sid;
@@ -1131,8 +1132,8 @@ async function authMe(url, env) {
   const session = url.searchParams.get('session');
   if (!session || !env.SUPABASE_URL) return jsonRes({ signed_in: false });
   try {
-    const rows = await sbGet(env, `/rest/v1/users?session_id=eq.${enc(session)}&select=email,name,picture`);
-    if (rows?.length) return jsonRes({ signed_in: true, email: rows[0].email || '', name: rows[0].name || '', picture: rows[0].picture || '' });
+    const rows = await sbGet(env, `/rest/v1/users?session_id=eq.${enc(session)}&select=email,name,avatar_url`);
+    if (rows?.length) return jsonRes({ signed_in: true, email: rows[0].email || '', name: rows[0].name || '', picture: rows[0].avatar_url || '' });
     return jsonRes({ signed_in: false });
   } catch (e) { return jsonRes({ signed_in: false }); }
 }
