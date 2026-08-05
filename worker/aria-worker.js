@@ -10,6 +10,10 @@
 //    Pages origin (no more '*'); Groq fallback also covers decommissioned-model
 //    errors; calendar events use the user's real browser timezone; expanded
 //    slang/typo map; misc dead code removed.
+//  - v17.1 OAuth popup posts back to the ORIGIN THAT OPENED IT (validated),
+//    fixing "completed but could not verify" on localhost and any non-Pages
+//    origin. user_apps save falls back to delete+insert when the table has no
+//    unique(session_id,app_name) constraint. Native CF rate-limit bindings.
 //  - v16.9 fuzzy language layer: normalizeSlang() rewrites slang/typos/texting
 //    shorthand (gimme, plz, imp, singlemost, 2day, tmrw, ...) before intent
 //    routing and count/time parsing. "singlemost important mail of today" now
@@ -28,7 +32,7 @@
 // to the string value, so esbuild keeps it at the top of the bundled/deployed
 // code — this is what makes the version visible in the Cloudflare editor.
 // Also exposed at /health and /version. Bump this one line each release.
-const ARIA_VERSION = /* ═══════════  ARIA PROXY · DEPLOYED VERSION → v17.0  ═══════════ */ 'v17.0';
+const ARIA_VERSION = /* ═══════════  ARIA PROXY · DEPLOYED VERSION → v17.1  ═══════════ */ 'v17.1';
 
 const BELLA = 'EXAVITQu4vr4xnSDxMaL';
 
