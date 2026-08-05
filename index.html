@@ -1986,15 +1986,59 @@ function connectApp(name){
   // app clears verification. Say so up front instead of letting the user hit a
   // dead-end "access_denied" screen with no explanation.
   if(app.beta){
-    const proceed = confirm(
-      `${app.name} is in limited beta.\n\n`+
-      `Google requires a security review before any app can read real inboxes, so ${app.name} access is currently limited to approved testers.\n\n`+
-      `• Already approved? Click OK to sign in.\n`+
-      `• Not yet? Click Cancel and try Demo Mode — it shows the full experience with a sample inbox.\n\n`+
-      `To request access, contact the developer with the Google address you'd use.`
-    );
-    if(!proceed){ if(typeof enterDemo==='function'&&!isDemo()){ enterDemo(); syncDemoBtn(); D.modal.classList.remove('open'); } return; }
+    _showBetaGate(app.name).then(choice=>{
+      if(choice==='signin')  _startOAuth(name, app);
+      else if(choice==='demo'){ if(!isDemo()){ enterDemo(); syncDemoBtn(); } D.modal.classList.remove('open'); }
+      // 'request' opens the access request in a new tab; nothing else to do here
+    });
+    return;
   }
+  _startOAuth(name, app);
+}
+
+// Beta gate: Google requires a security assessment before an app may read real
+// inboxes, so real-Gmail access is limited to approved testers. Rather than
+// letting someone hit an opaque "access_denied", offer the three real paths.
+function _showBetaGate(appName){
+  return new Promise(resolve=>{
+    const old=$('_ariaBetaGate'); if(old) old.remove();
+    const ov=document.createElement('div');
+    ov.id='_ariaBetaGate';
+    ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,0.78);z-index:999999;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(5px);padding:20px;';
+    const btn='display:block;width:100%;text-align:left;padding:12px 14px;margin-bottom:9px;border-radius:11px;cursor:pointer;font-family:inherit;font-size:0.78rem;line-height:1.45;transition:all 0.15s;';
+    ov.innerHTML=
+      '<div style="background:#0d1117;border:1px solid rgba(255,255,255,0.1);border-radius:16px;padding:24px;max-width:440px;width:100%;box-shadow:0 8px 40px rgba(0,0,0,0.7);">'+
+        '<div style="font-size:0.72rem;font-weight:700;color:#ffc107;text-transform:uppercase;letter-spacing:0.12em;margin-bottom:10px;">Limited beta</div>'+
+        '<div style="font-size:0.8rem;color:rgba(255,255,255,0.62);line-height:1.65;margin-bottom:18px;">'+
+          'Google requires a security assessment before any app can read real inboxes, so '+escHtml(appName)+' access is currently limited to approved testers.'+
+        '</div>'+
+        '<button id="_bgDemo" style="'+btn+'background:rgba(0,229,255,0.1);border:1px solid rgba(0,229,255,0.35);color:#00E5FF;">'+
+          '<strong>Try the demo</strong><div style="font-size:0.68rem;opacity:0.75;margin-top:2px;">Full experience with a sample inbox — no sign-in</div></button>'+
+        '<button id="_bgReq" style="'+btn+'background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.12);color:rgba(255,255,255,0.8);">'+
+          '<strong>Request beta access</strong><div style="font-size:0.68rem;opacity:0.7;margin-top:2px;">Opens a short request — usually approved within a day</div></button>'+
+        '<button id="_bgIn" style="'+btn+'background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.09);color:rgba(255,255,255,0.55);margin-bottom:0;">'+
+          '<strong>I\'m already approved</strong><div style="font-size:0.68rem;opacity:0.7;margin-top:2px;">Sign in with your approved Google account</div></button>'+
+        '<div style="text-align:center;margin-top:14px;"><button id="_bgX" style="background:none;border:none;color:rgba(255,255,255,0.3);font-size:0.72rem;cursor:pointer;font-family:inherit;">Cancel</button></div>'+
+      '</div>';
+    document.body.appendChild(ov);
+    const done=v=>{ov.remove();resolve(v);};
+    $('_bgDemo').onclick=()=>done('demo');
+    $('_bgIn').onclick  =()=>done('signin');
+    $('_bgX').onclick   =()=>done(null);
+    $('_bgReq').onclick =()=>{
+      window.open('https://github.com/NKS-Coder/ARIA-voice-agent/issues/new?title='+
+        encodeURIComponent('Beta access request')+'&body='+
+        encodeURIComponent('I\'d like to try ARIA with my real inbox.\n\nGoogle address to whitelist: \n\nWhat I want to try: \n'),
+        '_blank','noopener');
+      addMsg('assistant','Opened the beta request. Once your address is added to the tester list you can connect Gmail — meanwhile, demo mode shows the full experience.');
+      if(!isDemo()){ enterDemo(); syncDemoBtn(); }
+      done('request');
+    };
+    ov.addEventListener('click',e=>{ if(e.target===ov) done(null); });
+  });
+}
+
+function _startOAuth(name, app){
   if(app.auth==='google'||app.auth==='microsoft'){
     // Fetch OAuth URL from Worker then open as popup
     fetch(`${W}/auth/${app.auth}/url?app=${name}&session=${getSession()}`)
