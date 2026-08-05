@@ -289,9 +289,9 @@ async function routeRequest(request, env, url) {
       if (url.pathname === '/tts')        return await handleTTS(request, env);
       if (url.pathname === '/tts/quota')  return await handleTTSQuota(env);
 
-      if (url.pathname === '/auth/google/url')         return googleAuthURL(url, env);
+      if (url.pathname === '/auth/google/url')         return googleAuthURL(url, env, request);
       if (url.pathname === '/auth/google/callback')    return await googleCallback(url, env);
-      if (url.pathname === '/auth/microsoft/url')      return microsoftAuthURL(url, env);
+      if (url.pathname === '/auth/microsoft/url')      return microsoftAuthURL(url, env, request);
       if (url.pathname === '/auth/microsoft/callback') return await microsoftCallback(url, env);
 
       if (url.pathname === '/auth/me')            return await authMe(url, env);
@@ -1093,12 +1093,55 @@ async function extractJSON(message, prompt, env) {
   catch (e) { return null; }
 }
 
+
+// PostgREST's on_conflict upsert requires a matching unique constraint. A
+// pre-existing user_apps table without unique(session_id, app_name) makes the
+// request fail with 42P10 — and because the call site swallowed errors, the
+// connection silently never persisted and the UI reported "could not verify
+// the connection". Fall back to delete-then-insert so this works on any table
+// shape, and log loudly instead of failing quietly.
+async function saveUserApp(env, row) {
+  try {
+    const up = await fetch(`${env.SUPABASE_URL}/rest/v1/user_apps?on_conflict=session_id,app_name`, {
+      method: 'POST',
+      headers: { ...sbHeaders(env), 'Prefer': 'resolution=merge-duplicates,return=minimal' },
+      body: JSON.stringify(row)
+    });
+    if (up.ok) return true;
+    const detail = await up.text().catch(() => '');
+    console.warn('[supabase] user_apps upsert failed, retrying as delete+insert:', up.status, detail.slice(0, 200));
+
+    await fetch(`${env.SUPABASE_URL}/rest/v1/user_apps?session_id=eq.${enc(row.session_id)}&app_name=eq.${enc(row.app_name)}`,
+      { method: 'DELETE', headers: sbHeaders(env) }).catch(() => {});
+    const ins = await fetch(`${env.SUPABASE_URL}/rest/v1/user_apps`, {
+      method: 'POST', headers: { ...sbHeaders(env), 'Prefer': 'return=minimal' }, body: JSON.stringify(row)
+    });
+    if (!ins.ok) console.error('[supabase] user_apps insert failed:', ins.status, (await ins.text().catch(() => '')).slice(0, 200));
+    return ins.ok;
+  } catch (e) {
+    console.error('[supabase] saveUserApp threw:', e.message);
+    return false;
+  }
+}
+
 // ── AUTH ──────────────────────────────────────────────────────
 
-function googleAuthURL(url, env) {
+// The OAuth popup must postMessage back to the page that opened it. Hardcoding
+// the Pages origin broke every other allowed origin (notably localhost during
+// development): the browser silently drops a postMessage whose targetOrigin
+// doesn't match, so the connection could never be confirmed. Carry the opening
+// origin through OAuth state, validated against the allowlist so an attacker
+// can't redirect tokens to their own site.
+function pickAllowedOrigin(candidate, env) {
+  const allow = allowedOrigins(env);
+  return (candidate && allow.includes(candidate)) ? candidate : (env.PAGES_ORIGIN || DEFAULT_PAGES_ORIGIN);
+}
+
+function googleAuthURL(url, env, request) {
   const app = url.searchParams.get('app') || 'signin';
   const session = url.searchParams.get('session') || '';
-  const state = btoa(JSON.stringify({ app, session }));
+  const origin = pickAllowedOrigin(request?.headers?.get('Origin') || url.searchParams.get('origin'), env);
+  const state = btoa(JSON.stringify({ app, session, origin }));
   const scopes = { signin: 'openid email profile', gmail: 'openid email profile https://www.googleapis.com/auth/gmail.modify https://www.googleapis.com/auth/gmail.send', calendar: 'openid email profile https://www.googleapis.com/auth/calendar' };
   const authUrl = 'https://accounts.google.com/o/oauth2/v2/auth?' + new URLSearchParams({ client_id: env.GOOGLE_CLIENT_ID, redirect_uri: `https://${env.WORKER_HOST}/auth/google/callback`, response_type: 'code', scope: scopes[app] || scopes.signin, access_type: 'offline', prompt: 'consent', state });
   return jsonRes({ url: authUrl });
@@ -1161,7 +1204,7 @@ async function googleCallback(url, env) {
   }
 
   if (env.SUPABASE_URL && sessionId) {
-    await sbPost(env, '/rest/v1/user_apps?on_conflict=session_id,app_name', { session_id: sessionId, app_name: state.app, access_token: tokens.access_token, refresh_token: tokens.refresh_token || null, email: userInfo.email || '', connected_at: new Date().toISOString() }).catch(e => console.error('Supabase save:', e.message));
+    await saveUserApp(env, { session_id: sessionId, app_name: state.app, access_token: tokens.access_token, refresh_token: tokens.refresh_token || null, email: userInfo.email || '', connected_at: new Date().toISOString() });
   }
   const appName = { signin: 'your account', gmail: 'Gmail', calendar: 'Google Calendar' }[state.app] || state.app;
   const payload = {
@@ -1178,15 +1221,16 @@ async function googleCallback(url, env) {
     <p>${escapeHtml(userInfo.name || userInfo.email)} is now connected to ARIA.<br>Closing automatically...</p>
     <button onclick="window.close()">Close</button>
     <script>
-      try { if(window.opener) window.opener.postMessage(${jsForScript(payload)}, ${jsForScript(env.PAGES_ORIGIN || DEFAULT_PAGES_ORIGIN)}); } catch(e){}
+      try { if(window.opener) window.opener.postMessage(${jsForScript(payload)}, ${jsForScript(pickAllowedOrigin(state.origin, env))}); } catch(e){}
       setTimeout(()=>window.close(),2500);
     <\/script>`);
 }
 
-function microsoftAuthURL(url, env) {
+function microsoftAuthURL(url, env, request) {
   if (!env.MICROSOFT_CLIENT_ID) return jsonRes({ error: 'Microsoft not configured' }, 500);
   const session = url.searchParams.get('session') || '';
-  const state = btoa(JSON.stringify({ session }));
+  const origin = pickAllowedOrigin(request?.headers?.get('Origin') || url.searchParams.get('origin'), env);
+  const state = btoa(JSON.stringify({ session, origin }));
   const authUrl = 'https://login.microsoftonline.com/common/oauth2/v2.0/authorize?' + new URLSearchParams({ client_id: env.MICROSOFT_CLIENT_ID, response_type: 'code', redirect_uri: `https://${env.WORKER_HOST}/auth/microsoft/callback`, scope: 'openid email profile Mail.Send Mail.Read Calendars.ReadWrite offline_access', state, prompt: 'select_account' });
   return jsonRes({ url: authUrl });
 }
@@ -1204,7 +1248,7 @@ async function microsoftCallback(url, env) {
   const user = await userRes.json();
   const email = user.mail || user.userPrincipalName || '';
   if (env.SUPABASE_URL && state.session) {
-    await sbPost(env, '/rest/v1/user_apps?on_conflict=session_id,app_name', { session_id: state.session, app_name: 'outlook', access_token: tokens.access_token, refresh_token: tokens.refresh_token || null, email, connected_at: new Date().toISOString() }).catch(() => {});
+    await saveUserApp(env, { session_id: state.session, app_name: 'outlook', access_token: tokens.access_token, refresh_token: tokens.refresh_token || null, email, connected_at: new Date().toISOString() });
   }
   const msPayload = {
     type: 'ARIA_OAUTH_SUCCESS', app: 'outlook', email, session: state.session,
@@ -1216,7 +1260,7 @@ async function microsoftCallback(url, env) {
     <p>${escapeHtml(user.displayName || email)} connected.<br>Closing automatically...</p>
     <button onclick="window.close()">Close</button>
     <script>
-      try { if(window.opener) window.opener.postMessage(${jsForScript(msPayload)}, ${jsForScript(env.PAGES_ORIGIN || DEFAULT_PAGES_ORIGIN)}); } catch(e){}
+      try { if(window.opener) window.opener.postMessage(${jsForScript(msPayload)}, ${jsForScript(pickAllowedOrigin(state.origin, env))}); } catch(e){}
       setTimeout(()=>window.close(),2500);
     <\/script>`);
 }
@@ -1270,7 +1314,7 @@ async function handleConnect(request, env) {
   const { app, token, session } = await request.json().catch(() => ({}));
   if (!app || !token || !session) return jsonRes({ error: 'Missing fields' }, 400);
   if (!env.SUPABASE_URL) return jsonRes({ success: true });
-  await sbPost(env, '/rest/v1/user_apps?on_conflict=session_id,app_name', { session_id: session, app_name: app, access_token: token, connected_at: new Date().toISOString() }).catch(() => {});
+  await saveUserApp(env, { session_id: session, app_name: app, access_token: token, connected_at: new Date().toISOString() });
   return jsonRes({ success: true });
 }
 
