@@ -266,7 +266,10 @@ async function routeRequest(request, env, url) {
         return jsonRes({ version: ARIA_VERSION });
 
       if (url.pathname === '/health')
-        return jsonRes({ status: `ARIA ${ARIA_VERSION} ✅`, version: ARIA_VERSION, groq: !!env.GROQ_API_KEY, elevenlabs: !!env.ELEVENLABS_API_KEY, google: !!env.GOOGLE_CLIENT_ID, supabase: !!env.SUPABASE_URL });
+        // ratelimit:true means the Cloudflare bindings are really attached. A
+        // wrong wrangler.toml key silently falls back to the (ineffective)
+        // in-memory counters, so this is surfaced rather than assumed.
+        return jsonRes({ status: `ARIA ${ARIA_VERSION} ✅`, version: ARIA_VERSION, groq: !!env.GROQ_API_KEY, elevenlabs: !!env.ELEVENLABS_API_KEY, google: !!env.GOOGLE_CLIENT_ID, supabase: !!env.SUPABASE_URL, ratelimit: !!(env.TTS_LIMITER && env.CHAT_LIMITER && env.API_LIMITER) });
 
       if (url.pathname === '/tts')        return await handleTTS(request, env);
       if (url.pathname === '/tts/quota')  return await handleTTSQuota(env);
