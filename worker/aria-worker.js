@@ -136,14 +136,14 @@ async function groqFetch(params, env, ms = 28000) {
 //  isolate recycling and spans colos.
 // ═══════════════════════════════════════════════════════════════
 const RATE_LIMITS = {
-  '/tts':           { perMin: 15, perDay: 300 },  // most expensive (ElevenLabs chars)
-  '/chat':          { perMin: 20, perDay: 500 },
-  '/':              { perMin: 20, perDay: 500 },
-  '/analyze-email': { perMin: 20, perDay: 400 },
-  '/title':         { perMin: 20, perDay: 400 },
-  '/connect':       { perMin: 10, perDay: 100 },
+  '/tts':           { perMin: 15, perDay: 300, binding: 'TTS_LIMITER'  },  // most expensive (ElevenLabs chars)
+  '/chat':          { perMin: 20, perDay: 500, binding: 'CHAT_LIMITER' },
+  '/':              { perMin: 20, perDay: 500, binding: 'CHAT_LIMITER' },
+  '/analyze-email': { perMin: 20, perDay: 400, binding: 'CHAT_LIMITER' },
+  '/title':         { perMin: 20, perDay: 400, binding: 'CHAT_LIMITER' },
+  '/connect':       { perMin: 10, perDay: 100, binding: 'API_LIMITER'  },
 };
-const DEFAULT_LIMIT   = { perMin: 60, perDay: 2000 };
+const DEFAULT_LIMIT   = { perMin: 60, perDay: 2000, binding: 'API_LIMITER' };
 const MAX_BODY_BYTES  = 128 * 1024;   // generous for chat history, absurd for abuse
 const MAX_MESSAGES    = 60;
 
@@ -160,11 +160,26 @@ function _bump(key, limit, windowMs, now) {
   return b;
 }
 
-function checkRateLimit(request, url) {
+async function checkRateLimit(request, env, url) {
   const cfg = RATE_LIMITS[url.pathname] || DEFAULT_LIMIT;
   const ip  = request.headers.get('CF-Connecting-IP') || 'unknown';
   const now = Date.now();
 
+  // Primary: Cloudflare's native limiter. The in-memory Map below CANNOT be
+  // relied on — requests from one client land on different isolates, each with
+  // its own copy, so counters never accumulate (confirmed in production).
+  const limiter = cfg.binding && env[cfg.binding];
+  if (limiter && typeof limiter.limit === 'function') {
+    try {
+      const { success } = await limiter.limit({ key: `${ip}:${url.pathname}` });
+      if (!success) return { retryAfter: 60, scope: 'minute' };
+    } catch (e) {
+      console.warn('[ratelimit] binding failed, falling back:', e.message);
+    }
+  }
+
+  // Secondary: per-isolate counters. Catches same-isolate bursts and enforces
+  // the daily ceiling; kept as defence-in-depth, never as the only line.
   const minute = _bump(`m:${ip}:${url.pathname}`, cfg.perMin, 60_000, now);
   if (minute.count > cfg.perMin) {
     return { retryAfter: Math.max(1, Math.ceil((minute.resetAt - now) / 1000)), scope: 'minute' };
@@ -205,11 +220,11 @@ async function readJsonCapped(request) {
 }
 
 // Reject oversized or malformed requests before any paid API is touched.
-function guardRequest(request, env, url) {
+async function guardRequest(request, env, url) {
   const len = parseInt(request.headers.get('Content-Length') || '0', 10);
   if (len > MAX_BODY_BYTES) return jsonRes({ error: 'Request body too large' }, 413);
 
-  const rl = checkRateLimit(request, url);
+  const rl = await checkRateLimit(request, env, url);
   if (rl) {
     const res = jsonRes({
       error: rl.scope === 'day'
@@ -232,7 +247,7 @@ export default {
       return withCors(new Response(null, { status: 204, headers: corsHeaders() }), request, env);
     }
 
-    const blocked = guardRequest(request, env, url);
+    const blocked = await guardRequest(request, env, url);
     if (blocked) return withCors(blocked, request, env);
 
     let res;
