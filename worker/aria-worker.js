@@ -271,6 +271,21 @@ async function routeRequest(request, env, url) {
         // in-memory counters, so this is surfaced rather than assumed.
         return jsonRes({ status: `ARIA ${ARIA_VERSION} ✅`, version: ARIA_VERSION, groq: !!env.GROQ_API_KEY, elevenlabs: !!env.ELEVENLABS_API_KEY, google: !!env.GOOGLE_CLIENT_ID, supabase: !!env.SUPABASE_URL, ratelimit: !!(env.TTS_LIMITER && env.CHAT_LIMITER && env.API_LIMITER) });
 
+      // Diagnostic: the bindings report as present but were not blocking, and
+      // that is not observable from outside. Calls the limiter repeatedly and
+      // reports what it actually returns. Leaks nothing; safe to keep.
+      if (url.pathname === '/debug/ratelimit') {
+        const name = url.searchParams.get('b') || 'CHAT_LIMITER';
+        const b = env[name];
+        if (!b || typeof b.limit !== 'function') return jsonRes({ binding: name, present: false });
+        const results = [];
+        for (let i = 0; i < 25; i++) {
+          try { const r = await b.limit({ key: 'diagnostic-probe' }); results.push(r?.success); }
+          catch (e) { return jsonRes({ binding: name, present: true, threw: e.message, at: i }); }
+        }
+        return jsonRes({ binding: name, present: true, allowed: results.filter(Boolean).length, blocked: results.filter(r => r === false).length, raw: results.slice(0, 25) });
+      }
+
       if (url.pathname === '/tts')        return await handleTTS(request, env);
       if (url.pathname === '/tts/quota')  return await handleTTSQuota(env);
 
