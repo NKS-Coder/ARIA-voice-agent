@@ -1196,6 +1196,52 @@ function speak(txt) {
 
 // MICROPHONE
 const SR=window.SpeechRecognition||window.webkitSpeechRecognition;let rec=null;
+
+// ── DICTATION BUFFER ──────────────────────────────────────────
+// Chrome marks a result "final" after roughly a second of silence, and the old
+// code submitted the moment that happened. Anyone who paused mid-sentence to
+// think got cut off and a half-finished command was sent. Instead we treat one
+// dictation as spanning many final results: accumulate them, reset a silence
+// timer on every scrap of speech, and only submit once the user has genuinely
+// stopped talking. Chrome also ends recognition on its own during a pause, so
+// while a dictation is open we transparently restart it.
+let _dictActive=false;      // a dictation is in progress
+let _dictCommitted='';      // text carried over from earlier recognizer instances
+let _dictSession='';        // text from the CURRENT recognizer instance
+let _dictTimer=null;        // silence countdown
+let _dictTick=null;         // UI countdown
+const DICT_SILENCE_MS=(()=>{const v=parseInt(localStorage.getItem('aria_pause_ms')||'',10);
+  return (v>=800&&v<=8000)?v:2500;})();   // tunable: localStorage.aria_pause_ms
+
+function _dictText(){ return (_dictCommitted+' '+_dictSession).replace(/\s+/g,' ').trim(); }
+function _dictClearTimers(){
+  if(_dictTimer){clearTimeout(_dictTimer);_dictTimer=null;}
+  if(_dictTick){clearInterval(_dictTick);_dictTick=null;}
+}
+function _dictCancel(){ _dictClearTimers(); _dictActive=false; _dictCommitted=''; _dictSession=''; }
+
+// Restart the silence countdown. Called on ANY speech activity, interim or
+// final — that is what makes pausing safe.
+function _dictArm(){
+  _dictClearTimers();
+  if(!_dictActive) return;
+  const deadline=Date.now()+DICT_SILENCE_MS;
+  _dictTick=setInterval(()=>{
+    const left=Math.ceil((deadline-Date.now())/1000);
+    if(left>0 && _dictText()) D.inp.placeholder=`Keep talking… sending in ${left}s`;
+  },250);
+  _dictTimer=setTimeout(_dictSubmit,DICT_SILENCE_MS);
+}
+
+// The user stopped speaking long enough — send what we heard.
+function _dictSubmit(){
+  _dictClearTimers();
+  const text=_dictText();
+  _dictActive=false; _dictCommitted=''; _dictSession='';
+  stopListen();
+  if(text){ D.inp.value=text; autoResize(); sendMsg(); }
+}
+
 function buildRec(){
   if(!SR)return false;
   rec=new SR();rec.continuous=true;rec.interimResults=true;rec.lang='en-US';
@@ -1219,24 +1265,35 @@ function buildRec(){
     const t=Array.from(e.results).map(r=>r[0].transcript).join('');
     const lt=document.getElementById('liveTxt');
     if(lt){lt.textContent=t||'Listening...';}
-    // Show live interim text in the prompt bar as the user speaks
-    if(!e.results[e.results.length-1].isFinal){D.inp.value=t;autoResize();}
-    if(e.results[e.results.length-1].isFinal){
-      // Echo gate: only within first 2s of auto-listen start AND word-overlap match
-      // Disabled during wake-triggered windows (_wakeListenActive) so user speech isn't swallowed
+
+    const isFinal=e.results[e.results.length-1].isFinal;
+
+    // Echo gate: ARIA hearing its own voice. Checked before buffering so its
+    // own words never enter the transcript.
+    if(isFinal){
       const fresh=Date.now()-_autoListenStart<2000;
       if(S.autoListening&&fresh&&!window._wakeListenActive&&_isEcho(t,S.lastText)){
-        // Restart recognition silently — keep the 5s window alive
         S.listening=false;
         const _ok=_autoListenT||window._wakeListenActive;
         setTimeout(()=>{if(S.autoListening&&_ok){buildRec();try{rec.start();S.listening=true;}catch(x){}}},300);
         return;
       }
-      D.inp.value=t;autoResize();
+    }
+
+    // Buffer rather than submit. A final result is just "Chrome heard a pause",
+    // NOT "the user is done" — only DICT_SILENCE_MS of real quiet means that.
+    _dictActive=true;
+    _dictSession=t;
+    D.inp.value=_dictText(); autoResize();
+    _dictArm();
+
+    if(isFinal){
       clearAutoListenTimer();
-      window._wakeListenActive=false; // command received — close wake window
+      window._wakeListenActive=false;
       if(window._wakeCountT){clearInterval(window._wakeCountT);window._wakeCountT=null;}
-      stopListen();sendMsg();
+      // Chrome usually ends the recognizer right after a final result; onend
+      // restarts it and rolls this text into _dictCommitted so the next chunk
+      // appends instead of overwriting.
     }
   };
   rec.onerror=e=>{
@@ -1254,6 +1311,19 @@ function buildRec(){
       },300);
       return;
     }
+    // Mid-dictation no-speech: the user is thinking, not finished. Preserve what
+    // they already said and restart, exactly as onend does. Without this branch
+    // the buffer is silently dropped and their sentence loses its first half.
+    if(_dictActive&&(e.error==='no-speech'||e.error==='aborted')){
+      _dictCommitted=_dictText(); _dictSession='';
+      setTimeout(()=>{
+        if(!_dictActive) return;
+        buildRec();
+        try{ rec.start(); S.listening=true; setMode('listening'); }
+        catch(x){ _dictSubmit(); }
+      },150);
+      return;
+    }
     // Manual mic: restart on no-speech/aborted ONLY if we were actively listening
     // (wasListening=false means stopListen() explicitly stopped us — don't restart).
     if(!S.autoListening&&wasListening&&(e.error==='no-speech'||e.error==='aborted')){
@@ -1268,6 +1338,22 @@ function buildRec(){
     else if(e.error!=='no-speech'&&e.error!=='aborted')addMsg('assistant',`Mic error: ${e.error}`,true);
   };
   rec.onend=()=>{
+    // Mid-dictation: Chrome ends the recognizer during a pause. Roll this
+    // instance's text into the committed buffer and start a fresh recognizer
+    // so the user can keep talking. Without this, pausing ends the session and
+    // everything said afterwards is lost.
+    if(_dictActive){
+      _dictCommitted=_dictText();
+      _dictSession='';
+      S.listening=false;
+      setTimeout(()=>{
+        if(!_dictActive) return;              // silence timer already submitted
+        buildRec();
+        try{ rec.start(); S.listening=true; setMode('listening'); }
+        catch(x){ _dictSubmit(); }            // cannot restart — send what we have
+      },120);
+      return;
+    }
     // Restart recognition if: normal auto-listen countdown OR wake listen window is active
     if(S.autoListening&&(_autoListenT||window._wakeListenActive)){
       S.listening=false;
@@ -1335,8 +1421,19 @@ async function startListen(){
   }
 }
 
-function stopListen(){clearAutoListenTimer();S.listening=false;setMode('ready');try{rec?.stop();}catch(e){}D.inp.placeholder='Command ARIA...';setTimeout(()=>{window._ariaManualActive=false;},800);}
-D.mic.addEventListener('click',()=>{unlockAudio();if(S.listening)stopListen();else startListen();});
+// Clears dictation state first, otherwise rec.stop() fires onend, onend sees an
+// open dictation and helpfully restarts the recognizer we just asked to stop.
+function stopListen(){_dictCancel();clearAutoListenTimer();S.listening=false;setMode('ready');try{rec?.stop();}catch(e){}D.inp.placeholder='Command ARIA...';setTimeout(()=>{window._ariaManualActive=false;},800);}
+
+// Tapping the mic while it is listening means "I'm done" — send immediately
+// rather than waiting out the silence timer. With nothing captured, just stop.
+D.mic.addEventListener('click',()=>{
+  unlockAudio();
+  if(S.listening||_dictActive){
+    if(_dictActive&&_dictText()) _dictSubmit();
+    else stopListen();
+  } else startListen();
+});
 
 // AUTO-LISTEN COUNTDOWN (5 seconds after ARIA responds)
 let _autoListenT=null,_autoListenStart=0;
@@ -3093,8 +3190,12 @@ window.addEventListener('resize', () => {
     if (oi) { oi.textContent = 'mic'; oi.style.color = '#ffd700'; }
     if (or2) or2.style.opacity = '1';
     var secs = 10; _uiShow(secs);
+    // Drive the countdown from _waitDeadline rather than a fixed tick count:
+    // _wakeArm() pushes that deadline out while the user is still speaking, so
+    // a long command no longer gets guillotined at exactly 10 seconds.
     _waitCountT = setInterval(function() {
-      secs--; _uiUpdate(secs);
+      secs = Math.ceil((_waitDeadline - Date.now()) / 1000);
+      _uiUpdate(secs);
       if (secs <= 0) {
         clearInterval(_waitCountT); _waitCountT = null;
         _waitingForCmd = false; _uiHide();
@@ -3107,6 +3208,7 @@ window.addEventListener('resize', () => {
   }
   function stopWaitingForCommand() {
     _waitingForCmd = false;
+    _wakeReset();   // drop any half-captured command (no-op on the normal send path)
     if (_waitCountT) { clearInterval(_waitCountT); _waitCountT = null; }
     _uiHide();
     var lt = document.getElementById('liveTxt');
@@ -3122,6 +3224,33 @@ window.addEventListener('resize', () => {
     var inp = document.getElementById('inp');
     if (inp) { inp.value = cmd; if (typeof autoResize === 'function') autoResize(); }
     setTimeout(function() { if (typeof sendMsg === 'function') sendMsg(); }, 120);
+  }
+
+  // The wake path had the same premature-submit bug as the manual mic: it fired
+  // on the FIRST final result, so "Hey ARIA, show me..." <pause> "...my important
+  // emails" was sent as just the first fragment. Accumulate instead, and only
+  // send after real silence.
+  var _wakeBuf = '', _wakeSendT = null;
+  var WAKE_SILENCE_MS = (typeof DICT_SILENCE_MS !== 'undefined') ? DICT_SILENCE_MS : 2500;
+
+  function _wakeArm() {
+    if (_wakeSendT) clearTimeout(_wakeSendT);
+    _waitDeadline = Date.now() + 10000;   // don't let the window expire mid-sentence
+    _wakeSendT = setTimeout(function () {
+      _wakeSendT = null;
+      var out = _wakeBuf.replace(/\s+/g, ' ').trim();
+      _wakeBuf = '';
+      stopWaitingForCommand();
+      if (out) sendCmd(out);
+    }, WAKE_SILENCE_MS);
+  }
+  function _wakeQueue(text) {
+    if (text) _wakeBuf += (_wakeBuf ? ' ' : '') + text;
+    _wakeArm();
+  }
+  function _wakeReset() {
+    if (_wakeSendT) { clearTimeout(_wakeSendT); _wakeSendT = null; }
+    _wakeBuf = '';
   }
 
   // ── Single recognizer: wake detection AND command capture in ONE SR ──
@@ -3144,7 +3273,9 @@ window.addEventListener('resize', () => {
         if (!res) return;
         var t0 = (res[0] && res[0].transcript || '').trim();
         if (wakeBtn && t0) { wakeBtn.title = (res.isFinal ? '✓ "' : '… "') + t0 + '"'; }
-        if (!res.isFinal) return; // only act on final results
+        // Interim speech while the command window is open means the user is
+        // still talking — push the silence deadline out so they aren't cut off.
+        if (!res.isFinal) { if (_waitingForCmd && t0) _wakeArm(); return; }
         if (!t0) return;
         console.log('[wake] final:', JSON.stringify(t0), 'waiting:', _waitingForCmd);
 
@@ -3163,14 +3294,17 @@ window.addEventListener('resize', () => {
           if (bgCooldown) return;
           bgCooldown = true;
           setTimeout(function() { bgCooldown = false; }, 3000);
+          if (typeof unlockAudio === 'function') unlockAudio();
           if (wakeCmd) {
-            stopWaitingForCommand();
-            if (typeof unlockAudio === 'function') unlockAudio();
-            sendCmd(wakeCmd);
+            // Wake word AND command in one breath — buffer it, because they may
+            // still be mid-sentence ("Aria, show me..." <pause> "...my emails").
+            _waitingForCmd = true;
+            _wakeQueue(wakeCmd);
           } else {
-            if (typeof unlockAudio === 'function') unlockAudio();
             playBeep();
+            _wakeReset();
             startWaitingForCommand();
+            _wakeArm();
           }
           return;
         }
@@ -3178,8 +3312,7 @@ window.addEventListener('resize', () => {
         // Not a wake phrase — if the command window is open, this IS the command
         if (_waitingForCmd && Date.now() < _waitDeadline) {
           if (BARE_WAKE_RE.test(t0)) return; // ignore accidental bare "aria" echo
-          stopWaitingForCommand();
-          sendCmd(t0);
+          _wakeQueue(t0);
         }
       };
 
