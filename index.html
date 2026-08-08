@@ -330,7 +330,7 @@ body.right-collapsed #edgeTabRight{display:flex;}
     <a href="#" onclick="openModal('about');return false;" style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:0.2em;color:rgba(100,116,139,0.8);text-decoration:none;">Protocol</a>
     <div style="flex:1;"></div>
     <span id="convLabel" style="font-size:10px;color:rgba(255,255,255,0.2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:200px;">New Conversation</span>
-    <button id="stopBtn" style="display:none;" onclick="stopSpeaking();if(window.S&&window.S.listening&&typeof stopListen==='function')stopListen();if(typeof window._ariaWakePause==='function')window._ariaWakePause();">
+    <button id="stopBtn" style="display:none;" onclick="window.ariaStopAll&&window.ariaStopAll()">
       <span class="material-symbols-outlined" style="font-size:13px;">stop</span> Stop
     </button>
     <button id="rightToggle" title="Hide / show controls panel" style="display:flex;width:34px;height:32px;align-items:center;justify-content:center;cursor:pointer;transition:all 0.15s;"><span id="rightToggleIcon" class="material-symbols-outlined" style="font-size:20px;">chevron_right</span></button>
@@ -403,7 +403,7 @@ body.right-collapsed #edgeTabRight{display:flex;}
         <span class="material-symbols-outlined ms-icon" style="font-size:20px;color:#007BFF;font-variation-settings:'FILL' 1;">mic</span>
       </button>
       <!-- Inline stop button — visible only when ARIA is speaking or listening -->
-      <button id="inlineStopBtn" onclick="(function(){if(window.S&&window.S.listening&&typeof stopListen==='function')stopListen();if(typeof stopSpeaking==='function')stopSpeaking();})()" title="Stop" style="display:none;width:34px;height:34px;border-radius:50%;flex-shrink:0;align-items:center;justify-content:center;background:rgba(245,101,101,0.12);border:1px solid rgba(245,101,101,0.35);cursor:pointer;transition:all 0.2s;">
+      <button id="inlineStopBtn" onclick="window.ariaStopAll&&window.ariaStopAll()" title="Stop" style="display:none;width:34px;height:34px;border-radius:50%;flex-shrink:0;align-items:center;justify-content:center;background:rgba(245,101,101,0.12);border:1px solid rgba(245,101,101,0.35);cursor:pointer;transition:all 0.2s;">
         <span class="material-symbols-outlined" style="font-size:18px;color:#fc8181;font-variation-settings:'FILL' 1;">stop</span>
       </button>
       <div id="viz"></div>
@@ -566,6 +566,14 @@ body.right-collapsed #edgeTabRight{display:flex;}
 
 <script>
 const W='https://ariaproxy.nihharksonee.workers.dev';
+// iPadOS 13+ Safari reports a DESKTOP "Macintosh" UA, so /iPhone|iPad|iPod/
+// misses every iPad: TTS took the non-iOS path (silent, autoplay-blocked) and
+// the mic took the desktop getUserMedia branch. Real Macs report
+// maxTouchPoints === 0, so the touch-point test cleanly separates them.
+const IS_IOS = /iPhone|iPad|iPod/i.test(navigator.userAgent) ||
+               (/Macintosh/i.test(navigator.userAgent) && (navigator.maxTouchPoints || 0) > 1);
+const IS_MOBILE = IS_IOS || /Android/i.test(navigator.userAgent);
+window.IS_IOS = IS_IOS; window.IS_MOBILE = IS_MOBILE;
 // ElevenLabs runs server-side through the Cloudflare Worker — no key in the browser.
 const ELEVEN_VOICE='EXAVITQu4vr4xnSDxMaL'; // Bella (default)
 const ELEVEN_VOICES=[
@@ -596,6 +604,13 @@ const APPS={
 
 // STATE
 const S={msgs:[],listening:false,autoListening:false,persona:'general',msgN:0,audio:null,lastText:'',convId:null,convTitle:''};
+// A top-level `const` lives in the global LEXICAL environment, NOT on `window`.
+// Inline onclick= attributes and the later <script> blocks all reference
+// `window.S`, so without this alias every `window.S && window.S.listening`
+// guard silently evaluated to false: both Stop buttons never stopped the mic,
+// and the wake recognizer was free to start while the manual one was running
+// (Chrome allows only ONE SpeechRecognition per tab, so they abort each other).
+window.S=S;
 
 // CONFIG
 // CONFIG
@@ -1036,11 +1051,15 @@ async function fallbackSpeak(txt, _voiceRetry) {
   synth.cancel();
   if(S.audio){S.audio.pause();S.audio=null;}
 
-  const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
+  const isIOS = IS_IOS;
 
   // Route ElevenLabs through the Cloudflare Worker so the xi-api-key never
   // ships to the browser. Worker endpoint: POST /tts with {text, voice_id}.
-  {
+  // Only the FIRST entry hits the network. The retries below re-enter this
+  // function from the top; without this guard each one fired another /tts POST,
+  // so an empty browser voice list (normal on Android Chrome until the TTS
+  // engine loads) turned into an unbounded request loop against the Worker.
+  if (!_voiceRetry) {
     const voiceId = C.voice || ELEVEN_VOICE;
     const body = JSON.stringify({
       text: txt.slice(0,2500),
@@ -1115,7 +1134,16 @@ async function fallbackSpeak(txt, _voiceRetry) {
   // Browser TTS fallback
   let voices = synth.getVoices();
   if (!voices.length) voices = bVoices;
-  if (!voices.length) { setTimeout(() => fallbackSpeak(txt, 0), 400); return; }
+  // Bounded: previously this recursed forever with _voiceRetry pinned at 0.
+  if (!voices.length) {
+    if ((_voiceRetry || 0) >= 8) {
+      console.warn('No browser TTS voices after 8 attempts — giving up');
+      _onTTSEnd();   // release the UI instead of leaving the mic gated forever
+      return;
+    }
+    setTimeout(() => fallbackSpeak(txt, (_voiceRetry || 0) + 1), 400);
+    return;
+  }
   const storedName = C.voice;
   const BAD = /david|mark|richard|george|james|ravi|jorge|neerja|veena|lekha|heera|hemant|kalpana|aditi|mohan|deepa/i;
   let best = storedName ? voices.find(v => v.name === storedName) : null;
@@ -1257,6 +1285,7 @@ function buildRec(){
     D.inp.placeholder='Listening...';
   };
   rec.onresult=e=>{
+    if(e.target&&e.target!==rec) return;   // event from a superseded recognizer
     // TTS echo guard 1: block while TTS is actively playing
     if(window.speechSynthesis&&window.speechSynthesis.speaking) return;
     if(S.audio&&!S.audio.paused&&!S.audio.ended) return;
@@ -1371,7 +1400,7 @@ function buildRec(){
 
 async function startListen(){
   if(!SR){
-    addMsg('assistant','Voice input requires Chrome on desktop or Safari on iPhone. Please open ARIA in one of those browsers.',true);
+    addMsg('assistant','Voice input requires Chrome on desktop, or Safari on iPhone or iPad. Please open ARIA in one of those browsers.',true);
     return;
   }
   if(location.protocol!=='https:'&&location.hostname!=='localhost'){
@@ -1396,14 +1425,22 @@ async function startListen(){
   if(rec){ rec.onresult=null; rec.onend=null; rec.onerror=null; try{rec.stop();}catch(e){} }
   buildRec();
 
-  const isMobile=/iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+  const isMobile = IS_MOBILE;
 
   if(!isMobile){
     // Desktop: explicitly request mic permission first for better UX
     try{
-      await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true,noiseSuppression:true,autoGainControl:true}});
+      // Stop the probe tracks — leaving them open held the mic for the life of
+      // the tab and fought the recognizer for the device.
+      const _probe = await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true,noiseSuppression:true,autoGainControl:true}});
+      _probe.getTracks().forEach(t=>t.stop());
     }catch(err){
       S.listening=false; setMode('ready');
+      // No manual session actually started, so release the wake watchdog.
+      // _ariaWakePause() has already killed bgRec; leaving this flag set means
+      // nothing can ever revive it and "Hey ARIA" dies until a page reload,
+      // while the button still cheerfully reads "ON".
+      window._ariaManualActive=false;
       addMsg('assistant','🎤 Microphone blocked. Click the 🔒 lock icon in your address bar → Site settings → Microphone → Allow → refresh the page.',true);
       return;
     }
@@ -1414,16 +1451,42 @@ async function startListen(){
   }catch(e){
     if(e.name==='InvalidStateError'){
       buildRec();
-      setTimeout(()=>{try{rec.start();}catch(e2){S.listening=false;setMode('ready');}},350);
+      // Only release the flag if the retry ALSO fails — on success the session
+      // is live and the watchdog must stay away.
+      setTimeout(()=>{try{rec.start();}catch(e2){S.listening=false;setMode('ready');window._ariaManualActive=false;}},350);
     } else {
-      S.listening=false; setMode('ready');
+      S.listening=false; setMode('ready'); window._ariaManualActive=false;
     }
   }
 }
 
 // Clears dictation state first, otherwise rec.stop() fires onend, onend sees an
 // open dictation and helpfully restarts the recognizer we just asked to stop.
-function stopListen(){_dictCancel();clearAutoListenTimer();S.listening=false;setMode('ready');try{rec?.stop();}catch(e){}D.inp.placeholder='Command ARIA...';setTimeout(()=>{window._ariaManualActive=false;},800);}
+function stopListen(){
+  _dictCancel(); clearAutoListenTimer();
+  S.listening=false; setMode('ready');
+  // Detach handlers BEFORE killing the recognizer, and abort() rather than
+  // stop(): stop() still delivers a trailing final result for audio already
+  // buffered, and onresult has no listening guard — that late event would set
+  // _dictActive=true, refill the textarea and re-arm _dictSubmit, sending the
+  // very command the user just cancelled. abort() discards the buffer.
+  if(rec){ rec.onstart=null; rec.onresult=null; rec.onend=null; rec.onerror=null; try{rec.abort();}catch(e){} }
+  // onend used to do this cleanup; it is detached now, so do it here.
+  const lb=document.getElementById('liveBar'),oi=document.getElementById('orbIcon'),or2=document.getElementById('orbRing');
+  if(lb){lb.style.display='none';} if(oi){oi.textContent='psychology';} if(or2){or2.style.opacity='0';}
+  D.inp.placeholder='Command ARIA...';
+  setTimeout(()=>{window._ariaManualActive=false;},800);
+}
+
+// Single entry point for both Stop buttons. Declared here so it closes over the
+// real S / stopListen bindings rather than relying on the window alias, and so
+// stopListen() runs FIRST — it calls _dictCancel(), which clears _dictActive so
+// rec.onend cannot resurrect the recognizer we just asked to stop.
+window.ariaStopAll=function(){
+  if(S.listening||_dictActive) stopListen();
+  if(typeof stopSpeaking==='function') stopSpeaking();
+  if(typeof window._ariaWakePause==='function'){ try{ window._ariaWakePause(); }catch(e){} }
+};
 
 // Tapping the mic while it is listening means "I'm done" — send immediately
 // rather than waiting out the silence timer. With nothing captured, just stop.
@@ -1880,7 +1943,7 @@ async function sendMsg(){
   // iOS: speechSynthesis.speak() only works when called inside a user-gesture context.
   // Pre-warm TTS here (we ARE in a gesture context — button click / mic result)
   // so the async speak() call after fetch resolves will go through.
-  if (/iPhone|iPad|iPod/i.test(navigator.userAgent)) {
+  if (IS_IOS) {
     try {
       synth.cancel();
       const prm = new SpeechSynthesisUtterance(' ');
@@ -3507,7 +3570,7 @@ window.addEventListener('load', function(){
       else setTimeout(function(){ if(window.S) window.S._unlockedAudio = a; }, 500);
     } catch(e){}
     // 4. Re-speak welcome on iOS (original call fired before any touch)
-    if (/iPhone|iPad|iPod/i.test(navigator.userAgent)) {
+    if (IS_IOS) {
       setTimeout(function(){
         window._ariaSkipNextAutoListen = true;
         if(typeof speak==='function') speak("Hello. I'm ARIA. How can I help you today?");
