@@ -2125,6 +2125,13 @@ window.addEventListener('message', (event) => {
       return;
     }
 
+    // A real integration just connected — LEAVE demo mode, or callWorker() will
+    // keep short-circuiting every email request with sample data and the user
+    // never sees their real inbox. exitDemo() runs FIRST (while gmail is still
+    // the demo entry) so its `if(C.apps.gmail?.demo) delApp` clears the fixture
+    // rather than the real tokens we save next.
+    if (isDemo()) { exitDemo(); syncDemoBtn(); }
+
     // Save to BOTH storages so it survives page reloads
     C.saveApp(app, {
       connected:     true,
@@ -2133,7 +2140,7 @@ window.addEventListener('message', (event) => {
       refresh_token: refresh_token || '',
     });
     syncApps();
-    const m = `${APPS[app]?.name || app} connected${email ? ' as ' + email : ''}! You can now use voice commands.`;
+    const m = `${APPS[app]?.name || app} connected${email ? ' as ' + email : ''}! Demo mode is off — you're now on your real ${APPS[app]?.name || app}.`;
     addMsg('assistant', m);
     speak(m);
   }
@@ -2243,10 +2250,11 @@ function checkAppStatus(name){
     .then(d=>{
       console.log('Status response:', JSON.stringify(d));
       if(d.connected){
+        if(isDemo()){ exitDemo(); syncDemoBtn(); }   // leave demo — see message handler
         const _ex=C.apps[name]||{};
         C.saveApp(name,{connected:true,email:d.email||_ex.email||'',access_token:d.access_token||_ex.access_token||'',refresh_token:d.refresh_token||_ex.refresh_token||''});
         syncApps();
-        const m=`${APPS[name]?.name} connected${d.email?' as '+d.email:''}! You can now use voice commands.`;
+        const m=`${APPS[name]?.name} connected${d.email?' as '+d.email:''}! Demo mode is off — you're now on your real inbox.`;
         addMsg('assistant',m);speak(m);
       } else {
         console.warn('Not connected. Debug info:', d);
